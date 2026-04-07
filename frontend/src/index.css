@@ -1,0 +1,244 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap');
+@import "tailwindcss";
+
+/* ────────────────────────────────────────────────────────────
+   AURA PREMIUM DESIGN SYSTEM  ·  Champagne Gold & Matte Brass
+   ──────────────────────────────────────────────────────────── */
+
+/* SVG noise filter — applied as background-image on glass panels */
+:root {
+  --noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  --champagne:          #E3C598;
+  --brass:              #D4AF37;
+  --platinum:           #F8F9FA;
+  --platinum-dim:       rgba(248,249,250,0.40);
+  --platinum-muted:     rgba(248,249,250,0.22);
+  --border-hair:        rgba(227,197,152,0.08); /* slight gold tint */
+  --border-active:      rgba(227,197,152,0.18);
+  --obsidian:           #08100D;
+  --card-bg: rgba(255, 255, 255, 0.05);          /* 5% white — background bleeds through */
+  --card-bg-heavy: rgba(255, 255, 255, 0.08);
+}
+
+@layer base {
+  body {
+    color: var(--platinum-dim);
+    font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: #0D0A05; /* deep warm dark — fallback if image fails */
+  }
+
+  h1, h2, h3, .font-headline {
+    color: var(--platinum); /* striking, bright headers */
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  }
+
+  * { scroll-behavior: smooth; }
+
+  /* Brass scrollbar */
+  ::-webkit-scrollbar { width: 3px; height: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(214,183,141,0.2);
+    border-radius: 100px;
+  }
+}
+
+@layer utilities {
+  /* ─── Sidebar / Topbar glass ─── */
+  .glass {
+    background: rgba(10,7,3,0.52);         /* dark warm-tinted semi-transparent */
+    backdrop-filter: blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    border: 1px solid rgba(227,197,152,0.14);
+  }
+
+  /* ─── Cards — heavy frosted glass with warm glow ─── */
+  .glass-card {
+    position: relative;
+    background: rgba(255,255,255,0.09);    /* 9% white — warm bg bleeds through nicely */
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid rgba(255,220,160,0.18);
+    box-shadow:
+      0 8px 32px rgba(0,0,0,0.55),
+      0 2px 8px rgba(0,0,0,0.35),
+      inset 0 1px 0 rgba(255,220,140,0.12),  /* warm champagne top-edge glow */
+      inset 0 -1px 0 rgba(0,0,0,0.25);
+    overflow: hidden;
+  }
+
+  /* Noise grain pseudo-texture on every glass-card */
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--noise);
+    background-size: 180px 180px;
+    opacity: 0.028;
+    pointer-events: none;
+    border-radius: inherit;
+    z-index: 0;
+  }
+
+  /* Children sit above the grain */
+  .glass-card > * { position: relative; z-index: 1; }
+
+  /* ─── Hover lift — champagne brass shimmer border ─── */
+  .glass-card-lift {
+    transition: transform 0.38s cubic-bezier(0.4,0,0.2,1),
+                box-shadow   0.38s cubic-bezier(0.4,0,0.2,1),
+                border-color 0.28s ease;
+  }
+  .glass-card-lift:hover {
+    transform: translateY(-5px);
+    border-color: rgba(227,197,152,0.32);
+    box-shadow:
+      0 40px 80px rgba(0,0,0,0.60),
+      0 0 0 1px rgba(227,197,152,0.14),
+      0 0 40px rgba(227,180,80,0.12),
+      inset 0 1px 0 rgba(227,197,152,0.18);
+  }
+
+  /* ─── Active state: soft radial champagne glow ─── */
+  /* Replaced the bright stark white glow with the wide soft glow */
+  .champagne-glow {
+    box-shadow: 0 0 45px -5px rgba(227,197,152,0.25);
+  }
+  .champagne-glow-sm {
+    box-shadow: 0 0 25px -4px rgba(227,197,152,0.20);
+  }
+
+  /* Keep legacy aliases to avoid breaking inline classes */
+  .platinum-glow { box-shadow: 0 0 45px -5px rgba(227,197,152,0.25); }
+  .platinum-glow-sm { box-shadow: 0 0 25px -4px rgba(227,197,152,0.20); }
+  .champagne-glow    { box-shadow: 0 0 45px -5px rgba(227,197,152,0.25); }
+  .champagne-glow-sm { box-shadow: 0 0 25px -4px rgba(227,197,152,0.20); }
+
+  /* ─── Scrollbar hide ─── */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
+  /* ─── Pulse — warm, rich ─── */
+  @keyframes warm-pulse {
+    0%, 100% { opacity: 0.65; }
+    50% { opacity: 1; }
+  }
+  .warm-pulse { animation: warm-pulse 2.5s ease-in-out infinite; }
+
+  /* Active state pulse for dots/badges */
+  @keyframes platinum-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(227,197,152,0.30); }
+    50%       { box-shadow: 0 0 0 6px rgba(227,197,152,0.00); }
+  }
+  .platinum-pulse { animation: platinum-pulse 2s ease-out infinite; }
+
+  @keyframes gentle-float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-4px); }
+  }
+  .gentle-float { animation: gentle-float 4s ease-in-out infinite; }
+
+  /* Subtle orb drift */
+  @keyframes lamp-glow {
+    0%, 100% { opacity: 0.45; transform: scale(1); }
+    50%       { opacity: 0.72; transform: scale(1.06); }
+  }
+  .lamp-glow { animation: lamp-glow 4s ease-in-out infinite; }
+
+  /* Platinum shimmer sweep */
+  @keyframes shimmer-sweep {
+    0%   { transform: translateX(-100%) skewX(-12deg); }
+    100% { transform: translateX(300%)  skewX(-12deg); }
+  }
+  .shimmer-sweep {
+    animation: shimmer-sweep 4s ease-in-out infinite;
+    animation-delay: 2s;
+  }
+
+  /* Status blink — cool white */
+  @keyframes status-blink {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(200,210,230,0.65); }
+    50%       { box-shadow: 0 0 0 5px rgba(200,210,230,0.00); }
+  }
+  .status-blink { animation: status-blink 2s ease-out infinite; }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  @keyframes room-enter {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .room-section {
+    animation: room-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .room-section:nth-child(1) { animation-delay: 0ms;   }
+  .room-section:nth-child(2) { animation-delay: 60ms;  }
+  .room-section:nth-child(3) { animation-delay: 120ms; }
+  .room-section:nth-child(4) { animation-delay: 180ms; }
+  .room-section:nth-child(5) { animation-delay: 240ms; }
+  .room-section:nth-child(6) { animation-delay: 300ms; }
+
+  @keyframes pill-shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+
+  /* Camera scan-line */
+  @keyframes scan-line {
+    0%   { top: 0%;   opacity: 0.5; }
+    50%  { opacity: 0.9; }
+    100% { top: 100%; opacity: 0.5; }
+  }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0);    }
+  }
+  .fade-up { animation: fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+  @keyframes slide-in-right {
+    from { transform: translateX(100%); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+}
+
+/* ── Light mode overrides (applied when .aura-light is on <html>) ── */
+html.aura-light body {
+  color: rgba(26,16,8,0.80);
+}
+
+html.aura-light .glass {
+  background: rgba(240,235,225,0.72);
+  border-color: rgba(180,140,80,0.15);
+}
+
+html.aura-light .glass-card {
+  background: rgba(255,255,255,0.55);
+  border-color: rgba(180,140,80,0.12);
+  box-shadow:
+    0 8px 32px rgba(100,70,20,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+html.aura-light .glass-card-lift:hover {
+  border-color: rgba(180,140,80,0.28);
+  box-shadow:
+    0 20px 50px rgba(100,70,20,0.18),
+    0 0 0 1px rgba(180,140,80,0.14),
+    inset 0 1px 0 rgba(255,255,255,0.95);
+}
+
+html.aura-light h1,
+html.aura-light h2,
+html.aura-light h3,
+html.aura-light .font-headline {
+  color: #1a1008;
+}
