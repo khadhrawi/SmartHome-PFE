@@ -92,7 +92,7 @@ const DeviceCard = ({ device, onToggle }) => {
   return (
     <div
       onClick={onToggle}
-      className="group relative rounded-[2rem] p-6 flex flex-col gap-5 cursor-pointer transition-all duration-500 hover:-translate-y-2 border"
+      className="group relative flex cursor-pointer flex-col gap-5 rounded-[2rem] border p-6 transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:brightness-110 active:scale-[0.985]"
       style={{
         background: isOn
           ? `linear-gradient(135deg, ${accent}14 0%, rgba(255,255,255,0.06) 100%)`
@@ -119,7 +119,7 @@ const DeviceCard = ({ device, onToggle }) => {
       {/* Icon + Toggle */}
       <div className="flex items-start justify-between relative z-10">
         <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-400"
+          className="h-12 w-12 rounded-2xl flex items-center justify-center transition-all duration-300"
           style={{
             background: isOn ? accent : 'rgba(255,255,255,0.07)',
             border: isOn ? 'none' : '1px solid rgba(255,220,140,0.12)',
@@ -134,11 +134,11 @@ const DeviceCard = ({ device, onToggle }) => {
         <button
           onClick={e => { e.stopPropagation(); onToggle(); }}
           aria-label={`Toggle ${device.name}`}
-          className="relative flex-shrink-0 focus:outline-none"
+          className="relative flex-shrink-0 focus:outline-none transition-all duration-300 hover:scale-105 active:scale-95"
           style={{ width: 50, height: 26 }}
         >
           <div
-            className="absolute inset-0 rounded-full transition-all duration-400"
+            className="absolute inset-0 rounded-full transition-all duration-300"
             style={{
               background: isOn
                 ? `linear-gradient(135deg, ${accent}, ${accent}cc)`
@@ -147,7 +147,7 @@ const DeviceCard = ({ device, onToggle }) => {
             }}
           />
           <div
-            className="absolute top-[4px] w-[18px] h-[18px] rounded-full bg-white shadow-md transition-all duration-400"
+            className="absolute top-[4px] h-[18px] w-[18px] rounded-full bg-white shadow-md transition-all duration-300"
             style={{ left: isOn ? 28 : 4, boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }}
           />
         </button>

@@ -1,16 +1,69 @@
-import { useState, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Video, VideoOff, AlertTriangle, Shield, Camera,
   Radio, Download, X, Clock, ChevronRight,
   Eye, WifiOff,
 } from 'lucide-react';
 import { CAMERA_FEEDS, EVENT_CONFIG, MOTION_LOG } from '../data/security';
+import { useFloorPlanState } from '../hooks/useFloorPlanState';
+import { AuthContext } from '../context/AuthContext';
 
 const C = {
   text:   '#F8F9FA',
   muted:  'rgba(248,249,250,0.45)',
   dimmed: 'rgba(248,249,250,0.22)',
   gold:   '#E3C598',
+};
+
+const normalizeCameraName = (value) => String(value || '').trim().toLowerCase();
+
+const mergeCameraFeeds = ({ baseFeeds, deviceCameras, awayMode, lockdownMode }) => {
+  const byName = new Map(
+    (deviceCameras || []).map((device) => [normalizeCameraName(device.name), device]),
+  );
+
+  const merged = (baseFeeds || []).map((camera) => {
+    const direct = byName.get(normalizeCameraName(camera.location));
+
+    const roomMatch = (deviceCameras || []).find(
+      (device) => normalizeCameraName(device.room) === normalizeCameraName(camera.room),
+    );
+
+    const sourceDevice = direct || roomMatch;
+    const isArmed = awayMode || lockdownMode;
+
+    return {
+      ...camera,
+      sourceId: sourceDevice?._id || camera.id,
+      isLive: sourceDevice ? sourceDevice.state === 'ON' : camera.isLive,
+      motionDetected: isArmed ? camera.motionDetected : false,
+      stateLabel: lockdownMode ? 'LOCKDOWN' : awayMode ? 'AWAY MONITORING' : 'MONITORING',
+    };
+  });
+
+  const unmatchedDeviceCameras = (deviceCameras || [])
+    .filter((device) => {
+      const normalizedName = normalizeCameraName(device.name);
+      return !merged.some((camera) => normalizeCameraName(camera.location) === normalizedName);
+    })
+    .map((device, idx) => {
+      const fallback = baseFeeds[idx % baseFeeds.length] || baseFeeds[0];
+      return {
+        id: `device-${device._id}`,
+        sourceId: device._id,
+        location: device.name,
+        room: device.room || 'Unknown',
+        emoji: '📷',
+        isLive: device.state === 'ON',
+        motionDetected: awayMode || lockdownMode ? false : false,
+        stateLabel: lockdownMode ? 'LOCKDOWN' : awayMode ? 'AWAY MONITORING' : 'MONITORING',
+        accentColor: fallback?.accentColor || '#60a5fa',
+        recentEvents: [{ time: 'Now', event: 'Camera connected to floor plan state', type: 'system' }],
+        thumbnailGradient: fallback?.thumbnailGradient || 'linear-gradient(135deg, rgba(96,165,250,0.12) 0%, rgba(10,12,20,0.9) 100%)',
+      };
+    });
+
+  return [...merged, ...unmatchedDeviceCameras];
 };
 
 /* ══════════════════════════════════════════════════
@@ -317,13 +370,36 @@ function CameraCard({ cam, onClick }) {
    SECURITY PAGE
 ══════════════════════════════════════════════════ */
 const Security = () => {
-  const [cameras, setCameras] = useState(CAMERA_FEEDS);
+  const {
+    floorPlanState,
+    toggleAway,
+  } = useFloorPlanState();
+  const { user } = useContext(AuthContext);
+
   const [selectedCam, setSelectedCam] = useState(null);
-  const [isAwayMode, setIsAwayMode] = useState(false);
+
+  const isAwayMode = !!floorPlanState.awayMode;
+  const isLockdownMode = !!floorPlanState.lockdownMode;
+  const isAdmin = user?.role === 'admin';
+
+  const cameraDevices = useMemo(() => {
+    return (Array.isArray(floorPlanState.devices) ? floorPlanState.devices : []).filter((device) => {
+      return String(device?.type || '').toLowerCase() === 'camera';
+    });
+  }, [floorPlanState.devices]);
+
+  const cameras = useMemo(() => {
+    return mergeCameraFeeds({
+      baseFeeds: CAMERA_FEEDS,
+      deviceCameras: cameraDevices,
+      awayMode: isAwayMode,
+      lockdownMode: isLockdownMode,
+    });
+  }, [cameraDevices, isAwayMode, isLockdownMode]);
 
   const liveCount    = cameras.filter(c => c.isLive).length;
   const motionCount  = cameras.filter(c => c.motionDetected).length;
-  const isAlertState = isAwayMode && motionCount > 0;
+  const isAlertState = (isAwayMode || isLockdownMode) && motionCount > 0;
 
   return (
     <div className="space-y-10 pb-28" style={{ color: C.text }}>
@@ -340,19 +416,24 @@ const Security = () => {
           </p>
         </div>
 
-        {/* Away mode toggle */}
-        <button
-          onClick={() => setIsAwayMode(a => !a)}
-          className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all hover:scale-[1.02]"
-          style={{
-            background: isAwayMode ? 'rgba(248,113,113,0.15)' : 'rgba(96,165,250,0.12)',
-            border: `1px solid ${isAwayMode ? 'rgba(248,113,113,0.40)' : 'rgba(96,165,250,0.30)'}`,
-            color: isAwayMode ? '#f87171' : '#60a5fa',
-          }}
-        >
-          <Shield size={15} strokeWidth={2.5} />
-          {isAwayMode ? 'Away Mode ON' : 'Away Mode OFF'}
-        </button>
+        {isAdmin ? (
+          <button
+            onClick={() => toggleAway().catch(() => {})}
+            className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all hover:scale-[1.02]"
+            style={{
+              background: isAwayMode ? 'rgba(248,113,113,0.15)' : 'rgba(96,165,250,0.12)',
+              border: `1px solid ${isAwayMode ? 'rgba(248,113,113,0.40)' : 'rgba(96,165,250,0.30)'}`,
+              color: isAwayMode ? '#f87171' : '#60a5fa',
+            }}
+          >
+            <Shield size={15} strokeWidth={2.5} />
+            {isAwayMode ? 'Away Mode ON' : 'Away Mode OFF'}
+          </button>
+        ) : (
+          <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-bold text-zinc-200">
+            View only
+          </div>
+        )}
       </div>
 
       {/* ── Alert banner (Away + Motion) ── */}
@@ -373,7 +454,7 @@ const Security = () => {
             </div>
             <div>
               <p className="text-sm font-black" style={{ color: '#fca5a5' }}>
-                ⚠️ Motion Detected — Away Mode Active
+                ⚠️ Motion Detected — Security Mode Active
               </p>
               <p className="text-[11px] font-medium mt-0.5" style={{ color: 'rgba(252,165,165,0.65)' }}>
                 {motionCount} camera{motionCount > 1 ? 's' : ''} triggered · {new Date().toLocaleTimeString()}

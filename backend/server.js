@@ -1,8 +1,10 @@
 require('dotenv').config();
+console.log("JWT Secret Check:", process.env.JWT_SECRET);
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
+const { initNotificationsServer } = require('./realtime/notifications');
 
 // MQTT Broker
 const { aedes, mqttServer } = require('./broker');
@@ -11,7 +13,10 @@ const ws = require('ws');
 // Import Routes
 const authRoutes = require('./routes/auth');
 const deviceRoutes = require('./routes/devices');
+const floorPlanRoutes = require('./routes/floorplan');
 const scenarioRoutes = require('./routes/scenarios');
+const permissionRoutes = require('./routes/permissions');
+const usersRoutes = require('./routes/users');
 
 const app = express();
 
@@ -22,10 +27,14 @@ app.use(express.json());
 // Load API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/devices', deviceRoutes);
+app.use('/api/floorplan', floorPlanRoutes);
 app.use('/api/scenarios', scenarioRoutes);
+app.use('/api/permissions', permissionRoutes);
+app.use('/api/users', usersRoutes);
 
 // Create HTTP server for Express and WebSockets
 const httpServer = http.createServer(app);
+initNotificationsServer(httpServer);
 
 // Setup MQTT WebSockets over the HTTP server on a specific path /mqtt
 const wss = new ws.Server({ server: httpServer, path: '/mqtt' });
@@ -41,7 +50,7 @@ const PORT = process.env.PORT || 5000;
 const MQTT_PORT = process.env.MQTT_PORT || 1883;
 
 mongoose
-  .connect(process.env.MONGODB_URI)
+  .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/SmartHome")
   .then(() => {
     console.log('MongoDB Connected successfully');
 

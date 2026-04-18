@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   User, Mail, Shield, Bell, Moon, LogOut,
   ChevronRight, X, Lock, Eye, EyeOff,
-  Camera, Settings, Check, AlertTriangle,
+  Camera, Settings, Check, AlertTriangle, Copy,
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -372,8 +372,10 @@ const Profile = () => {
     name:  user?.name  ?? 'Farah',
     email: user?.email ?? 'imenkhadhrawi9@gmail.com',
     phone: user?.phone ?? '',
-    role:  'Admin',
+    role:  user?.role === 'admin' ? 'Admin' : 'House Resident',
+    houseCode: user?.houseCode ?? '',
   });
+  const [houseCodeCopied, setHouseCodeCopied] = useState(false);
 
   /* ── Modal state ── */
   const [modal, setModal] = useState(null); // null | 'personal' | 'privacy' | 'logout'
@@ -388,13 +390,26 @@ const Profile = () => {
   /* Clear session then hard-redirect to login */
   const handleLogout = () => {
     logout();
-    navigate('/login', { replace: true });
+    navigate('/auth/choose', { replace: true });
   };
 
   /* Preference change handler — toggleNotifications already fires a toast */
   const handlePreferenceChange = (type) => {
     if (type === 'notifications') toggleNotifications();
     if (type === 'darkMode')       toggleDarkMode();
+  };
+
+  const handleCopyHouseCode = async () => {
+    if (!userProfile.houseCode) return;
+
+    try {
+      await navigator.clipboard.writeText(userProfile.houseCode);
+      setHouseCodeCopied(true);
+      pushToast('House code copied', C.gold);
+      window.setTimeout(() => setHouseCodeCopied(false), 1500);
+    } catch {
+      pushToast('Unable to copy house code', '#f87171');
+    }
   };
 
   const initials = userProfile.name
@@ -503,6 +518,45 @@ const Profile = () => {
               }}>
                 {userProfile.role}
               </span>
+
+              {user?.role === 'admin' && userProfile.houseCode ? (
+                <div style={{
+                  marginTop: 14,
+                  width: '100%',
+                  borderRadius: 14,
+                  padding: '10px 12px',
+                  background: 'rgba(227,197,152,0.08)',
+                  border: '1px solid rgba(227,197,152,0.25)',
+                }}>
+                  <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.dimmed }}>
+                    Your House Code
+                  </span>
+                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '0.14em', color: C.gold }}>
+                      {userProfile.houseCode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyHouseCode}
+                      style={{
+                        border: '1px solid rgba(227,197,152,0.28)',
+                        background: 'rgba(227,197,152,0.12)',
+                        color: C.gold,
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        padding: '6px 8px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      aria-label="Copy house code"
+                      title={houseCodeCopied ? 'Copied' : 'Copy house code'}
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {/* Log Out */}
@@ -578,6 +632,17 @@ const Profile = () => {
                 onClick={() => pushToast('System preferences coming soon', '#a78bfa')}
               />
             </Section>
+
+            {user?.role === 'admin' ? (
+              <Section title="Admin Controls">
+                <SettingRow
+                  icon={Shield}
+                  label="Manage Users"
+                  subtitle="Advanced crew control panel"
+                  onClick={() => navigate('/users')}
+                />
+              </Section>
+            ) : null}
 
             {/* Quick stats */}
             <div style={{

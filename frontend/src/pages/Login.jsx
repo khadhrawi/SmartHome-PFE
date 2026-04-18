@@ -1,427 +1,151 @@
-import { useState, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useContext, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Home, Lock, User, Loader2 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
-import { User, Lock, Loader2, Wifi, Shield, Thermometer, Home, Zap } from 'lucide-react';
+import PublicMotionShell from '../components/PublicMotionShell';
 
-/* ─────────── Floating ambient particle ─────────── */
-const AmbientDot = ({ style }) => (
-  <div className="absolute rounded-full pointer-events-none" style={{
-    background: 'radial-gradient(circle, rgba(227,197,152,0.6) 0%, transparent 70%)',
-    animation: `softFloat ${5 + Math.random() * 5}s ease-in-out infinite`,
-    ...style
-  }} />
-);
+const sequence = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1, delayChildren: 0.12 },
+  },
+};
+
+const item = {
+  hidden: { opacity: 0, y: 16, scale: 0.985 },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.52, ease: [0.22, 1, 0.36, 1] },
+  },
+};
+
+const fieldMotion = {
+  whileHover: { scale: 1.01, borderColor: 'rgba(251,191,36,0.5)' },
+  whileTap: { scale: 0.996 },
+};
 
 const Login = () => {
-  const [email,     setEmail]     = useState('');
-  const [password,  setPassword]  = useState('');
-  const [error,     setError]     = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login }  = useContext(AuthContext);
-  const navigate   = useNavigate();
+  const { login } = useContext(AuthContext);
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError('');
     setIsLoading(true);
+
     const res = await login(email, password);
+
     setIsLoading(false);
-    if (res.success) navigate('/dashboard');
-    else setError(res.error);
+    if (res.success) {
+      navigate('/dashboard');
+      return;
+    }
+
+    setError(res.error);
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-between relative overflow-hidden select-none"
-      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <PublicMotionShell showNavbar={false}>
+      <main className="flex min-h-screen items-center justify-center px-6 py-10">
+        <motion.section
+          className="w-full max-w-md rounded-3xl border border-white/15 bg-white/[0.07] p-8 shadow-[0_35px_120px_rgba(0,0,0,0.52)] backdrop-blur-xl"
+          variants={sequence}
+          initial="hidden"
+          animate="show"
+        >
+          <motion.button
+            type="button"
+            onClick={() => navigate('/about')}
+            className="mx-auto mb-5 flex h-16 w-16 cursor-pointer items-center justify-center rounded-2xl border border-amber-200/35 bg-amber-100/10 text-amber-100 shadow-[0_0_28px_rgba(251,191,36,0.24)]"
+            variants={item}
+            whileHover={{ scale: 1.08, filter: 'brightness(1.12)' }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Home size={30} strokeWidth={2.2} />
+          </motion.button>
 
-      {/* ══════════════════════════════════════════
-          KEYFRAMES
-      ══════════════════════════════════════════ */}
-      <style>{`
-        @keyframes softFloat {
-          0%,100% { transform: translateY(0px) scale(1);   opacity:0.4; }
-          50%      { transform: translateY(-22px) scale(1.1); opacity:0.8; }
-        }
-        @keyframes twinkle {
-          0%,100% { opacity:0.15; } 55% { opacity:0.85; }
-        }
-        @keyframes windowFlicker {
-          0%,100% { opacity:0.75; } 60% { opacity:1; }
-        }
-        @keyframes moonGlow {
-          0%,100% { box-shadow: 0 0 40px rgba(255,240,200,0.25), 0 0 100px rgba(255,220,150,0.1); }
-          50%      { box-shadow: 0 0 60px rgba(255,240,200,0.45), 0 0 130px rgba(255,220,150,0.2); }
-        }
-        @keyframes wifiRing {
-          0%   { transform: scale(0.6); opacity: 0.8; }
-          100% { transform: scale(2);   opacity: 0; }
-        }
-        @keyframes houseFloat {
-          0%,100% { transform: translateY(0px); }
-          50%      { transform: translateY(-10px); }
-        }
-        @keyframes groundGlow {
-          0%,100% { opacity:0.5; } 50% { opacity:0.9; }
-        }
-        @keyframes particleIcon {
-          0%,100% { transform: translateY(0)   rotate(0deg);   opacity:0.2; }
-          50%      { transform: translateY(-14px) rotate(8deg); opacity:0.45; }
-        }
-        .warm-input {
-          background: rgba(255,248,235,0.06) !important;
-          border: 1px solid rgba(227,197,152,0.22) !important;
-          color: #F8F9FA !important;
-          transition: border-color 0.3s, box-shadow 0.3s;
-          outline: none;
-        }
-        .warm-input::placeholder { color: rgba(240,220,160,0.35); }
-        .warm-input:focus {
-          border-color: rgba(227,197,152,0.65) !important;
-          box-shadow: 0 0 0 3px rgba(227,197,152,0.12), 0 0 20px rgba(227,197,152,0.15) !important;
-        }
-      `}</style>
+          <motion.h1 className="text-center text-4xl font-extrabold tracking-tight text-white" variants={item}>
+            Smart Home
+          </motion.h1>
 
-      {/* ══════════════════════════════════════════
-          LAYERED WARM BACKGROUND
-      ══════════════════════════════════════════ */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        {/* Base warm dark gradient — NOT pure black */}
-        <div className="absolute inset-0" style={{
-          background: 'linear-gradient(160deg, #1a1208 0%, #120e06 25%, #0d0b07 50%, #100c05 75%, #1c1409 100%)'
-        }} />
-        {/* Warm radial glow — centre warmth */}
-        <div className="absolute inset-0" style={{
-          background: 'radial-gradient(ellipse at 50% 55%, rgba(180,110,20,0.22) 0%, rgba(140,80,10,0.08) 40%, transparent 70%)'
-        }} />
-        {/* Upper cool counterpoint */}
-        <div className="absolute inset-0" style={{
-          background: 'radial-gradient(ellipse at 50% 0%, rgba(30,25,50,0.7) 0%, transparent 55%)'
-        }} />
+          <motion.p className="mt-2 text-center text-sm text-zinc-200" variants={item}>
+            Welcome back. Step into your intelligent home control center.
+          </motion.p>
 
-        {/* Stars */}
-        {[...Array(70)].map((_, i) => (
-          <div key={i} className="absolute rounded-full bg-white"
-            style={{
-              width:  Math.random() * 2 + 0.5,
-              height: Math.random() * 2 + 0.5,
-              top:    `${Math.random() * 52}%`,
-              left:   `${Math.random() * 100}%`,
-              animation: `twinkle ${2 + Math.random() * 5}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 5}s`,
-            }}
-          />
-        ))}
-
-        {/* Moon — warm-toned */}
-        <div className="absolute rounded-full" style={{
-          width: 58, height: 58, top: '6%', right: '16%',
-          background: 'radial-gradient(circle at 38% 38%, #fff8e8, #e8d8a0 60%, #c8b870)',
-          animation: 'moonGlow 5s ease-in-out infinite',
-        }} />
-
-        {/* Ambient glow dots */}
-        <AmbientDot style={{ width: 300, height: 300, top: '15%', left: '10%',  opacity: 0.15 }} />
-        <AmbientDot style={{ width: 220, height: 220, top: '25%', right: '12%', opacity: 0.10, animationDelay: '2s' }} />
-        <AmbientDot style={{ width: 350, height: 350, top: '40%', left: '40%',  opacity: 0.12, animationDelay: '1.5s' }} />
-      </div>
-
-      {/* ══════════════════════════════════════════
-          FLOATING IoT ICONS
-      ══════════════════════════════════════════ */}
-      {[
-        { icon: Wifi,        top:'20%',  left:'8%',   delay:'0s',    size:18 },
-        { icon: Shield,      top:'28%',  left:'84%',  delay:'1.4s',  size:16 },
-        { icon: Thermometer, top:'55%',  left:'6%',   delay:'2.2s',  size:15 },
-        { icon: Zap,         top:'18%',  left:'72%',  delay:'0.7s',  size:15 },
-        { icon: Lock,        top:'60%',  left:'88%',  delay:'1.9s',  size:14 },
-        { icon: Wifi,        top:'35%',  left:'91%',  delay:'3.1s',  size:13 },
-      ].map(({ icon: Icon, top, left, delay, size }, i) => (
-        <div key={i} className="fixed pointer-events-none z-10" style={{
-          top, left,
-          animation: `particleIcon ${5 + i * 0.7}s ease-in-out infinite`,
-          animationDelay: delay,
-        }}>
-          <Icon size={size} color="rgba(227,197,152,0.35)" strokeWidth={1.5} />
-        </div>
-      ))}
-
-      {/* Landscape hills at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 z-0 pointer-events-none" style={{ height: '42%' }}>
-        <svg viewBox="0 0 1440 270" preserveAspectRatio="none" className="absolute bottom-0 w-full h-full">
-          <path d="M0,270 L0,200 Q180,130 380,175 Q560,218 680,155 Q830,85 1020,165 Q1180,228 1320,142 Q1390,108 1440,158 L1440,270 Z"
-            fill="#0e0b06" opacity="0.9"/>
-          <path d="M0,270 L0,235 Q200,195 350,218 Q480,238 580,205 Q680,170 820,208 Q970,244 1100,210 Q1230,174 1440,210 L1440,270 Z"
-            fill="#0a0805" opacity="1"/>
-        </svg>
-      </div>
-
-      {/* ══════════════════════════════════════════
-          SMART HOUSE SVG ILLUSTRATION
-      ══════════════════════════════════════════ */}
-      <div className="fixed z-10 pointer-events-none"
-        style={{ bottom: '30%', left: '50%', transform: 'translateX(-50%)', animation: 'houseFloat 6s ease-in-out infinite' }}>
-
-        {/* Main SVG house */}
-        <svg width="420" height="300" viewBox="0 0 420 300" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <radialGradient id="warmWindowA" cx="50%" cy="50%" r="50%">
-              <stop offset="0%"   stopColor="#ffcc70" stopOpacity="0.95"/>
-              <stop offset="100%" stopColor="#ff9020" stopOpacity="0.2"/>
-            </radialGradient>
-            <radialGradient id="warmWindowB" cx="50%" cy="50%" r="50%">
-              <stop offset="0%"   stopColor="#ffd080" stopOpacity="0.9"/>
-              <stop offset="100%" stopColor="#ff8010" stopOpacity="0.15"/>
-            </radialGradient>
-            <radialGradient id="doorGlowR" cx="50%" cy="30%" r="60%">
-              <stop offset="0%"   stopColor="#E3C598" stopOpacity="0.6"/>
-              <stop offset="100%" stopColor="#b06010" stopOpacity="0"/>
-            </radialGradient>
-            <filter id="gblur"><feGaussianBlur stdDeviation="8"/></filter>
-            <filter id="sblur"><feGaussianBlur stdDeviation="3"/></filter>
-          </defs>
-
-          {/* Shadow/ground glow beneath house */}
-          <ellipse cx="210" cy="268" rx="150" ry="14" fill="rgba(180,110,20,0.12)" filter="url(#gblur)" style={{ animation: 'groundGlow 4s ease-in-out infinite' }}/>
-
-          {/* House body */}
-          <polygon points="55,240 365,240 365,140 210,68 55,140" fill="#14100a"/>
-          {/* Body highlight (left face) */}
-          <polygon points="55,140 210,68 210,240 55,240" fill="#1a1308" opacity="0.8"/>
-          {/* Body right face (slightly lighter) */}
-          <polygon points="365,140 210,68 210,240 365,240" fill="#120f08" opacity="0.8"/>
-
-          {/* Roof */}
-          <polygon points="42,148 210,58 378,148 365,140 210,68 55,140" fill="#1e1710"/>
-          {/* Roof edge glow */}
-          <polyline points="42,148 210,58 378,148" stroke="rgba(227,197,152,0.25)" strokeWidth="1.5" fill="none"/>
-
-          {/* Chimney */}
-          <rect x="268" y="68" width="24" height="38" rx="2" fill="#161008"/>
-          <rect x="268" y="65" width="24" height="8" rx="3" fill="#1e1710"/>
-          {/* Chimney smoke */}
-          {[0,1,2].map(i => (
-            <ellipse key={i} cx={280 + i * 4} cy={55 - i * 14} rx={6 - i} ry={4 - i}
-              fill="rgba(200,180,140,0.08)" filter="url(#sblur)"/>
-          ))}
-
-          {/* ── Left large window ── */}
-          <rect x="78" y="150" width="80" height="60" rx="5" fill="#100d08"/>
-          <rect x="80" y="152" width="76" height="56" rx="4" fill="url(#warmWindowA)" style={{ animation: 'windowFlicker 4s ease-in-out infinite' }}/>
-          {/* Window cross */}
-          <line x1="118" y1="152" x2="118" y2="208" stroke="rgba(14,10,6,0.5)" strokeWidth="2"/>
-          <line x1="80"  y1="180" x2="156" y2="180" stroke="rgba(14,10,6,0.5)" strokeWidth="2"/>
-          {/* Window outer glow */}
-          <rect x="78" y="150" width="80" height="60" rx="5" fill="rgba(255,170,50,0.08)" filter="url(#gblur)"/>
-
-          {/* ── Right window ── */}
-          <rect x="262" y="150" width="80" height="60" rx="5" fill="#100d08"/>
-          <rect x="264" y="152" width="76" height="56" rx="4" fill="url(#warmWindowB)" style={{ animation: 'windowFlicker 5.5s ease-in-out infinite 1s' }}/>
-          <line x1="302" y1="152" x2="302" y2="208" stroke="rgba(14,10,6,0.5)" strokeWidth="2"/>
-          <line x1="264" y1="180" x2="340" y2="180" stroke="rgba(14,10,6,0.5)" strokeWidth="2"/>
-          <rect x="262" y="150" width="80" height="60" rx="5" fill="rgba(255,150,30,0.08)" filter="url(#gblur)"/>
-
-          {/* Warm glow spill on ground from windows */}
-          <ellipse cx="118" cy="248" rx="55" ry="12" fill="rgba(255,170,50,0.12)" filter="url(#gblur)"/>
-          <ellipse cx="302" cy="248" rx="55" ry="12" fill="rgba(255,150,30,0.10)" filter="url(#gblur)"/>
-
-          {/* ── Door ── */}
-          <rect x="179" y="188" width="62" height="52" rx="31" fill="#0d0a06"/>
-          <rect x="182" y="191" width="56" height="46" rx="28" fill="url(#doorGlowR)" opacity="0.7"/>
-          <circle cx="233" cy="217" r="4" fill="rgba(227,197,152,0.8)"/>
-          {/* Small door step */}
-          <rect x="173" y="238" width="74" height="6" rx="3" fill="#1a1308"/>
-
-          {/* ── Security camera top right ── */}
-          <rect x="320" y="135" width="18" height="8" rx="3" fill="#1a1510"/>
-          <circle cx="321" cy="139" r="3.5" fill="rgba(227,197,152,0.55)"/>
-          <line x1="329" y1="139" x2="338" y2="135" stroke="rgba(227,197,152,0.25)" strokeWidth="1.5"/>
-
-          {/* ── Smart thermostat on wall ── */}
-          <circle cx="86" cy="136" r="10" fill="#1a1510" stroke="rgba(227,197,152,0.3)" strokeWidth="1"/>
-          <circle cx="86" cy="136" r="6"  fill="rgba(227,197,152,0.2)"/>
-          <text x="83" y="140" fill="rgba(227,197,152,0.8)" fontSize="6" fontFamily="monospace">22°</text>
-
-          {/* ── Garage / front path ── */}
-          <rect x="155" y="238" width="110" height="4" rx="2" fill="#1a1510" opacity="0.6"/>
-        </svg>
-
-        {/* WiFi rings from roof */}
-        <div className="absolute" style={{ top: -30, left: '50%', transform: 'translateX(-50%)' }}>
-          {[0, 1, 2].map(i => (
-            <div key={i} className="absolute"
-              style={{
-                width: 18 + i * 20, height: 10 + i * 10,
-                top: -(i * 9), left: -(i * 10),
-                borderTop: '1.5px solid rgba(227,197,152,0.6)',
-                borderLeft: '1.5px solid rgba(227,197,152,0.6)',
-                borderRight: '1.5px solid rgba(227,197,152,0.6)',
-                borderRadius: `${50 + i * 10}% ${50 + i * 10}% 0 0`,
-                animation: 'wifiRing 2.5s ease-out infinite',
-                animationDelay: `${i * 0.5}s`,
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════
-          TOP SECTION — BRANDING
-      ══════════════════════════════════════════ */}
-      <div className="relative z-20 flex flex-col items-center pt-14 pointer-events-none">
-        {/* Glowing icon badge */}
-        <div className="mb-4 flex items-center justify-center rounded-[1.2rem]"
-          style={{
-            width: 64, height: 64,
-            background: 'linear-gradient(135deg, #2a1e06, #3d2c0a)',
-            border: '1px solid rgba(227,197,152,0.35)',
-            boxShadow: '0 0 24px rgba(227,197,152,0.3), 0 0 60px rgba(180,110,20,0.12)',
-          }}>
-          <Home size={30} color="#E3C598" strokeWidth={2} />
-        </div>
-
-        {/* Title */}
-        <h1 className="text-[3.2rem] font-black tracking-tight leading-none"
-          style={{
-            color: '#F8F9FA',
-            textShadow: '0 0 25px rgba(227,197,152,0.45), 0 0 70px rgba(180,100,10,0.2)',
-            letterSpacing: '-0.02em',
-          }}>
-          Smart<span style={{ color: '#E3C598' }}>.</span>Home
-        </h1>
-
-        {/* Underline accent */}
-        <div className="mt-2 mb-3 rounded-full"
-          style={{ width: 72, height: 2, background: 'linear-gradient(90deg, transparent, #E3C598, transparent)' }}/>
-
-        {/* Tagline */}
-        <p className="text-xs font-semibold uppercase tracking-[0.28em]"
-          style={{ color: 'rgba(227,197,152,0.5)', letterSpacing: '0.28em' }}>
-          Smart living starts here.
-        </p>
-      </div>
-
-      {/* House illustration sits in the middle via `fixed` positioning above */}
-      <div className="flex-1" />
-
-      {/* ══════════════════════════════════════════
-          BOTTOM — LOGIN CARD
-      ══════════════════════════════════════════ */}
-      <div className="relative z-20 w-full max-w-sm px-6 pb-10 pointer-events-auto">
-        <div className="rounded-3xl px-8 py-9"
-          style={{
-            background: 'linear-gradient(160deg, rgba(255,248,225,0.07) 0%, rgba(25,18,6,0.72) 100%)',
-            backdropFilter: 'blur(34px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(34px) saturate(160%)',
-            border: '1px solid rgba(227,197,152,0.2)',
-            boxShadow: '0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,220,140,0.1)',
-          }}>
-
-          {/* Error */}
-          {error && (
-            <div className="mb-5 px-4 py-3 rounded-2xl text-sm font-medium"
-              style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#fca5a5' }}>
+          {error ? (
+            <motion.div
+              className="mt-6 rounded-2xl border border-rose-300/35 bg-rose-400/10 px-4 py-3 text-sm text-rose-100"
+              variants={item}
+            >
               {error}
-            </div>
-          )}
+            </motion.div>
+          ) : null}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-
-            {/* Email input */}
-            <div className="relative">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                <User size={16} color="rgba(227,197,152,0.55)" strokeWidth={2} />
-              </div>
+          <motion.form className="mt-6 space-y-4" onSubmit={handleSubmit} variants={sequence}>
+            <motion.div
+              className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3"
+              variants={item}
+              whileHover={fieldMotion.whileHover}
+              whileTap={fieldMotion.whileTap}
+            >
+              <User size={17} className="text-amber-100/70" />
               <input
                 type="email"
-                placeholder="Email / Username"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
+                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
+                placeholder="Email"
                 required
-                className="warm-input w-full rounded-2xl py-4 pl-11 pr-4 text-sm font-medium"
               />
-            </div>
+            </motion.div>
 
-            {/* Password input */}
-            <div className="relative">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                <Lock size={16} color="rgba(227,197,152,0.55)" strokeWidth={2} />
-              </div>
+            <motion.div
+              className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3"
+              variants={item}
+              whileHover={fieldMotion.whileHover}
+              whileTap={fieldMotion.whileTap}
+            >
+              <Lock size={17} className="text-amber-100/70" />
               <input
                 type="password"
-                placeholder="Password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
+                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
+                placeholder="Password"
                 required
-                className="warm-input w-full rounded-2xl py-4 pl-11 pr-4 text-sm font-medium"
               />
-            </div>
+            </motion.div>
 
-            {/* Buttons */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              {/* Sign Up */}
-              <Link to="/register"
-                className="flex items-center justify-center py-3.5 rounded-2xl text-sm font-bold transition-all duration-300 hover:-translate-y-0.5"
-                style={{
-                  background: 'rgba(227,197,152,0.08)',
-                  border: '1px solid rgba(227,197,152,0.25)',
-                  color: 'rgba(227,197,152,0.8)',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = 'rgba(227,197,152,0.14)';
-                  e.currentTarget.style.borderColor = 'rgba(227,197,152,0.5)';
-                  e.currentTarget.style.boxShadow = '0 0 18px rgba(227,197,152,0.15)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'rgba(227,197,152,0.08)';
-                  e.currentTarget.style.borderColor = 'rgba(227,197,152,0.25)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                Sign Up
-              </Link>
-
-              {/* Sign In */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex items-center justify-center py-3.5 rounded-2xl text-sm font-black transition-all duration-300 hover:-translate-y-1 active:scale-95 disabled:opacity-50"
-                style={{
-                  background: 'linear-gradient(135deg, #c49010, #e8b830, #c49010)',
-                  color: '#1a1005',
-                  fontSize: '0.875rem',
-                  boxShadow: '0 8px 24px rgba(227,197,152,0.35)',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 36px rgba(227,197,152,0.55)'; }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(227,197,152,0.35)'; }}
-              >
-                {isLoading
-                  ? <Loader2 size={18} className="animate-spin" />
-                  : 'Sign In'}
-              </button>
-            </div>
-          </form>
-
-          {/* Forgot pw */}
-          <div className="mt-6 text-center">
-            <button
-              className="text-xs font-medium transition-all"
-              style={{ color: 'rgba(227,197,152,0.35)' }}
-              onMouseEnter={e => e.currentTarget.style.color = 'rgba(227,197,152,0.75)'}
-              onMouseLeave={e => e.currentTarget.style.color = 'rgba(227,197,152,0.35)'}
+            <motion.button
+              type="submit"
+              disabled={isLoading}
+              className="mt-2 flex w-full items-center justify-center rounded-2xl bg-amber-300 py-3.5 text-sm font-bold text-zinc-900 shadow-[0_0_26px_rgba(251,191,36,0.34)] disabled:cursor-not-allowed disabled:opacity-60"
+              variants={item}
+              whileHover={{ scale: 1.02, filter: 'brightness(1.06)' }}
+              whileTap={{ scale: 0.97 }}
             >
-              Forgot Password?
-            </button>
-          </div>
-        </div>
+              {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Sign In'}
+            </motion.button>
+          </motion.form>
 
-        {/* Footer */}
-        <p className="text-center text-[10px] font-semibold uppercase tracking-[0.3em] mt-5"
-          style={{ color: 'rgba(227,197,152,0.2)' }}>
-          Secured by Aura Smart Systems
-        </p>
-      </div>
-    </div>
+          <motion.div className="mt-6 text-center text-sm text-zinc-300" variants={item}>
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="font-semibold text-amber-200 hover:text-amber-100">
+              Sign Up
+            </Link>
+          </motion.div>
+        </motion.section>
+      </main>
+    </PublicMotionShell>
   );
 };
 

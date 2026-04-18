@@ -1,31 +1,39 @@
-import { useContext } from 'react';
-import { Home, LogOut } from 'lucide-react';
-import { AuthContext } from '../context/AuthContext';
+import { Link, useLocation } from 'react-router-dom';
+
+const navButtonClass =
+  'rounded-full px-4 py-2 text-sm font-semibold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-amber-200/60 hover:scale-[1.03]';
 
 const Navbar = () => {
-  const { user, logout } = useContext(AuthContext);
-
-  if (!user) return null;
+  const location = useLocation();
 
   return (
-    <nav className="glass sticky top-0 z-50 px-6 py-4 flex justify-between items-center shadow-md">
-      <div className="flex items-center space-x-2 text-primary">
-        <Home size={28} className="text-secondary" />
-        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary hidden sm:block">
-          SmartHome
-        </h1>
-      </div>
-      <div className="flex items-center space-x-6">
-        <span className="text-sm text-slate-300 font-medium">Hello, <span className="text-white">{user.name}</span></span>
-        <button 
-          onClick={logout}
-          className="flex items-center space-x-1 text-slate-400 hover:text-danger focus:outline-none transition-colors duration-200"
+    <header className="fixed inset-x-0 top-0 z-50" data-public-navbar>
+      <nav className="mx-auto mt-4 flex w-[min(96%,1100px)] items-center justify-between rounded-2xl border border-white/15 bg-black/30 px-4 py-3 shadow-xl backdrop-blur-xl sm:px-6">
+        <Link
+          to="/"
+          className="text-lg font-bold tracking-tight text-white sm:text-xl"
         >
-          <LogOut size={20} />
-          <span className="hidden sm:inline">Logout</span>
-        </button>
-      </div>
-    </nav>
+          Smart Home
+        </Link>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            to="/auth/choose"
+            className={`${navButtonClass} border border-white/20 text-white hover:border-amber-200/50 hover:bg-white/10 hover:shadow-[0_0_25px_rgba(251,191,36,0.22)]`}
+            aria-current={location.pathname === '/auth/choose' ? 'page' : undefined}
+          >
+            Choose Role
+          </Link>
+          <Link
+            to="/auth/resident/register"
+            className={`${navButtonClass} bg-amber-300 text-zinc-900 hover:bg-amber-200 hover:shadow-[0_0_25px_rgba(251,191,36,0.28)]`}
+            aria-current={location.pathname === '/auth/resident/register' ? 'page' : undefined}
+          >
+            Resident Sign Up
+          </Link>
+        </div>
+      </nav>
+    </header>
   );
 };
 

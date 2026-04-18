@@ -30,4 +30,12 @@ const admin = (req, res, next) => {
   }
 };
 
-module.exports = { protect, admin };
+const resident = (req, res, next) => {
+  if (req.user && req.user.role === 'resident') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Not authorized as a resident' });
+  }
+};
+
+module.exports = { protect, admin, resident };

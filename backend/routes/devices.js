@@ -1,14 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const Device = require('../models/Device');
-const { protect } = require('../middlewares/auth');
+const { protect, admin } = require('../middlewares/auth');
+
+const buildHouseFilter = (user) => {
+  const houseCode = String(user?.houseCode || '').trim().toUpperCase();
+  return houseCode ? { houseCode } : { owner: user._id };
+};
 
 // @route   GET /api/devices
 // @desc    Get all devices
 // @access  Private
 router.get('/', protect, async (req, res) => {
   try {
-    const devices = await Device.find({ owner: req.user._id });
+    const devices = await Device.find(buildHouseFilter(req.user));
     res.json(devices);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -18,9 +23,9 @@ router.get('/', protect, async (req, res) => {
 // @route   POST /api/devices
 // @desc    Register a new device
 // @access  Private
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, admin, async (req, res) => {
   try {
-    const { name, type, topic } = req.body;
+    const { name, type, topic, room, position } = req.body;
     
     // Check if topic exists
     const existing = await Device.findOne({ topic });
@@ -32,7 +37,15 @@ router.post('/', protect, async (req, res) => {
       name,
       type,
       topic,
+      room: room || 'Home',
+      position: {
+        x: Number(position?.x ?? 50),
+        y: Number(position?.y ?? 50),
+      },
       owner: req.user._id,
+      houseCode: String(req.user?.houseCode || '').trim().toUpperCase(),
+      state: 'OFF',
+      brightness: 0,
     });
 
     const createdDevice = await device.save();
@@ -45,11 +58,11 @@ router.post('/', protect, async (req, res) => {
 // @route   DELETE /api/devices/:id
 // @desc    Delete a device
 // @access  Private
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', protect, admin, async (req, res) => {
   try {
-    const device = await Device.findById(req.params.id);
+    const device = await Device.findOne({ ...buildHouseFilter(req.user), _id: req.params.id });
 
-    if (device && device.owner.toString() === req.user._id.toString()) {
+    if (device) {
       await device.deleteOne();
       res.json({ message: 'Device removed' });
     } else {
@@ -66,9 +79,9 @@ router.delete('/:id', protect, async (req, res) => {
 router.put('/:id/command', protect, async (req, res) => {
   try {
      const { command } = req.body;
-     const device = await Device.findById(req.params.id);
+    const device = await Device.findOne({ ...buildHouseFilter(req.user), _id: req.params.id });
      
-     if (device && device.owner.toString() === req.user._id.toString()) {
+    if (device) {
         const { aedes } = require('../broker');
         aedes.publish({
            cmd: 'publish',
@@ -80,9 +93,15 @@ router.put('/:id/command', protect, async (req, res) => {
            console.log(`[MQTT] Published command to command/${device.topic}`);
         });
 
+      device.state = command;
+      if (device.type === 'light' || device.type === 'lamp') {
+       device.brightness = command === 'ON' ? (device.brightness > 0 ? device.brightness : 100) : 0;
+      }
+      await device.save();
+
         res.json({ message: 'Command sent' });
      } else {
-        res.status(404).json({ message: 'Device not found or not owned by you' });
+      res.status(404).json({ message: 'Device not found' });
      }
   } catch (error) {
      res.status(500).json({ message: error.message });
