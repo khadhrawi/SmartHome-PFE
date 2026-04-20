@@ -17,8 +17,14 @@
   --border-hair:        rgba(227,197,152,0.08); /* slight gold tint */
   --border-active:      rgba(227,197,152,0.18);
   --obsidian:           #08100D;
-  --card-bg: rgba(255, 255, 255, 0.05);          /* 5% white — background bleeds through */
+  --card-bg: rgba(255, 255, 255, 0.05);
   --card-bg-heavy: rgba(255, 255, 255, 0.08);
+
+  /* ── Scene glow colours (used on isometric floor plan) ── */
+  --morning-glow:   rgba(255, 248, 200, 0.85);   /* bright white-yellow */
+  --dinner-glow:    rgba(255, 170,  80, 0.80);   /* warm amber-orange   */
+  --cinematic-glow: rgba(100, 130, 220, 0.70);   /* cool deep blue      */
+  --sleep-glow:     rgba(160,  80, 240, 0.60);   /* soft violet         */
 }
 
 @layer base {

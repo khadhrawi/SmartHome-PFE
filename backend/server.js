@@ -17,6 +17,7 @@ const floorPlanRoutes = require('./routes/floorplan');
 const scenarioRoutes = require('./routes/scenarios');
 const permissionRoutes = require('./routes/permissions');
 const usersRoutes = require('./routes/users');
+const messagesRoutes = require('./routes/messages');
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/api/floorplan', floorPlanRoutes);
 app.use('/api/scenarios', scenarioRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/messages', messagesRoutes);
 
 // Create HTTP server for Express and WebSockets
 const httpServer = http.createServer(app);

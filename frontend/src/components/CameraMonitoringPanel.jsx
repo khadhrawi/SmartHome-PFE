@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState, useContext } from 'react';
 import {
   AlertTriangle,
   Camera,
