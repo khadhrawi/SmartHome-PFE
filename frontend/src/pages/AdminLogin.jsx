@@ -1,22 +1,27 @@
 import { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ShieldCheck, User, Lock, Loader2, Key } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ShieldCheck, User, Lock, Loader2, Key, AlertTriangle } from 'lucide-react';
 import PublicMotionShell from '../components/PublicMotionShell';
 import { AuthContext } from '../context/AuthContext';
+import { isEmailValid } from '../utils/validation';
 
 const AdminLogin = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail]                   = useState('');
+  const [password, setPassword]             = useState('');
   const [adminAccessCode, setAdminAccessCode] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError]                   = useState('');
+  const [isLoading, setIsLoading]           = useState(false);
 
   const { loginAdmin } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  const emailValid = isEmailValid(email);
+  const canSubmit  = emailValid && password.length > 0 && adminAccessCode.trim().length > 0 && !isLoading;
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!canSubmit) return;
     setError('');
     setIsLoading(true);
 
@@ -28,7 +33,8 @@ const AdminLogin = () => {
       return;
     }
 
-    setError(res.error);
+    // Keep error messages vague — never expose which field failed
+    setError('Invalid credentials. Please verify your email, password, and access code.');
   };
 
   return (
@@ -55,49 +61,89 @@ const AdminLogin = () => {
             You are logging in as an Admin with full control over the smart home system.
           </p>
 
-          {error ? <div className="mt-6 rounded-2xl border border-rose-300/35 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</div> : null}
+          {/* ── Aura Glassmorphism Error Tooltip ── */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                className="mt-6 flex items-start gap-3 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3.5 shadow-[0_0_24px_rgba(239,68,68,0.12)] backdrop-blur-sm"
+                initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <AlertTriangle size={16} className="mt-0.5 shrink-0 text-rose-300" />
+                <span className="text-sm leading-snug text-rose-100">{error}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
+            {/* Email */}
+            <div
+              className={`flex items-center gap-3 rounded-2xl border bg-black/20 px-4 py-3 transition-colors duration-200 ${
+                email && !emailValid ? 'border-rose-500' : 'border-white/15'
+              }`}
+            >
               <User size={17} className="text-sky-100/80" />
               <input
+                id="admin-login-email"
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
                 placeholder="Admin email"
+                autoComplete="email"
                 required
               />
             </div>
 
+            <AnimatePresence>
+              {email && !emailValid && (
+                <motion.p
+                  className="ml-1 text-[11px] text-rose-300"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Please enter a valid luxury address.
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            {/* Password */}
             <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
               <Lock size={17} className="text-sky-100/80" />
               <input
+                id="admin-login-password"
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
                 placeholder="Password"
+                autoComplete="current-password"
                 required
               />
             </div>
 
+            {/* Admin Access Code */}
             <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
               <Key size={17} className="text-sky-100/80" />
               <input
+                id="admin-login-access-code"
                 type="password"
                 value={adminAccessCode}
-                onChange={(event) => setAdminAccessCode(event.target.value)}
+                onChange={(e) => setAdminAccessCode(e.target.value)}
                 className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
                 placeholder="Admin Access Code"
+                autoComplete="off"
                 required
               />
             </div>
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="mt-2 flex w-full items-center justify-center rounded-2xl bg-sky-300 py-3.5 text-sm font-bold text-sky-950 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={!canSubmit}
+              className="mt-2 flex w-full items-center justify-center rounded-2xl bg-sky-300 py-3.5 text-sm font-bold text-sky-950 transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Sign In as Admin'}
             </button>

@@ -1,9 +1,10 @@
 import { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Users, Lock, User, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Users, Lock, User, Loader2, AlertTriangle } from 'lucide-react';
 import PublicMotionShell from '../components/PublicMotionShell';
 import { AuthContext } from '../context/AuthContext';
+import { isEmailValid } from '../utils/validation';
 
 const formatHouseCodeInput = (value = '') => {
   const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
@@ -15,17 +16,21 @@ const formatHouseCodeInput = (value = '') => {
 };
 
 const ResidentLogin = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [houseCode, setHouseCode] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError]       = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const { loginResident } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  const emailValid = isEmailValid(email);
+  const canSubmit  = emailValid && password.length > 0 && houseCode.length === 5 && !isLoading;
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!canSubmit) return;
     setError('');
     setIsLoading(true);
 
@@ -38,7 +43,8 @@ const ResidentLogin = () => {
       return;
     }
 
-    setError(res.error);
+    // Vague, professional error — do not reveal which field failed
+    setError('Invalid credentials. Please check your email, password, and house code.');
   };
 
   return (
@@ -62,39 +68,78 @@ const ResidentLogin = () => {
 
           <h1 className="text-center text-4xl font-extrabold tracking-tight text-white">House Resident Login</h1>
 
-          {error ? <div className="mt-6 rounded-2xl border border-rose-300/35 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</div> : null}
+          {/* ── Aura Glassmorphism Error Tooltip ── */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                className="mt-6 flex items-start gap-3 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3.5 shadow-[0_0_24px_rgba(239,68,68,0.12)] backdrop-blur-sm"
+                initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <AlertTriangle size={16} className="mt-0.5 shrink-0 text-rose-300" />
+                <span className="text-sm leading-snug text-rose-100">{error}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
+            {/* Email */}
+            <div
+              className={`flex items-center gap-3 rounded-2xl border bg-black/20 px-4 py-3 transition-colors duration-200 ${
+                email && !emailValid ? 'border-rose-500' : 'border-white/15'
+              }`}
+            >
               <User size={17} className="text-emerald-100/80" />
               <input
+                id="resident-login-email"
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
                 placeholder="Email"
+                autoComplete="email"
                 required
               />
             </div>
 
+            <AnimatePresence>
+              {email && !emailValid && (
+                <motion.p
+                  className="ml-1 text-[11px] text-rose-300"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Please enter a valid luxury address.
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            {/* Password */}
             <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
               <Lock size={17} className="text-emerald-100/80" />
               <input
+                id="resident-login-password"
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
                 placeholder="Password"
+                autoComplete="current-password"
                 required
               />
             </div>
 
+            {/* House Code */}
             <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
               <Users size={17} className="text-emerald-100/80" />
               <input
+                id="resident-login-house-code"
                 type="text"
                 value={houseCode}
-                onChange={(event) => setHouseCode(formatHouseCodeInput(event.target.value))}
+                onChange={(e) => setHouseCode(formatHouseCodeInput(e.target.value))}
                 className="w-full bg-transparent text-sm uppercase tracking-[0.12em] text-white outline-none placeholder:text-zinc-300/65"
                 placeholder="Enter House Code (A1234)"
                 aria-label="House Code"
@@ -105,8 +150,8 @@ const ResidentLogin = () => {
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="mt-2 flex w-full items-center justify-center rounded-2xl bg-emerald-300 py-3.5 text-sm font-bold text-emerald-950 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={!canSubmit}
+              className="mt-2 flex w-full items-center justify-center rounded-2xl bg-emerald-300 py-3.5 text-sm font-bold text-emerald-950 transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Sign In as Resident'}
             </button>

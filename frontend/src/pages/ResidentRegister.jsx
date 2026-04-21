@@ -1,9 +1,11 @@
 import { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Users, Lock, Mail, User, Loader2, BedDouble, KeyRound } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Users, Lock, Mail, User, Loader2, BedDouble, KeyRound, AlertTriangle } from 'lucide-react';
 import PublicMotionShell from '../components/PublicMotionShell';
 import { AuthContext } from '../context/AuthContext';
+import PasswordStrengthBar from '../components/PasswordStrengthBar';
+import { isEmailValid, isPasswordStrong } from '../utils/validation';
 
 const ROOM_OPTIONS = ['Living Room', 'Bedroom', 'Kitchen', 'Entrance', 'Garage', 'Utility'];
 const HOUSE_CODE_REGEX = /^[A-Z]\d{4}$/;
@@ -18,18 +20,23 @@ const formatHouseCodeInput = (value = '') => {
 };
 
 const ResidentRegister = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [name, setName]               = useState('');
+  const [email, setEmail]             = useState('');
+  const [password, setPassword]       = useState('');
   const [assignedRoom, setAssignedRoom] = useState('Bedroom');
-  const [roomRequest, setRoomRequest] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
-  const [houseCode, setHouseCode] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [roomRequest, setRoomRequest]   = useState('');
+  const [inviteCode, setInviteCode]     = useState('');
+  const [houseCode, setHouseCode]       = useState('');
+  const [error, setError]             = useState('');
+  const [isLoading, setIsLoading]     = useState(false);
 
   const { registerResident } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  const emailValid  = isEmailValid(email);
+  const passwordOk  = isPasswordStrong(password);
+  const houseOk     = HOUSE_CODE_REGEX.test(formatHouseCodeInput(houseCode));
+  const canSubmit   = name.trim().length > 0 && emailValid && passwordOk && houseOk && !isLoading;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -38,6 +45,14 @@ const ResidentRegister = () => {
 
     if (!HOUSE_CODE_REGEX.test(normalizedHouseCode)) {
       setError('Invalid House Code. Please check and try again.');
+      return;
+    }
+    if (!emailValid) {
+      setError('Please enter a valid email address (.com, .fr, or .tn).');
+      return;
+    }
+    if (!passwordOk) {
+      setError('Password must be at least 8 characters and include a number and a special character.');
       return;
     }
 
@@ -86,53 +101,102 @@ const ResidentRegister = () => {
             House Residents have limited access and must request permission for global controls.
           </p>
 
-          {error ? <div className="mt-6 rounded-2xl border border-rose-300/35 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</div> : null}
+          {/* ── Aura Glassmorphism Error Tooltip ── */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                className="mt-6 flex items-start gap-3 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3.5 shadow-[0_0_24px_rgba(239,68,68,0.12)] backdrop-blur-sm"
+                initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <AlertTriangle size={16} className="mt-0.5 shrink-0 text-rose-300" />
+                <span className="text-sm leading-snug text-rose-100">{error}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-2">
+              {/* Name */}
               <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
                 <User size={17} className="text-emerald-100/80" />
                 <input
+                  id="resident-register-name"
                   type="text"
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(e) => setName(e.target.value)}
                   className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
                   placeholder="Full name"
+                  autoComplete="name"
                   required
                 />
               </div>
 
-              <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
+              {/* Email */}
+              <div
+                className={`flex items-center gap-3 rounded-2xl border bg-black/20 px-4 py-3 transition-colors duration-200 ${
+                  email && !emailValid ? 'border-rose-500' : 'border-white/15'
+                }`}
+              >
                 <Mail size={17} className="text-emerald-100/80" />
                 <input
+                  id="resident-register-email"
                   type="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
                   placeholder="Email"
+                  autoComplete="email"
                   required
                 />
               </div>
             </div>
 
-            <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
+            <AnimatePresence>
+              {email && !emailValid && (
+                <motion.p
+                  className="ml-1 text-[11px] text-rose-300"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Please enter a valid luxury address.
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            {/* Password */}
+            <div
+              className={`flex items-center gap-3 rounded-2xl border bg-black/20 px-4 py-3 transition-colors duration-200 ${
+                password && !passwordOk ? 'border-amber-400/40' : 'border-white/15'
+              }`}
+            >
               <Lock size={17} className="text-emerald-100/80" />
               <input
+                id="resident-register-password"
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
                 placeholder="Password"
+                autoComplete="new-password"
                 required
               />
             </div>
 
+            {/* Strength Bar */}
+            <PasswordStrengthBar password={password} />
+
             <div className="grid gap-4 md:grid-cols-2">
+              {/* Assigned Room */}
               <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
                 <BedDouble size={17} className="text-emerald-100/80" />
                 <select
+                  id="resident-register-room"
                   value={assignedRoom}
-                  onChange={(event) => setAssignedRoom(event.target.value)}
+                  onChange={(e) => setAssignedRoom(e.target.value)}
                   className="w-full bg-transparent text-sm text-white outline-none"
                   required
                 >
@@ -144,24 +208,28 @@ const ResidentRegister = () => {
                 </select>
               </div>
 
+              {/* Room Request */}
               <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
                 <BedDouble size={17} className="text-emerald-100/80" />
                 <input
+                  id="resident-register-room-request"
                   type="text"
                   value={roomRequest}
-                  onChange={(event) => setRoomRequest(event.target.value)}
+                  onChange={(e) => setRoomRequest(e.target.value)}
                   className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
                   placeholder="Or request another room"
                 />
               </div>
             </div>
 
+            {/* House Code */}
             <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
               <KeyRound size={17} className="text-emerald-100/80" />
               <input
+                id="resident-register-house-code"
                 type="text"
                 value={houseCode}
-                onChange={(event) => setHouseCode(formatHouseCodeInput(event.target.value))}
+                onChange={(e) => setHouseCode(formatHouseCodeInput(e.target.value))}
                 className="w-full bg-transparent text-sm uppercase tracking-[0.12em] text-white outline-none placeholder:text-zinc-300/65"
                 placeholder="Enter House Code (A1234)"
                 aria-label="House Code"
@@ -170,12 +238,14 @@ const ResidentRegister = () => {
               />
             </div>
 
+            {/* Invite Code */}
             <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
               <KeyRound size={17} className="text-emerald-100/80" />
               <input
+                id="resident-register-invite"
                 type="text"
                 value={inviteCode}
-                onChange={(event) => setInviteCode(event.target.value)}
+                onChange={(e) => setInviteCode(e.target.value)}
                 className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
                 placeholder="Invite code (optional if required)"
               />
@@ -183,8 +253,8 @@ const ResidentRegister = () => {
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="mt-2 flex w-full items-center justify-center rounded-2xl bg-emerald-300 py-3.5 text-sm font-bold text-emerald-950 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={!canSubmit}
+              className="mt-2 flex w-full items-center justify-center rounded-2xl bg-emerald-300 py-3.5 text-sm font-bold text-emerald-950 transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Create Resident Account'}
             </button>

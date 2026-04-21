@@ -13,6 +13,27 @@ const normalizeHouseCode = (value = '') => String(value).trim().toUpperCase();
 const normalizeAdminAccessCode = (value = '') => String(value).trim().toUpperCase();
 const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE || 'ADMIN123';
 
+/**
+ * Server-side password strength guard.
+ * Rules (must match the frontend PasswordStrengthBar):
+ *   • 8+ characters
+ *   • At least one digit  [0-9]
+ *   • At least one special character  [^A-Za-z0-9]
+ * Returns an error string if the password is weak/medium, or null if strong.
+ */
+const validatePasswordStrength = (password = '') => {
+  if (!password || password.length < 8) {
+    return 'Password must be at least 8 characters long.';
+  }
+  if (!/[0-9]/.test(password)) {
+    return 'Password must contain at least one number.';
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return 'Password must contain at least one special character.';
+  }
+  return null; // strong — all checks pass
+};
+
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
@@ -43,6 +64,10 @@ router.post('/resident/register', async (req, res) => {
       return res.status(400).json({ message: INVALID_HOUSE_CODE_MESSAGE });
     }
 
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+
     const adminUser = await User.findOne({ role: 'admin', houseCode: normalizedHouseCode });
     if (!adminUser) {
       return res.status(400).json({ message: INVALID_HOUSE_CODE_MESSAGE });
@@ -55,6 +80,11 @@ router.post('/resident/register', async (req, res) => {
     const requiredInvite = process.env.RESIDENT_INVITE_CODE;
     if (requiredInvite && inviteCode !== requiredInvite) {
       return res.status(403).json({ message: 'Valid invite code is required for resident signup' });
+    }
+
+    const pwError = validatePasswordStrength(password);
+    if (pwError) {
+      return res.status(422).json({ message: pwError });
     }
 
     const userExists = await User.findOne({ email });
@@ -129,7 +159,7 @@ router.post('/resident/login', async (req, res) => {
     if (await user.matchPassword(password)) {
       res.json(toAuthPayload(user));
     } else {
-      res.status(401).json({ message: 'Invalid email or password' });
+      res.status(401).json({ message: 'Invalid credentials.' });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -161,7 +191,7 @@ router.post('/admin/login', async (req, res) => {
     if (await user.matchPassword(password)) {
       res.json(toAuthPayload(user));
     } else {
-      res.status(401).json({ message: 'Invalid admin credentials' });
+      res.status(401).json({ message: 'Invalid credentials.' });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -180,8 +210,17 @@ router.post('/admin/register', async (req, res) => {
       return res.status(400).json({ message: 'Name, email and password are required' });
     }
 
+    if (!email.includes('@')) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+
     if (normalizedAccessCode !== ADMIN_ACCESS_CODE) {
       return res.status(401).json({ message: INVALID_ADMIN_ACCESS_CODE_MESSAGE });
+    }
+
+    const pwError = validatePasswordStrength(password);
+    if (pwError) {
+      return res.status(422).json({ message: pwError });
     }
 
     const userExists = await User.findOne({ email });
@@ -219,6 +258,15 @@ router.post('/admin/create', protect, admin, async (req, res) => {
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email and password are required' });
+    }
+
+    if (!email.includes('@')) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+
+    const pwError = validatePasswordStrength(password);
+    if (pwError) {
+      return res.status(422).json({ message: pwError });
     }
 
     const userExists = await User.findOne({ email });
