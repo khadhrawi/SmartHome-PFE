@@ -3,7 +3,7 @@ const router = express.Router();
 const PermissionRequest = require('../models/PermissionRequest');
 const User = require('../models/User');
 const { protect, admin } = require('../middlewares/auth');
-const { emitPermissionCreated, emitPermissionUpdated } = require('../realtime/notifications');
+const { emitPermissionCreated, emitPermissionUpdated, emitPermissionsUpdated } = require('../realtime/notifications');
 
 const normalizeRoom = (room) => String(room || '').trim().toLowerCase();
 
@@ -17,6 +17,22 @@ const mergeRoomPermission = (permissions, room) => {
   nextPermissions.add(normalizedRoom);
   nextPermissions.add(`room:${normalizedRoom}`);
   return [...nextPermissions];
+};
+
+const mergeGrantedPermissions = ({ permissions, room, actionKey }) => {
+  let nextPermissions = Array.isArray(permissions) ? [...permissions] : [];
+
+  if (room) {
+    nextPermissions = mergeRoomPermission(nextPermissions, room);
+  }
+
+  if (actionKey) {
+    const nextSet = new Set(nextPermissions);
+    nextSet.add(String(actionKey).trim().toLowerCase());
+    nextPermissions = [...nextSet];
+  }
+
+  return nextPermissions;
 };
 
 // @route   POST /api/permissions/request
@@ -33,15 +49,17 @@ router.post('/request', protect, async (req, res) => {
     }
 
     const { actionKey, actionLabel, room, reason } = req.body;
+    const normalizedRoom = normalizeRoom(room);
+    const normalizedActionKey = String(actionKey || '').trim().toLowerCase();
 
-    if (!actionKey || !actionLabel) {
+    if (!normalizedActionKey || !actionLabel) {
       return res.status(400).json({ message: 'actionKey and actionLabel are required' });
     }
 
     const pendingExisting = await PermissionRequest.findOne({
       requester: req.user._id,
-      actionKey,
-      room: room || '',
+      actionKey: normalizedActionKey,
+      room: normalizedRoom,
       status: 'pending',
     });
 
@@ -53,9 +71,9 @@ router.post('/request', protect, async (req, res) => {
       requester: req.user._id,
       houseCode: req.user.houseCode,
       houseAdmin: req.user.linkedAdmin,
-      actionKey,
+      actionKey: normalizedActionKey,
       actionLabel,
-      room: room || '',
+      room: normalizedRoom,
       reason: reason || '',
       status: 'pending',
       adminReadAt: null,
@@ -136,11 +154,27 @@ router.patch('/admin/requests/:id', protect, admin, async (req, res) => {
     request.requesterReadAt = null;
     await request.save();
 
-    if (decision === 'approved' && request.room) {
+    if (decision === 'approved') {
+      const resident = await User.findById(request.requester).select('permissions');
+      if (!resident) {
+        return res.status(404).json({ message: 'Requester account no longer exists' });
+      }
+
+      const nextPermissions = mergeGrantedPermissions({
+        permissions: resident.permissions,
+        room: request.room,
+        actionKey: request.actionKey,
+      });
+
       await User.updateOne(
         { _id: request.requester },
-        { $addToSet: { permissions: { $each: mergeRoomPermission([], request.room) } } },
+        { $set: { permissions: nextPermissions } },
       );
+
+      emitPermissionsUpdated({
+        userId: request.requester,
+        permissions: nextPermissions,
+      });
     }
 
     const populated = await PermissionRequest.findById(request._id)

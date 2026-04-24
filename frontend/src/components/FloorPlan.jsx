@@ -308,7 +308,7 @@ const IsometricScene = ({ rooms, litRooms, selectedRoom, lightingMode }) => {
 };
 
 /* ─── Device overlay marker ───────────────────────────────────────── */
-const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onToggle, onCreateMissing, isAdmin, dimmed }) => {
+const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onToggle, onCreateMissing, isAdmin, dimmed, isLockedByPermission = false }) => {
   const missing = !device;
   const type = normalizeType(device?.type || slot.type);
   const on = isDeviceOn(device);
@@ -317,12 +317,13 @@ const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onTogg
   const isTv    = type === 'tv';
   const isMachine = type === 'machine';
   const isLocked = isDoor && (lockdownMode || !on);
+  const readOnly = isLockedByPermission;
   const lightColor = String(device?.color || '#d4af37');
 
   const [px, py] = SLOT_POS[slot.id] || [50, 50];
 
   const handleClick = () => {
-    if (!missing && canControl && !awayMode) onToggle(device);
+    if (!missing && canControl && !awayMode && !readOnly) onToggle(device);
   };
 
   // ── Light: glowing circular button
@@ -335,7 +336,7 @@ const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onTogg
       >
         <button
           type="button"
-          disabled={missing || !canControl || awayMode}
+          disabled={missing || !canControl || awayMode || readOnly}
           onClick={handleClick}
           className="relative flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-300 hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
           style={{
@@ -350,6 +351,9 @@ const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onTogg
         </button>
         {/* Floating label */}
         <p className="mt-1 text-center text-[8px] font-bold tracking-wider text-zinc-300/60">{slot.label}</p>
+        {readOnly ? (
+          <p className="mt-0.5 text-center text-[8px] font-black tracking-widest text-rose-200/85">LOCKED</p>
+        ) : null}
         {/* Tooltip */}
         <div className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 -translate-y-1 whitespace-nowrap rounded-full border border-white/15 bg-black/70 px-2.5 py-1 text-[9px] font-semibold text-zinc-100 opacity-0 backdrop-blur-md transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100">
           {missing ? 'Not configured' : getStateLabel(device)}
@@ -373,7 +377,7 @@ const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onTogg
       >
         <button
           type="button"
-          disabled={missing || !canControl || awayMode}
+          disabled={missing || !canControl || awayMode || readOnly}
           onClick={handleClick}
           className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-semibold backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
           style={{
@@ -393,6 +397,9 @@ const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onTogg
             <Plus size={8} /> Add
           </button>
         )}
+        {readOnly ? (
+          <p className="mt-0.5 text-center text-[8px] font-black tracking-widest text-rose-200/85">LOCKED</p>
+        ) : null}
       </div>
     );
   }
@@ -406,7 +413,7 @@ const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onTogg
       >
         <button
           type="button"
-          disabled={missing || !canControl || awayMode}
+          disabled={missing || !canControl || awayMode || readOnly}
           onClick={handleClick}
           className="flex h-8 w-14 items-center justify-center rounded-lg border-2 transition-all duration-300 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
           style={{
@@ -420,6 +427,9 @@ const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onTogg
           {on && <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.95)]" />}
         </button>
         <p className="mt-1 text-center text-[8px] font-bold tracking-wider text-zinc-300/60">TV</p>
+        {readOnly ? (
+          <p className="mt-0.5 text-center text-[8px] font-black tracking-widest text-rose-200/85">LOCKED</p>
+        ) : null}
       </div>
     );
   }
@@ -432,7 +442,7 @@ const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onTogg
     >
       <button
         type="button"
-        disabled={missing || !canControl || awayMode}
+        disabled={missing || !canControl || awayMode || readOnly}
         onClick={handleClick}
         className="flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-300 hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
         style={{
@@ -445,6 +455,9 @@ const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onTogg
         {isMachine ? <WashingMachine size={14} className={on ? 'text-violet-200' : 'text-zinc-500'} /> : <Settings size={14} className="text-zinc-400" />}
       </button>
       <p className="mt-1 text-center text-[8px] font-bold tracking-wider text-zinc-300/60">{slot.label}</p>
+      {readOnly ? (
+        <p className="mt-0.5 text-center text-[8px] font-black tracking-widest text-rose-200/85">LOCKED</p>
+      ) : null}
       {missing && isAdmin && (
         <button type="button" onClick={() => onCreateMissing(slot)}
           className="mx-auto mt-0.5 flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/15 px-1.5 py-0.5 text-[8px] font-bold text-amber-200">
@@ -486,7 +499,8 @@ const RoomLabel = ({ room, selectedRoom, onSelect }) => {
 const FloorPlan = ({
   state, canControl, isAdmin, isResidentView = false,
   canAccessRoom = () => true, onToggleDevice, onSetLightingMode,
-  onToggleLockdown, onToggleAway, onAddDevice, onRequestAccess, canManageModes = true,
+  onToggleLockdown, onToggleAway, onAddDevice, onRequestAccess, canManageModes = true, canControlModes = true,
+  canControlDevice = () => true,
 }) => {
   const [selectedRoom, setSelectedRoom] = useState(null);
 
@@ -519,8 +533,8 @@ const FloorPlan = ({
   }, [slotBinding]);
 
   const handleDeviceToggle = async device => {
-    if (!canControl || state.awayMode) return;
-    try { await onToggleDevice(device._id); } catch {}
+    if (!canControl || state.awayMode || !canControlDevice(device)) return;
+    try { await onToggleDevice(device); } catch {}
   };
 
   const createRequiredControl = async slot => {
@@ -548,15 +562,15 @@ const FloorPlan = ({
               const Icon = cfg.icon || Sun;
               return (
                 <button key={mode} type="button"
-                  onClick={() => canControl && onSetLightingMode(active ? null : mode)}
+                  onClick={() => canControlModes && onSetLightingMode(active ? null : mode)}
                   className="control-button pressable flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold"
                   style={{
                     borderColor: active ? cfg.border       : 'rgba(255,255,255,0.15)',
                     background:  active ? cfg.fill         : 'rgba(255,255,255,0.05)',
                     color:       active ? cfg.color        : '#e5e7eb',
                     boxShadow:   active ? `0 0 16px rgba(${cfg.glowRgb},0.35)` : 'none',
-                    cursor:      canControl ? 'pointer' : 'not-allowed',
-                    opacity:     canControl ? 1 : 0.5,
+                    cursor:      canControlModes ? 'pointer' : 'not-allowed',
+                    opacity:     canControlModes ? 1 : 0.5,
                     transition:  'all 0.3s ease',
                   }}
                 >
@@ -566,23 +580,23 @@ const FloorPlan = ({
               );
             })}
             <button type="button"
-              onClick={() => canControl && onToggleLockdown?.()}
+              onClick={() => canControlModes && onToggleLockdown?.()}
               className="control-button pressable px-3 py-1.5 text-xs font-bold"
               style={{
                 borderColor: state.lockdownMode ? 'rgba(248,113,113,0.7)' : 'rgba(255,255,255,0.15)',
                 background:  state.lockdownMode ? 'rgba(248,113,113,0.15)' : 'rgba(255,255,255,0.05)',
                 color:       state.lockdownMode ? '#fecaca' : '#e5e7eb',
-                cursor: canControl ? 'pointer' : 'not-allowed', opacity: canControl ? 1 : 0.5,
+                cursor: canControlModes ? 'pointer' : 'not-allowed', opacity: canControlModes ? 1 : 0.5,
               }}
             >{state.lockdownMode ? 'Unlock House' : 'Lockdown'}</button>
             <button type="button"
-              onClick={() => canControl && onToggleAway?.()}
+              onClick={() => canControlModes && onToggleAway?.()}
               className="control-button pressable px-3 py-1.5 text-xs font-bold"
               style={{
                 borderColor: state.awayMode ? 'rgba(96,165,250,0.7)' : 'rgba(255,255,255,0.15)',
                 background:  state.awayMode ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.05)',
                 color:       state.awayMode ? '#dbeafe' : '#e5e7eb',
-                cursor: canControl ? 'pointer' : 'not-allowed', opacity: canControl ? 1 : 0.5,
+                cursor: canControlModes ? 'pointer' : 'not-allowed', opacity: canControlModes ? 1 : 0.5,
               }}
             >{state.awayMode ? 'Disable Away' : 'Away Mode'}</button>
           </div>
@@ -622,11 +636,13 @@ const FloorPlan = ({
             <div className="absolute inset-0" style={{ zIndex: 5 }}>
               {REQUIRED_CONTROLS.map(slot => {
                 const dimmed = selectedRoom && selectedRoom !== slot.room;
+                const slotDevice = slotBinding[slot.id];
+                const slotLockedByPermission = slotDevice ? !canControlDevice(slotDevice) : false;
                 return (
                   <DeviceMarker
                     key={slot.id}
                     slot={slot}
-                    device={slotBinding[slot.id]}
+                    device={slotDevice}
                     canControl={canControl}
                     awayMode={state.awayMode}
                     lockdownMode={state.lockdownMode}
@@ -634,6 +650,7 @@ const FloorPlan = ({
                     onCreateMissing={createRequiredControl}
                     isAdmin={isAdmin}
                     dimmed={dimmed}
+                    isLockedByPermission={slotLockedByPermission}
                   />
                 );
               })}

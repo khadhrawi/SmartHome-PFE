@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Layers, Grid, Zap, User, LogOut, Bell, Shield, Mail, PanelTopClose, PanelTopOpen } from 'lucide-react';
+import { Home, Layers, Grid, Zap, User, LogOut, Shield, Mail, PanelTopClose, PanelTopOpen } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import PermissionNotificationCenter from './PermissionNotificationCenter';
 import SupportModal from './SupportModal';
@@ -89,13 +89,12 @@ const NavIconLink = ({ name, path, Icon, moodTheme }) => {
 
 /* ── Layout ── */
 const Layout = ({ children }) => {
-  const { user, logout, getUnreadPermissionCount } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const [compactNav, setCompactNav] = useState(false);
   const [navMood, setNavMood] = useState(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const navigate = useNavigate();
-  const unreadPermissionCount = getUnreadPermissionCount();
 
   const handleLogout = () => { logout(); navigate('/auth/choose'); };
   const handleContact = () => setSupportOpen(true);
@@ -248,22 +247,6 @@ const Layout = ({ children }) => {
                 <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider opacity-0 transition-all duration-200 group-hover:opacity-100 whitespace-nowrap"
                   style={{ background: 'rgba(8,16,13,0.92)', border: '1px solid rgba(227,197,152,0.25)', color: '#E3C598' }}>
                   Support Concierge
-                </span>
-              </button>
-
-              <button
-                className={actionBtnClass}
-                onClick={() => setIsNotificationsOpen((prev) => !prev)}
-                style={{ background: navMoodTheme.actionBg, border: `1px solid ${navMoodTheme.actionBorder}` }}>
-                <Bell size={16} style={{ color: navMoodTheme.iconTint }} />
-                {unreadPermissionCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-300 px-1 text-[10px] font-black text-sky-950">
-                    {unreadPermissionCount}
-                  </span>
-                ) : null}
-                <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider opacity-0 transition-all duration-200 group-hover:opacity-100"
-                  style={{ background: 'rgba(8,16,13,0.92)', border: '1px solid rgba(227,197,152,0.25)', color: '#E3C598' }}>
-                  {user?.role === 'admin' ? 'Permission Alerts' : 'Alerts'}
                 </span>
               </button>
 

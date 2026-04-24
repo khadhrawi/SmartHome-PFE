@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { Camera, ChevronRight, Plus, X, CheckCircle2, ChevronDown } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Camera, ChevronRight, Plus, X, CheckCircle2, ChevronDown, Lock, Send } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import FloorPlan from '../components/FloorPlan';
 import DeviceCard from '../components/DeviceCard';
@@ -284,6 +284,15 @@ function AddDeviceModal({ onClose, onAdd, houseCode }) {
 }
 
 const ROOM_KEYS = ['bathroom', 'utility', 'bedroom', 'kitchen', 'living_room', 'garage', 'entrance'];
+const ROOM_LABELS = {
+  bathroom: 'Bathroom',
+  utility: 'Utility',
+  bedroom: 'Bedroom',
+  kitchen: 'Kitchen',
+  living_room: 'Living Room',
+  garage: 'Garage',
+  entrance: 'Entrance',
+};
 
 const normalizeRoom = (room) => {
   const lowered = String(room || '').trim().toLowerCase();
@@ -296,13 +305,15 @@ const normalizeRoom = (room) => {
   return lowered;
 };
 
+const normalizeActionKey = (value) => String(value || '').trim().toLowerCase();
+
 const Dashboard = ({ accessMode = 'admin' }) => {
-  const { user, myPermissionRequests } = useContext(AuthContext);
-  const navigate = useNavigate();
+  const { user, myPermissionRequests, hasApprovedPermission, requestPermission } = useContext(AuthContext);
   const isResidentView = accessMode === 'resident';
   const [now, setNow] = useState(() => new Date());
   const [selectedControlDeviceId, setSelectedControlDeviceId] = useState(null);
   const [showAddDevice, setShowAddDevice] = useState(false);
+  const [busyRequestKey, setBusyRequestKey] = useState('');
 
   const {
     floorPlanState,
@@ -312,51 +323,46 @@ const Dashboard = ({ accessMode = 'admin' }) => {
     toggleAway,
     updateDeviceState,
     addDevice: addFloorDevice,
-    refreshFloorPlan,
     isRefreshing,
     isAdmin: isFloorPlanAdmin,
   } = useFloorPlanState();
 
-  const canControl = true;
   const isAdmin = isFloorPlanAdmin && !isResidentView;
 
-  const residentRooms = useMemo(() => {
-    if (!isResidentView) return new Set();
+  const canControlModes = useMemo(() => {
+    if (!isResidentView) return true;
+    return hasApprovedPermission('global:controls') || hasApprovedPermission('modes:controls');
+  }, [hasApprovedPermission, isResidentView]);
 
-    const rooms = new Set();
-    const addRoom = (value) => {
-      const normalized = normalizeRoom(value);
-      if (normalized) {
-        rooms.add(normalized);
-      }
-    };
+  const canControlRoom = useCallback((room) => {
+    if (!isResidentView) return true;
 
-    addRoom(user?.assignedRoom || '');
+    const normalizedRoom = normalizeRoom(room);
+    const assignedRoom = normalizeRoom(user?.assignedRoom || '');
+    if (!normalizedRoom) return false;
+    if (normalizedRoom === assignedRoom) return true;
 
-    (Array.isArray(user?.permissions) ? user.permissions : []).forEach((permission) => {
-      const normalized = String(permission || '').trim().toLowerCase();
-      if (normalized.startsWith('room:')) {
-        addRoom(normalized.slice(5));
-      } else if (ROOM_KEYS.includes(normalized)) {
-        addRoom(normalized);
-      }
-    });
+    return (
+      hasApprovedPermission(`room:${normalizedRoom}`, normalizedRoom)
+      || hasApprovedPermission(normalizedRoom, normalizedRoom)
+    );
+  }, [hasApprovedPermission, isResidentView, user?.assignedRoom]);
 
-    (Array.isArray(myPermissionRequests) ? myPermissionRequests : []).forEach((request) => {
-      if (request.status === 'approved' && request.room) {
-        addRoom(request.room);
-      }
-    });
+  const canControlDevice = useCallback((device) => {
+    if (!isResidentView) return true;
+    if (!device?._id) return false;
 
-    return rooms;
-  }, [isResidentView, myPermissionRequests, user?.assignedRoom, user?.permissions]);
+    if (hasApprovedPermission('global:controls') || hasApprovedPermission('modes:controls')) {
+      return true;
+    }
 
-  const canAccessRoom = useMemo(() => {
-    return (room) => {
-      if (!isResidentView) return true;
-      return residentRooms.has(normalizeRoom(room));
-    };
-  }, [isResidentView, residentRooms]);
+    const room = normalizeRoom(device.room);
+    if (canControlRoom(room)) {
+      return true;
+    }
+
+    return hasApprovedPermission(`device:${String(device._id).toLowerCase()}`, room);
+  }, [canControlRoom, hasApprovedPermission, isResidentView]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60_000);
@@ -380,7 +386,7 @@ const Dashboard = ({ accessMode = 'admin' }) => {
   }, [now]);
 
   const deviceStats = useMemo(() => {
-    const devices = Array.isArray(floorPlanState.devices) ? floorPlanState.devices.filter((device) => canAccessRoom(device.room)) : [];
+    const devices = Array.isArray(floorPlanState.devices) ? floorPlanState.devices : [];
     const lights = devices.filter((device) => {
       const type = String(device?.type || '').toLowerCase();
       return type === 'light' || type === 'lamp';
@@ -393,12 +399,11 @@ const Dashboard = ({ accessMode = 'admin' }) => {
       lightsOn: lights.filter((light) => light.state === 'ON').length,
       doorsOpen: doors.filter((door) => door.state === 'ON').length,
     };
-  }, [canAccessRoom, floorPlanState.devices]);
+  }, [floorPlanState.devices]);
 
   const controlPanelDevices = useMemo(() => {
     const devices = Array.isArray(floorPlanState.devices) ? floorPlanState.devices : [];
     return devices
-      .filter((device) => canAccessRoom(device.room))
       .map((device) => {
       const type = String(device?.type || '').toLowerCase();
       const mappedType = type === 'light' || type === 'lamp'
@@ -417,10 +422,11 @@ const Dashboard = ({ accessMode = 'admin' }) => {
         status: device.state === 'ON' ? 'on' : 'off',
         value: mappedType === 'light' ? Number(device.brightness || 0) : device.value,
         locked: mappedType === 'security' ? device.state !== 'ON' : undefined,
+        accessLocked: !canControlDevice(device),
         lastSeen: 'Live',
       };
       });
-  }, [canAccessRoom, floorPlanState.devices]);
+  }, [canControlDevice, floorPlanState.devices]);
 
   const cameraDevices = useMemo(() => {
     return (Array.isArray(floorPlanState.devices) ? floorPlanState.devices : []).filter((device) => {
@@ -444,10 +450,10 @@ const Dashboard = ({ accessMode = 'admin' }) => {
     }
   };
 
-  const handleToggleDevice = async (deviceId) => {
-    if (!canControl) return;
+  const handleToggleDevice = async (device) => {
+    if (!device?._id || !canControlDevice(device)) return;
     try {
-      await toggleFloorDevice(deviceId);
+      await toggleFloorDevice(device._id);
     } catch (error) {
       console.error('Error toggling device:', error);
       throw error;
@@ -455,7 +461,7 @@ const Dashboard = ({ accessMode = 'admin' }) => {
   };
 
   const handleAdvancedUpdate = async (device, patch) => {
-    if (!device || !device._id) return;
+    if (!device || !device._id || !canControlDevice(device)) return;
 
     const payload = {};
 
@@ -481,6 +487,87 @@ const Dashboard = ({ accessMode = 'admin' }) => {
 
     if (Object.keys(payload).length === 0) return;
     await updateDeviceState(device._id, payload);
+  };
+
+  const requestStatusByFeature = useMemo(() => {
+    const latestByKey = new Map();
+    const requests = Array.isArray(myPermissionRequests) ? myPermissionRequests : [];
+
+    requests.forEach((request) => {
+      const key = `${normalizeActionKey(request.actionKey)}|${normalizeRoom(request.room)}`;
+      const previous = latestByKey.get(key);
+      if (!previous || new Date(request.createdAt) > new Date(previous.createdAt)) {
+        latestByKey.set(key, request);
+      }
+    });
+
+    return latestByKey;
+  }, [myPermissionRequests]);
+
+  const getRequestStatus = useCallback((actionKey, room = '') => {
+    const key = `${normalizeActionKey(actionKey)}|${normalizeRoom(room)}`;
+    const request = requestStatusByFeature.get(key);
+    return request?.status || 'none';
+  }, [requestStatusByFeature]);
+
+  const lockedFeatures = useMemo(() => {
+    if (!isResidentView) return [];
+
+    const features = [];
+    const devices = Array.isArray(floorPlanState.devices) ? floorPlanState.devices : [];
+
+    if (!canControlModes) {
+      features.push({
+        id: 'feature:global-controls',
+        kind: 'feature',
+        label: 'Global home controls (modes/away/lockdown)',
+        actionKey: 'global:controls',
+        room: '',
+      });
+    }
+
+    const rooms = new Set(devices.map((device) => normalizeRoom(device.room)).filter(Boolean));
+    [...rooms].forEach((room) => {
+      if (!canControlRoom(room)) {
+        features.push({
+          id: `room:${room}`,
+          kind: 'room',
+          label: `Room: ${ROOM_LABELS[room] || room}`,
+          actionKey: `room:${room}`,
+          room,
+        });
+      }
+    });
+
+    devices.forEach((device) => {
+      if (!canControlDevice(device)) {
+        features.push({
+          id: `device:${device._id}`,
+          kind: 'device',
+          label: `Device: ${device.name}`,
+          actionKey: `device:${String(device._id).toLowerCase()}`,
+          room: normalizeRoom(device.room),
+        });
+      }
+    });
+
+    return features;
+  }, [canControlDevice, canControlModes, canControlRoom, floorPlanState.devices, isResidentView]);
+
+  const handleRequestAccess = async (feature) => {
+    if (!feature?.actionKey) return;
+
+    const status = getRequestStatus(feature.actionKey, feature.room);
+    if (status === 'pending') return;
+
+    setBusyRequestKey(feature.id);
+    const result = await requestPermission({
+      actionKey: feature.actionKey,
+      actionLabel: feature.label,
+      room: feature.room || '',
+    });
+    setBusyRequestKey('');
+
   };
 
   return (
@@ -539,15 +626,94 @@ const Dashboard = ({ accessMode = 'admin' }) => {
       {/* Main Floor Plan */}
       <FloorPlan
         state={floorPlanState}
-        canControl={canControl}
+        canControl={true}
         isAdmin={isAdmin}
-        canManageModes={isAdmin}
+        canManageModes={isAdmin || canControlModes}
+        canControlModes={canControlModes}
+        canControlDevice={canControlDevice}
         onToggleDevice={handleToggleDevice}
         onSetLightingMode={setLightingMode}
         onToggleLockdown={toggleLockdown}
         onToggleAway={toggleAway}
         onAddDevice={handleAddDevice}
       />
+
+      {isResidentView ? (
+        <section className="mt-10 space-y-4">
+          <div className="premium-panel interactive-lift p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-200/80">Resident Access</p>
+                <h2 className="mt-1 text-xl font-black text-white">Request Access</h2>
+                <p className="mt-1 text-sm text-zinc-300/80">You can view all rooms and devices in real-time. Locked controls require explicit admin approval.</p>
+              </div>
+              <span className="state-chip px-3 py-1 text-xs text-zinc-200">
+                Locked Features: {lockedFeatures.length}
+              </span>
+            </div>
+          </div>
+
+          {lockedFeatures.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {lockedFeatures.map((feature) => {
+                const status = getRequestStatus(feature.actionKey, feature.room);
+                const isPending = status === 'pending';
+                const isApproved = status === 'approved';
+                const isDenied = status === 'denied';
+
+                return (
+                  <article key={feature.id} className="premium-panel-soft border border-white/10 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-bold text-white">{feature.label}</p>
+                        <p className="mt-1 text-[11px] uppercase tracking-widest text-zinc-400">{feature.kind}</p>
+                      </div>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-white/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-200">
+                        <Lock size={11} />
+                        Locked
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isPending || busyRequestKey === feature.id}
+                      onClick={() => handleRequestAccess(feature)}
+                      className="control-button pressable mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-zinc-100 disabled:opacity-55"
+                    >
+                      <Send size={14} />
+                      {busyRequestKey === feature.id ? 'Sending...' : isPending ? 'Pending' : 'Request Access'}
+                    </button>
+
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="premium-panel p-5 text-sm font-semibold text-emerald-100">
+              You currently have access to all visible controls in this dashboard.
+            </div>
+          )}
+
+          <div className="premium-panel-soft border border-white/10 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-300">Request Status</p>
+            <div className="mt-3 space-y-2">
+              {(Array.isArray(myPermissionRequests) ? myPermissionRequests : []).slice(0, 8).map((request) => (
+                <div key={request._id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+                  <p className="truncate text-xs font-semibold text-zinc-100">{request.actionLabel}</p>
+                  <span
+                    className={`ml-3 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${request.status === 'approved' ? 'border-emerald-300/40 bg-emerald-400/15 text-emerald-100' : request.status === 'denied' ? 'border-rose-300/40 bg-rose-400/15 text-rose-100' : 'border-zinc-300/30 bg-zinc-200/10 text-zinc-100'}`}
+                  >
+                    {request.status}
+                  </span>
+                </div>
+              ))}
+              {(Array.isArray(myPermissionRequests) ? myPermissionRequests : []).length === 0 ? (
+                <p className="text-xs text-zinc-400">No access requests yet.</p>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* Restored Home Control Panel */}
       <section className="mt-10 space-y-5">
@@ -578,27 +744,38 @@ const Dashboard = ({ accessMode = 'admin' }) => {
             {controlPanelDevices.map((device) => {
               const essentialType = device.type === 'security' || device.type === 'camera';
               const disabledByAway = floorPlanState.awayMode && !essentialType;
+              const locked = !!device.accessLocked;
 
               return (
-                <div key={device._id} className={disabledByAway ? 'opacity-55 saturate-50' : ''}>
+                <div key={device._id} className={disabledByAway || locked ? 'opacity-65 saturate-75' : ''}>
                   {disabledByAway ? (
                     <div className="mb-2 rounded-lg border border-amber-300/35 bg-amber-400/12 px-2 py-1 text-[10px] font-semibold text-amber-100 transition-all duration-300">
                       Disabled in Away Mode
                     </div>
                   ) : null}
+                  {locked ? (
+                    <div className="mb-2 rounded-lg border border-rose-300/35 bg-rose-400/12 px-2 py-1 text-[10px] font-semibold text-rose-100 transition-all duration-300">
+                      Locked: request access to control this device
+                    </div>
+                  ) : null}
                   <DeviceCard
                     device={device}
+                    isLocked={locked}
                     onToggle={() => {
-                      if (disabledByAway) return;
-                      handleToggleDevice(device._id);
+                      if (disabledByAway || locked) return;
+                      handleToggleDevice(device);
                     }}
                   />
                   <button
                     type="button"
-                    onClick={() => setSelectedControlDeviceId(device._id)}
-                    className="control-button pressable mt-2 w-full px-3 py-2 text-xs font-bold text-zinc-100"
+                    disabled={locked}
+                    onClick={() => {
+                      if (locked) return;
+                      setSelectedControlDeviceId(device._id);
+                    }}
+                    className="control-button pressable mt-2 w-full px-3 py-2 text-xs font-bold text-zinc-100 disabled:opacity-55"
                   >
-                    Advanced Controls
+                    {locked ? 'Advanced Controls Locked' : 'Advanced Controls'}
                   </button>
                 </div>
               );

@@ -35,7 +35,7 @@ const ResidentRestricted = ({ title, description, actionKey, actionLabel, room =
         </p>
 
         {approved ? (
-          <p className="mt-4 text-sm font-semibold text-emerald-200">Access approved by admin. Refresh if controls remain locked.</p>
+          <p className="mt-4 text-sm font-semibold text-emerald-200">Access approved by admin. Your controls should update automatically.</p>
         ) : (
           <button
             type="button"

@@ -33,6 +33,7 @@ const PermissionNotificationCenter = ({ isOpen, setIsOpen }) => {
 
   const [busyKey, setBusyKey] = useState('');
   const [tab, setTab] = useState('all');
+  const [expandedRequestId, setExpandedRequestId] = useState('');
 
   const requests = user?.role === 'admin' ? adminPermissionRequests : myPermissionRequests;
   const unreadCount = getUnreadPermissionCount();
@@ -52,7 +53,7 @@ const PermissionNotificationCenter = ({ isOpen, setIsOpen }) => {
 
   const requestMessage = (request) => {
     if (user?.role === 'admin') {
-      return `${request.requester?.name || 'Resident'} requested: ${request.actionLabel}`;
+      return `${request.residentName || request.requester?.name || 'Resident'} requested: ${request.requestedAction || request.actionLabel}`;
     }
 
     if (request.status === 'approved') return 'Your request has been approved';
@@ -171,11 +172,29 @@ const PermissionNotificationCenter = ({ isOpen, setIsOpen }) => {
                     {user?.role === 'admin' ? (
                       <p className="mt-1 inline-flex items-center gap-1 text-xs text-zinc-300">
                         <UserRound size={12} />
-                        {request.requester?.name || 'Resident'}
+                        {request.residentName || request.requester?.name || 'Resident'}
                       </p>
                     ) : null}
 
-                    <p className="mt-1 text-xs text-zinc-400">{prettyDate(request.createdAt)}</p>
+                    <p className="mt-1 text-xs text-zinc-400">{prettyDate(request.timestamp || request.createdAt)}</p>
+
+                    <button
+                      type="button"
+                      onClick={() => setExpandedRequestId((prev) => (prev === request._id ? '' : request._id))}
+                      className="mt-2 text-xs font-semibold text-sky-200 transition hover:text-sky-100"
+                    >
+                      {expandedRequestId === request._id ? 'Hide details' : 'View details'}
+                    </button>
+
+                    {expandedRequestId === request._id ? (
+                      <div className="mt-2 space-y-1 rounded-xl border border-white/10 bg-black/20 p-2.5 text-xs text-zinc-200">
+                        <p><span className="text-zinc-400">Resident:</span> {request.residentName || request.requester?.name || 'Resident'}</p>
+                        <p><span className="text-zinc-400">Requested action:</span> {request.requestedAction || request.actionLabel || 'Unknown action'}</p>
+                        <p><span className="text-zinc-400">Room/feature:</span> {request.room || 'Global'}</p>
+                        <p><span className="text-zinc-400">Reason:</span> {request.reason || 'No reason provided'}</p>
+                        <p><span className="text-zinc-400">Requested at:</span> {prettyDate(request.timestamp || request.createdAt)}</p>
+                      </div>
+                    ) : null}
 
                     {user?.role === 'admin' && request.status === 'pending' ? (
                       <div className="mt-3 flex items-center gap-2">
@@ -185,7 +204,7 @@ const PermissionNotificationCenter = ({ isOpen, setIsOpen }) => {
                           disabled={busyKey === `${request._id}:approved` || busyKey === `${request._id}:denied`}
                           className="rounded-xl bg-emerald-300 px-3 py-1.5 text-xs font-black text-emerald-950 transition hover:brightness-105 disabled:opacity-60"
                         >
-                          Accept
+                          Approve
                         </button>
                         <button
                           type="button"

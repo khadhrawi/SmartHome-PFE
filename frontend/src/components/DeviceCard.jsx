@@ -80,7 +80,7 @@ function DeviceMeta({ device, isOn }) {
   }
 }
 
-const DeviceCard = ({ device, onToggle }) => {
+const DeviceCard = ({ device, onToggle, isLocked = false }) => {
   const cfg = TYPE_CONFIG[device.type] ?? TYPE_CONFIG.appliance;
   const { Icon, accent } = cfg;
 
@@ -91,8 +91,11 @@ const DeviceCard = ({ device, onToggle }) => {
 
   return (
     <div
-      onClick={onToggle}
-      className="group relative flex cursor-pointer flex-col gap-5 rounded-[2rem] border p-6 transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:brightness-110 active:scale-[0.985]"
+      onClick={() => {
+        if (isLocked) return;
+        onToggle();
+      }}
+      className={`group relative flex flex-col gap-5 rounded-[2rem] border p-6 transition-all duration-300 ${isLocked ? 'cursor-not-allowed opacity-75 saturate-75' : 'cursor-pointer hover:-translate-y-2 hover:scale-[1.02] hover:brightness-110 active:scale-[0.985]'}`}
       style={{
         background: isOn
           ? `linear-gradient(135deg, ${accent}14 0%, rgba(255,255,255,0.06) 100%)`
@@ -105,6 +108,15 @@ const DeviceCard = ({ device, onToggle }) => {
           : '0 20px 44px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.08)',
       }}
     >
+      {isLocked && (
+        <div className="absolute inset-0 z-20 flex items-start justify-end rounded-[2rem] bg-black/20 p-3">
+          <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/50 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-zinc-100">
+            <Lock size={11} />
+            Read-only
+          </span>
+        </div>
+      )}
+
       {/* Ambient glow spot when ON */}
       {isOn && (
         <div
@@ -132,9 +144,14 @@ const DeviceCard = ({ device, onToggle }) => {
 
         {/* Toggle pill */}
         <button
-          onClick={e => { e.stopPropagation(); onToggle(); }}
+          onClick={e => {
+            e.stopPropagation();
+            if (isLocked) return;
+            onToggle();
+          }}
           aria-label={`Toggle ${device.name}`}
-          className="relative flex-shrink-0 focus:outline-none transition-all duration-300 hover:scale-105 active:scale-95"
+          disabled={isLocked}
+          className="relative flex-shrink-0 focus:outline-none transition-all duration-300 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
           style={{ width: 50, height: 26 }}
         >
           <div

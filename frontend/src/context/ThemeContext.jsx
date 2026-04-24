@@ -72,9 +72,8 @@ export const ThemeProvider = ({ children }) => {
       <div
         style={{
           position: 'fixed',
-          top: 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
+          right: 20,
+          bottom: 100,
           zIndex: 9999,
           display: 'flex',
           flexDirection: 'column',
@@ -89,8 +88,8 @@ export const ThemeProvider = ({ children }) => {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '10px 22px',
-              borderRadius: 999,
+              padding: '12px 16px',
+              borderRadius: 18,
               background: 'rgba(8,16,13,0.88)',
               border: `1px solid ${t.accent}40`,
               backdropFilter: 'blur(24px)',
@@ -101,7 +100,7 @@ export const ThemeProvider = ({ children }) => {
             }}
           >
             <span style={{
-              width: 7, height: 7, borderRadius: '50%',
+              width: 8, height: 8, borderRadius: '50%',
               background: t.accent,
               boxShadow: `0 0 8px ${t.accent}`,
               flexShrink: 0,

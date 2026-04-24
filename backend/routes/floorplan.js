@@ -173,6 +173,8 @@ const normalizePermissionRoom = (value) => {
   return normalizeRoom(lowered);
 };
 
+const normalizeActionKey = (value) => String(value || '').trim().toLowerCase();
+
 const getResidentAssignedRooms = (user) => {
   const rooms = new Set();
   const assignedRoom = normalizeRoom(user?.assignedRoom);
@@ -212,6 +214,43 @@ const hasApprovedRoomAccess = async (user, room) => {
   });
 
   return !!approvedRequest;
+};
+
+const hasApprovedActionAccess = async (user, actionKey) => {
+  if (!user || String(user.role || '').toLowerCase() === 'admin') {
+    return true;
+  }
+
+  const normalizedActionKey = normalizeActionKey(actionKey);
+  if (!normalizedActionKey) {
+    return false;
+  }
+
+  const permissionSet = new Set(
+    (Array.isArray(user.permissions) ? user.permissions : []).map((permission) => normalizeActionKey(permission)),
+  );
+
+  if (permissionSet.has(normalizedActionKey)) {
+    return true;
+  }
+
+  const approvedRequest = await PermissionRequest.exists({
+    requester: user._id,
+    actionKey: normalizedActionKey,
+    status: 'approved',
+  });
+
+  return !!approvedRequest;
+};
+
+const hasApprovedGlobalAccess = async (user) => {
+  const accessKeys = ['global:controls', 'modes:controls'];
+  for (const accessKey of accessKeys) {
+    if (await hasApprovedActionAccess(user, accessKey)) {
+      return true;
+    }
+  }
+  return false;
 };
 
 const ensureHouseState = async (houseCode, updatedBy = null) => {
@@ -331,8 +370,12 @@ router.get('/state', protect, async (req, res) => {
 
 router.put('/modes', protect, async (req, res) => {
   try {
-    if (String(req.user?.role || '').toLowerCase() !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to update security modes' });
+    const isAdminUser = String(req.user?.role || '').toLowerCase() === 'admin';
+    if (!isAdminUser) {
+      const hasGlobalAccess = await hasApprovedGlobalAccess(req.user);
+      if (!hasGlobalAccess) {
+        return res.status(403).json({ message: 'Not authorized to update security modes' });
+      }
     }
 
     const normalizedHouseCode = String(req.user?.houseCode || '').trim().toUpperCase();
@@ -414,8 +457,13 @@ router.put('/devices/:id/toggle', protect, async (req, res) => {
 
     const type = normalizeType(device.type);
     if (String(req.user?.role || '').toLowerCase() !== 'admin') {
-      const allowed = await hasApprovedRoomAccess(req.user, device.room);
-      if (!allowed) {
+      const [roomAllowed, deviceAllowed, globalAllowed] = await Promise.all([
+        hasApprovedRoomAccess(req.user, device.room),
+        hasApprovedActionAccess(req.user, `device:${device._id}`),
+        hasApprovedGlobalAccess(req.user),
+      ]);
+
+      if (!roomAllowed && !deviceAllowed && !globalAllowed) {
         return res.status(403).json({ message: 'Not authorized to control this room' });
       }
     }
@@ -459,8 +507,13 @@ router.put('/devices/:id/state', protect, async (req, res) => {
     }
 
     if (String(req.user?.role || '').toLowerCase() !== 'admin') {
-      const allowed = await hasApprovedRoomAccess(req.user, device.room);
-      if (!allowed) {
+      const [roomAllowed, deviceAllowed, globalAllowed] = await Promise.all([
+        hasApprovedRoomAccess(req.user, device.room),
+        hasApprovedActionAccess(req.user, `device:${device._id}`),
+        hasApprovedGlobalAccess(req.user),
+      ]);
+
+      if (!roomAllowed && !deviceAllowed && !globalAllowed) {
         return res.status(403).json({ message: 'Not authorized to control this room' });
       }
     }
