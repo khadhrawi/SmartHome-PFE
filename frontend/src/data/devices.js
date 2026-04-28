@@ -114,6 +114,23 @@ export const DEVICE_REGISTRY = [
     type: 'appliance', category: 'Appliance',
     status: 'off', value: 0, wattage: '800W', todayKwh: '1.2 kWh', lastSeen: '15m ago',
   },
+
+  // ── Windows / Shades ─────────────────────────
+  {
+    id: 'win1', name: 'Bedroom Window',     room: 'Bedroom',
+    type: 'window', category: 'Window',
+    status: 'off', openPct: 0, lastSeen: 'just now',
+  },
+  {
+    id: 'win2', name: 'Kitchen Window',     room: 'Kitchen',
+    type: 'window', category: 'Window',
+    status: 'off', openPct: 0, lastSeen: 'just now',
+  },
+  {
+    id: 'win3', name: 'Living Room Window', room: 'Living Room',
+    type: 'window', category: 'Window',
+    status: 'off', openPct: 0, lastSeen: 'just now',
+  },
 ];
 
 /** All unique room names in display order */
@@ -122,7 +139,7 @@ export const ROOM_ORDER = [
 ];
 
 /** Category filter pills */
-export const CATEGORIES = ['All', 'Lighting', 'Climate', 'Security', 'Media', 'Appliance'];
+export const CATEGORIES = ['All', 'Lighting', 'Climate', 'Security', 'Media', 'Appliance', 'Window'];
 
 /** Room metadata: emoji icon + accent color */
 export const ROOM_META = {

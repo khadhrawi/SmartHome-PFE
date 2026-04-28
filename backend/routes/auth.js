@@ -11,7 +11,8 @@ const INVALID_ADMIN_ACCESS_CODE_MESSAGE = 'Invalid Admin Access Code. Please che
 
 const normalizeHouseCode = (value = '') => String(value).trim().toUpperCase();
 const normalizeAdminAccessCode = (value = '') => String(value).trim().toUpperCase();
-const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE || 'ADMIN123';
+const ADMIN_ACCESS_CODE  = process.env.ADMIN_ACCESS_CODE  || 'ADMIN123';
+const AGENCY_ACCESS_CODE = process.env.AGENCY_ACCESS_CODE || 'AGENCY2024';
 
 /**
  * Server-side password strength guard.
@@ -49,6 +50,8 @@ const toAuthPayload = (user) => ({
   assignedRoom: user.assignedRoom,
   permissions: user.permissions || [],
   roomRequest: user.roomRequest,
+  isManaged: user.isManaged ?? null,
+  isSuperAdmin: user.isSuperAdmin ?? false,
   token: generateToken(user._id),
 });
 
@@ -282,6 +285,86 @@ router.post('/admin/create', protect, admin, async (req, res) => {
       role: newAdmin.role,
       houseCode: newAdmin.houseCode,
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ── @route   POST /api/auth/agency/register ──────────────────────────────────
+// @desc    Register a new agency account
+// @access  Public (protected by agency access code)
+router.post('/agency/register', async (req, res) => {
+  try {
+    const { name, email, password, agencyAccessCode } = req.body;
+    const normalizedCode = normalizeAdminAccessCode(agencyAccessCode);
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email and password are required' });
+    }
+    if (!email.includes('@')) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+    if (normalizedCode !== AGENCY_ACCESS_CODE) {
+      return res.status(401).json({ message: 'Invalid Agency Access Code. Please check and try again.' });
+    }
+
+    const pwError = validatePasswordStrength(password);
+    if (pwError) return res.status(422).json({ message: pwError });
+
+    const userExists = await User.findOne({ email });
+    if (userExists) return res.status(400).json({ message: 'User already exists' });
+
+    const newAgency = await User.create({
+      name,
+      email,
+      password,
+      role: 'agency',
+      status: 'active',
+      adminAccessCode: normalizedCode,
+    });
+
+    res.status(201).json({
+      _id: newAgency._id,
+      name: newAgency.name,
+      email: newAgency.email,
+      role: newAgency.role,
+      token: generateToken(newAgency._id),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ── @route   POST /api/auth/agency/login ─────────────────────────────────────
+// @desc    Auth agency user & get token — redirects client to /agency-dashboard
+// @access  Public
+router.post('/agency/login', async (req, res) => {
+  try {
+    const { email, password, agencyAccessCode } = req.body;
+    const normalizedCode = normalizeAdminAccessCode(agencyAccessCode);
+
+    if (normalizedCode !== AGENCY_ACCESS_CODE) {
+      return res.status(401).json({ message: 'Invalid Agency Access Code. Please check and try again.' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user || user.role !== 'agency') {
+      return res.status(403).json({ message: 'This portal is for agency accounts only' });
+    }
+
+    if (await user.matchPassword(password)) {
+      res.json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status || 'active',
+        token: generateToken(user._id),
+        redirectTo: '/agency-dashboard',
+      });
+    } else {
+      res.status(401).json({ message: 'Invalid credentials.' });
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

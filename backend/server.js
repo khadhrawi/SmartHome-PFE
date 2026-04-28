@@ -11,13 +11,16 @@ const { aedes, mqttServer } = require('./broker');
 const ws = require('ws');
 
 // Import Routes
-const authRoutes = require('./routes/auth');
-const deviceRoutes = require('./routes/devices');
-const floorPlanRoutes = require('./routes/floorplan');
-const scenarioRoutes = require('./routes/scenarios');
+const authRoutes       = require('./routes/auth');
+const deviceRoutes     = require('./routes/devices');
+const floorPlanRoutes  = require('./routes/floorplan');
+const scenarioRoutes   = require('./routes/scenarios');
 const permissionRoutes = require('./routes/permissions');
-const usersRoutes = require('./routes/users');
-const messagesRoutes = require('./routes/messages');
+const usersRoutes      = require('./routes/users');
+const messagesRoutes   = require('./routes/messages');
+const { router: gasRoutes } = require('./routes/gas');
+const agencyRoutes         = require('./routes/agency');
+const unitsRoutes          = require('./routes/units');
 
 const app = express();
 
@@ -26,13 +29,16 @@ app.use(cors());
 app.use(express.json());
 
 // Load API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/devices', deviceRoutes);
-app.use('/api/floorplan', floorPlanRoutes);
-app.use('/api/scenarios', scenarioRoutes);
+app.use('/api/auth',        authRoutes);
+app.use('/api/devices',     deviceRoutes);
+app.use('/api/floorplan',   floorPlanRoutes);
+app.use('/api/scenarios',   scenarioRoutes);
 app.use('/api/permissions', permissionRoutes);
-app.use('/api/users', usersRoutes);
-app.use('/api/messages', messagesRoutes);
+app.use('/api/users',       usersRoutes);
+app.use('/api/messages',    messagesRoutes);
+app.use('/api/gas',         gasRoutes);
+app.use('/api/agency',      agencyRoutes);
+app.use('/api/units',       unitsRoutes);
 
 // Create HTTP server for Express and WebSockets
 const httpServer = http.createServer(app);
@@ -55,6 +61,9 @@ mongoose
   .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/SmartHome")
   .then(() => {
     console.log('MongoDB Connected successfully');
+
+    // Init gas MQTT listener (needs Mongoose ready)
+    require('./gasMonitor').init();
 
     // Start Express API Server + Websockets
     httpServer.listen(PORT, () => {

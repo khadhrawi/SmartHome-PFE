@@ -31,7 +31,7 @@ const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'resident', 'user'], default: 'resident' },
+  role: { type: String, enum: ['admin', 'resident', 'user', 'agency'], default: 'resident' },
   status: { type: String, enum: ['active', 'pending', 'restricted'], default: 'active' },
   adminAccessCode: {
     type: String,
@@ -50,6 +50,9 @@ const UserSchema = new mongoose.Schema({
   permissions: [{ type: String }],
   roomRequest: { type: String, default: '' },
   inviteCodeUsed: { type: String, default: '' },
+  /** Onboarding: set after join/solo choice */
+  isManaged:   { type: Boolean, default: null },   // null = not yet onboarded
+  isSuperAdmin: { type: Boolean, default: false },  // true = solo/unmanaged owner
   createdAt: { type: Date, default: Date.now }
 });
 

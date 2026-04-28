@@ -14,7 +14,12 @@ const HouseStateSchema = new mongoose.Schema({
     default: null,
   },
   lockdownMode: { type: Boolean, default: false },
-  awayMode: { type: Boolean, default: false },
+  awayMode:     { type: Boolean, default: false },
+  emergencyMode: { type: Boolean, default: false },   // true = gas alarm active
+  gasLevel:      { type: Number, default: 0 },         // raw ppm reading
+  gasThreshold:  { type: Number, default: 400 },       // ppm above which alarm fires
+  gasValveOpen:  { type: Boolean, default: true },     // physical valve state
+  lastGasAlert:  { type: Date,   default: null },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 }, { timestamps: true });
 

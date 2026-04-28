@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import {
   LayoutGrid, Lightbulb, Thermometer, Shield, Tv, Zap,
-  Filter, ArrowLeft, ChevronRight, Wifi,
+  Filter, ArrowLeft, ChevronRight, Wifi, AppWindow,
 } from 'lucide-react';
 import DeviceCard from '../components/DeviceCard';
 import SmartDeviceOverlay from '../components/SmartDeviceOverlay';
@@ -23,6 +23,7 @@ const CAT_CONFIG = {
   Security:  { Icon: Shield,      accent: '#60a5fa' },
   Media:     { Icon: Tv,          accent: '#a78bfa' },
   Appliance: { Icon: Zap,         accent: '#3E5F4F' },
+  Window:    { Icon: AppWindow,   accent: '#7dd3fc' },
 };
 
 /* ── Status snippet ─────────────────────────────────────────── */

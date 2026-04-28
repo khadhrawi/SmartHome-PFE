@@ -38,4 +38,12 @@ const resident = (req, res, next) => {
   }
 };
 
-module.exports = { protect, admin, resident };
+const agencyOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'agency') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Not authorized as an agency account' });
+  }
+};
+
+module.exports = { protect, admin, resident, agencyOnly };

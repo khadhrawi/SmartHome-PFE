@@ -6,6 +6,7 @@ const PermissionRequest = require('../models/PermissionRequest');
 const { protect, admin } = require('../middlewares/auth');
 const { aedes } = require('../broker');
 const { emitDashboardStateUpdated } = require('../realtime/notifications');
+const { applySceneGasValve, setGasValve } = require('../gasMonitor');
 
 const ROOM_KEYS = ['bathroom', 'utility', 'bedroom', 'kitchen', 'living_room', 'garage'];
 
@@ -141,6 +142,36 @@ const AUTO_DEVICE_TEMPLATES = [
     room: 'living_room',
     position: { x: 43, y: 45 },
   },
+  // Windows — pre-wired on exterior walls
+  {
+    key: 'bedroom-window',
+    name: 'Bedroom Window',
+    type: 'window',
+    room: 'bedroom',
+    position: { x: 8, y: 46 },
+  },
+  {
+    key: 'kitchen-window',
+    name: 'Kitchen Window',
+    type: 'window',
+    room: 'kitchen',
+    position: { x: 62, y: 8 },
+  },
+  {
+    key: 'living-room-window',
+    name: 'Living Room Window',
+    type: 'window',
+    room: 'living_room',
+    position: { x: 63, y: 54 },
+  },
+  // Gas sensor — Kitchen safety device
+  {
+    key: 'kitchen-gas-sensor',
+    name: 'Kitchen Gas Sensor',
+    type: 'gas_sensor',
+    room: 'kitchen',
+    position: { x: 45, y: 12 },
+  },
 ];
 
 const normalizeType = (type) => {
@@ -151,6 +182,8 @@ const normalizeType = (type) => {
   if (['tv', 'television'].includes(lowered)) return 'tv';
   if (['ac', 'climate'].includes(lowered)) return 'ac';
   if (['machine', 'washer', 'washing_machine', 'washing-machine'].includes(lowered)) return 'machine';
+  if (['window', 'blind', 'blinds'].includes(lowered)) return 'window';
+  if (['gas_sensor', 'gas-sensor', 'gassensor', 'gas'].includes(lowered)) return 'gas_sensor';
   return lowered;
 };
 
@@ -312,6 +345,10 @@ const serializeDevice = (device) => ({
   room: normalizeRoom(device.room),
   state: device.state === 'ON' ? 'ON' : 'OFF',
   brightness: Number.isFinite(device.brightness) ? device.brightness : 100,
+  // openPct: for window/blind devices — 0 = fully closed, 100 = fully open
+  openPct: ['window', 'blind', 'blinds'].includes(String(device.type || '').toLowerCase())
+    ? Number.isFinite(device.openPct) ? device.openPct : (device.state === 'ON' ? 100 : 0)
+    : undefined,
   color: String(device.color || '#ffc87a'),
   position: {
     x: Number(device.position?.x ?? 50),
@@ -401,6 +438,7 @@ router.put('/modes', protect, async (req, res) => {
 
     const filter = houseFilter(req.user);
 
+    // ── Bulk-update lights with scene brightness ──
     if (state.lightingMode && MODE_ROOM_BRIGHTNESS[state.lightingMode]) {
       const roomBrightness = MODE_ROOM_BRIGHTNESS[state.lightingMode];
       const lights = await Device.find({ ...filter, type: { $in: ['light', 'lamp'] } });
@@ -425,6 +463,28 @@ router.put('/modes', protect, async (req, res) => {
           }),
         );
       }
+
+      // ── Open windows on Morning scene ──
+      if (state.lightingMode === 'Morning') {
+        await Device.updateMany(
+          { ...filter, type: { $in: ['window', 'blind', 'blinds'] } },
+          { $set: { state: 'ON', openPct: 100 } },
+        );
+      } else {
+        // Other scenes close windows
+        await Device.updateMany(
+          { ...filter, type: { $in: ['window', 'blind', 'blinds'] } },
+          { $set: { state: 'OFF', openPct: 0 } },
+        );
+      }
+    }
+
+    // ── Lockdown: close all windows + turn off lights ──
+    if (state.lockdownMode) {
+      await Device.updateMany(
+        { ...filter, type: { $in: ['window', 'blind', 'blinds'] } },
+        { $set: { state: 'OFF', openPct: 0 } },
+      );
     }
 
     if (state.awayMode) {
@@ -432,6 +492,13 @@ router.put('/modes', protect, async (req, res) => {
         { ...filter, type: { $in: ['light', 'lamp'] } },
         { $set: { state: 'OFF', brightness: 0 } },
       );
+      // Close gas valve when leaving home
+      try { setGasValve(normalizedHouseCode, false); } catch (_) {}
+    }
+
+    // Apply gas valve rule for the active lighting scene
+    if (state.lightingMode) {
+      try { await applySceneGasValve(normalizedHouseCode, state.lightingMode); } catch (_) {}
     }
 
     await broadcastHouseState({ user: req.user });
@@ -477,6 +544,11 @@ router.put('/devices/:id/toggle', protect, async (req, res) => {
       } else {
         device.brightness = 0;
       }
+    }
+
+    // Windows: flip openPct between 100 (open) and 0 (closed)
+    if (type === 'window') {
+      device.openPct = nextState === 'ON' ? 100 : 0;
     }
 
     await device.save();

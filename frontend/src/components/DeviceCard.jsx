@@ -1,4 +1,4 @@
-import { Lightbulb, Thermometer, Shield, Zap, Tv, Music, Lock, Unlock, Droplets, Sun } from 'lucide-react';
+import { Lightbulb, Thermometer, Shield, Zap, Tv, Music, Lock, Unlock, Droplets, Sun, AppWindow } from 'lucide-react';
 
 /* ── Per-type metadata: icon + accent color ─────────────────────── */
 const TYPE_CONFIG = {
@@ -7,6 +7,7 @@ const TYPE_CONFIG = {
   security:  { Icon: Shield,      accent: '#60a5fa', label: 'Security'  },
   appliance: { Icon: Zap,         accent: '#3E5F4F', label: 'Appliance' },
   media:     { Icon: Tv,          accent: '#a78bfa', label: 'Media'     },
+  window:    { Icon: AppWindow,   accent: '#7dd3fc', label: 'Window'    },
 };
 
 const C = {
@@ -75,6 +76,17 @@ function DeviceMeta({ device, isOn }) {
           </span>
         </div>
       );
+    case 'window': {
+      const pct = device.openPct ?? (isOn ? 100 : 0);
+      return (
+        <div className="flex items-center gap-1.5">
+          <AppWindow size={10} style={{ color: isOn ? '#7dd3fc' : C.dimmed }} />
+          <span className={m} style={{ color: isOn ? '#bae6fd' : C.dimmed }}>
+            {isOn ? `${pct}% Open` : 'Closed'}
+          </span>
+        </div>
+      );
+    }
     default:
       return null;
   }
@@ -195,7 +207,9 @@ const DeviceCard = ({ device, onToggle, isLocked = false }) => {
             color: isOn ? accent : 'rgba(248,249,250,0.28)',
           }}
         >
-          {isOn ? 'Active' : 'Standby'}
+          {device.type === 'window'
+            ? (isOn ? 'Open' : 'Closed')
+            : (isOn ? 'Active' : 'Standby')}
         </span>
         <div className="flex items-center gap-1.5">
           <span className="text-[9px] font-medium" style={{ color: C.dimmed }}>

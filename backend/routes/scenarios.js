@@ -5,6 +5,7 @@ const Device = require('../models/Device');
 const HouseState = require('../models/HouseState');
 const { protect } = require('../middlewares/auth');
 const { emitDashboardStateUpdated } = require('../realtime/notifications');
+const { applySceneGasValve } = require('../gasMonitor');
 
 /* ── Scene brightness presets (mirrors floorplan.js) ── */
 const VALID_SCENES = ['Morning', 'Dinner', 'Cinematic', 'Sleep'];
@@ -22,6 +23,8 @@ const normalizeRoom = (room) => {
   if (l === 'kitchenette') return 'kitchen';
   return l || 'living_room';
 };
+
+const isWindowType = (t) => ['window', 'blind', 'blinds'].includes(String(t || '').toLowerCase());
 
 const houseFilter = (user) => {
   const houseCode = String(user?.houseCode || '').trim().toUpperCase();
@@ -80,7 +83,20 @@ router.post('/activate', protect, async (req, res) => {
       );
     }
 
-    // ── 3. Broadcast updated state to all connected clients ──
+    // ── 3. Handle windows: Morning opens, all other scenes close ──
+    if (scene === 'Morning') {
+      await Device.updateMany(
+        { ...filter, type: { $in: ['window', 'blind', 'blinds'] } },
+        { $set: { state: 'ON', openPct: 100 } },
+      );
+    } else {
+      await Device.updateMany(
+        { ...filter, type: { $in: ['window', 'blind', 'blinds'] } },
+        { $set: { state: 'OFF', openPct: 0 } },
+      );
+    }
+
+    // ── 4. Broadcast updated state to all connected clients ──
     const allDevices = await Device.find(filter).sort({ createdAt: 1 });
     emitDashboardStateUpdated({
       houseCode: normalizedHouseCode,
@@ -96,11 +112,17 @@ router.post('/activate', protect, async (req, res) => {
           room: normalizeRoom(d.room),
           state: d.state === 'ON' ? 'ON' : 'OFF',
           brightness: Number.isFinite(d.brightness) ? d.brightness : 100,
+          openPct: isWindowType(d.type)
+            ? (Number.isFinite(d.openPct) ? d.openPct : (d.state === 'ON' ? 100 : 0))
+            : undefined,
           color: String(d.color || '#ffc87a'),
           position: { x: Number(d.position?.x ?? 50), y: Number(d.position?.y ?? 50) },
         })),
       },
     });
+
+    // ── 5. Gas valve: open for Morning/Dinner, close for Sleep/Away ──
+    try { await applySceneGasValve(normalizedHouseCode, scene); } catch (_) {}
 
     res.json({ success: true, scene, devicesUpdated: lights.length });
   } catch (error) {

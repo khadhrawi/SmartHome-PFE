@@ -18,6 +18,9 @@ const MODE_ROOM_BRIGHTNESS = {
   Sleep:     { living_room: 25, kitchen: 22, bedroom: 3,   bathroom: 18, utility: 18, garage: 10 },
 };
 
+// Scenes that open windows (openPct 100 = fully open)
+const WINDOW_OPEN_SCENES = new Set(['Morning']);
+
 const ROOM_KEYS = ['bathroom', 'utility', 'bedroom', 'kitchen', 'living_room', 'garage'];
 
 const normalizeRoom = (room) => {
@@ -30,6 +33,8 @@ const normalizeRoom = (room) => {
   return 'living_room';
 };
 
+const isWindowType = (t) => ['window', 'blind', 'blinds'].includes(String(t || '').toLowerCase());
+
 const normalizeDevices = (devices = []) => {
   return devices.map((device) => ({
     ...device,
@@ -37,6 +42,10 @@ const normalizeDevices = (devices = []) => {
     room: normalizeRoom(device.room),
     state: device.state === 'ON' ? 'ON' : 'OFF',
     brightness: Number(device.brightness ?? (device.state === 'ON' ? 100 : 0)),
+    // openPct: 0 = fully closed, 100 = fully open (for windows/blinds)
+    openPct: isWindowType(device.type)
+      ? Number(device.openPct ?? (device.state === 'ON' ? 100 : 0))
+      : undefined,
     color: String(device.color || '#ffc87a'),
     position: {
       x: Number(device.position?.x ?? 50),
@@ -52,7 +61,7 @@ export const useFloorPlanState = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [syncError, setSyncError] = useState('');
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.isSuperAdmin === true;
   /* Strict house-code filter exposed for debugging */
   const houseCode = String(user?.houseCode || '').trim().toUpperCase();
 
@@ -107,10 +116,15 @@ export const useFloorPlanState = () => {
       devices: prev.devices.map((device) => {
         if (device._id !== id) return device;
         const nextOn = device.state !== 'ON';
+        const isWindow = isWindowType(device.type);
         return {
           ...device,
           state: nextOn ? 'ON' : 'OFF',
-          brightness: nextOn ? Math.max(device.brightness || 0, 10) : 0,
+          // Windows: openPct toggles 0 ↔ 100; lights: brightness
+          ...(isWindow
+            ? { openPct: nextOn ? 100 : 0 }
+            : { brightness: nextOn ? Math.max(device.brightness || 0, 10) : 0 }
+          ),
         };
       }),
     }));
@@ -130,8 +144,9 @@ export const useFloorPlanState = () => {
   }, [state.lightingMode, state.lockdownMode, state.awayMode]);
 
   const setLightingMode = useCallback(async (modeName) => {
-    // ── Optimistic update: set mode flag + immediately apply brightness ──
+    // ── Optimistic update: set mode flag + immediately apply brightness + windows ──
     const roomBrightness = modeName ? (MODE_ROOM_BRIGHTNESS[modeName] || {}) : null;
+    const openWindows = modeName ? WINDOW_OPEN_SCENES.has(modeName) : false;
 
     setState((prev) => ({
       ...prev,
@@ -139,6 +154,13 @@ export const useFloorPlanState = () => {
       devices: prev.devices.map((device) => {
         const type = String(device.type || '').toLowerCase();
         const isLight = type === 'light' || type === 'lamp';
+        const isWindow = isWindowType(type);
+
+        if (isWindow) {
+          const pct = openWindows ? 100 : 0;
+          return { ...device, openPct: pct, state: pct > 0 ? 'ON' : 'OFF' };
+        }
+
         if (!isLight || !roomBrightness) return device;
         const brightness = Number(roomBrightness[device.room] ?? 45);
         return {
@@ -154,7 +176,21 @@ export const useFloorPlanState = () => {
   }, []);
 
   const toggleLockdown = useCallback(async () => {
-    await updateModes({ lockdownMode: !state.lockdownMode });
+    const nextLockdown = !state.lockdownMode;
+
+    // ── Close all windows instantly on lockdown ──
+    if (nextLockdown) {
+      setState((prev) => ({
+        ...prev,
+        devices: prev.devices.map((device) =>
+          isWindowType(device.type)
+            ? { ...device, openPct: 0, state: 'OFF' }
+            : device
+        ),
+      }));
+    }
+
+    await updateModes({ lockdownMode: nextLockdown });
   }, [state.lockdownMode, updateModes]);
 
   const toggleAway = useCallback(async () => {

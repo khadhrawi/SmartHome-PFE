@@ -60,8 +60,18 @@ export const AuthProvider = ({ children }) => {
   const [adminPermissionRequests, setAdminPermissionRequests] = useState([]);
   const [houseCrew, setHouseCrew] = useState([]);
 
+  const STORAGE_VERSION = 'v2';
+
   useEffect(() => {
     try {
+      // Clear stale data from old schema versions
+      const storedVersion = localStorage.getItem('storageVersion');
+      if (storedVersion !== STORAGE_VERSION) {
+        localStorage.removeItem('userInfo');
+        localStorage.setItem('storageVersion', STORAGE_VERSION);
+        setLoading(false);
+        return;
+      }
       const storedUserInfo = localStorage.getItem('userInfo');
       if (storedUserInfo) {
         const parsed = JSON.parse(storedUserInfo);
@@ -80,8 +90,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const saveAuthState = (data) => {
+    // Always clear before writing — prevents stale data from old sessions
+    localStorage.removeItem('userInfo');
     setUser(data);
     setToken(data.token);
+    localStorage.setItem('storageVersion', 'v2');
     localStorage.setItem('userInfo', JSON.stringify(data));
   };
 
@@ -114,6 +127,26 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginAgency = async (email, password, agencyAccessCode) => {
+    try {
+      const { data } = await api.post('/auth/agency/login', { email, password, agencyAccessCode });
+      saveAuthState(data);
+      return { success: true, redirectTo: data.redirectTo || '/agency-dashboard' };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || 'Login failed' };
+    }
+  };
+
+  const registerAgency = async (name, email, password, agencyAccessCode) => {
+    try {
+      const { data } = await api.post('/auth/agency/register', { name, email, password, agencyAccessCode });
+      // Registration doesn't auto-login — user redirected to login page
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || 'Registration failed' };
+    }
+  };
+
   const registerAdmin = async (name, email, password, adminAccessCode) => {
     try {
       const { data } = await api.post('/auth/admin/register', { name, email, password, adminAccessCode });
@@ -139,6 +172,41 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || 'Registration failed' };
+    }
+  };
+
+  /** Join an existing agency-managed unit by house code */
+  const joinUnit = async (houseCode) => {
+    try {
+      const { data } = await api.post('/units/join', { houseCode });
+      // Merge the enriched unit info into the stored user
+      setUserWithLocalSync((prev) => ({
+        ...prev,
+        houseCode: data.houseCode,
+        isManaged: data.isManaged,
+        isSuperAdmin: data.isSuperAdmin,
+        unitId: data.unitId,
+      }));
+      return { success: true, ...data };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || 'Failed to join unit' };
+    }
+  };
+
+  /** Create a solo (unmanaged) unit — grants Super Admin rights */
+  const createSoloUnit = async () => {
+    try {
+      const { data } = await api.post('/units/solo');
+      setUserWithLocalSync((prev) => ({
+        ...prev,
+        houseCode: data.houseCode,
+        isManaged: false,
+        isSuperAdmin: true,
+        unitId: data.unitId,
+      }));
+      return { success: true, unitCode: data.houseCode, ...data };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || 'Failed to create solo unit' };
     }
   };
 
@@ -316,7 +384,7 @@ export const AuthProvider = ({ children }) => {
     if (user.role === 'admin') {
       fetchAdminRequests();
       fetchHouseCrew();
-    } else {
+    } else if (user.role !== 'agency') {
       fetchMyPermissionRequests();
     }
   }, [token, user]);
@@ -460,8 +528,12 @@ export const AuthProvider = ({ children }) => {
         token,
         loginResident,
         loginAdmin,
+        loginAgency,
         registerAdmin,
+        registerAgency,
         registerResident,
+        joinUnit,
+        createSoloUnit,
         logout,
         requestPermission,
         houseCrew,
@@ -478,6 +550,10 @@ export const AuthProvider = ({ children }) => {
         createHouseMember,
         deleteHouseMember,
         updateHouseMember,
+        // Convenience computed
+        isSuperAdmin: user?.isSuperAdmin === true,
+        isManaged: user?.isManaged,
+        needsOnboarding: !!user && user.role !== 'agency' && !user.houseCode,
       }}
     >
       {children}

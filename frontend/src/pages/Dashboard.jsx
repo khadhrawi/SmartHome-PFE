@@ -1,11 +1,109 @@
 import React, { useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { Camera, ChevronRight, Plus, X, CheckCircle2, ChevronDown, Lock, Send } from 'lucide-react';
+import { Camera, ChevronRight, Plus, X, CheckCircle2, ChevronDown, Lock, Send, Flame } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import FloorPlan from '../components/FloorPlan';
 import DeviceCard from '../components/DeviceCard';
 import SmartDeviceOverlay from '../components/SmartDeviceOverlay';
 import { useFloorPlanState } from '../hooks/useFloorPlanState';
+import { useGasMonitor } from '../hooks/useGasMonitor';
+
+/* ── Gas Sensor PPM Gauge Card ───────────────────────────── */
+function GasSensorCard() {
+  const { gasLevel, threshold, emergencyMode, gasValveOpen } = useGasMonitor();
+  const isLeak   = emergencyMode;
+  const pct      = Math.min(100, Math.round((gasLevel / Math.max(threshold, 1)) * 100));
+  const accent   = isLeak ? '#ef4444' : '#4ade80';
+  const bgAccent = isLeak ? 'rgba(239,68,68,0.08)' : 'rgba(74,222,128,0.06)';
+  const border   = isLeak ? 'rgba(239,68,68,0.35)' : 'rgba(74,222,128,0.25)';
+
+  return (
+    <div
+      className="rounded-[2rem] p-5 flex items-center gap-5 transition-all duration-500"
+      style={{
+        background: bgAccent,
+        border: `1px solid ${border}`,
+        backdropFilter: 'blur(24px)',
+        boxShadow: isLeak
+          ? '0 0 32px rgba(239,68,68,0.18), 0 20px 40px rgba(0,0,0,0.3)'
+          : '0 20px 40px rgba(0,0,0,0.25)',
+        animation: isLeak ? 'warm-pulse 0.8s ease-in-out infinite' : undefined,
+      }}
+    >
+      {/* Icon */}
+      <div
+        className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+        style={{
+          background: isLeak ? 'rgba(239,68,68,0.18)' : 'rgba(74,222,128,0.12)',
+          border: `1px solid ${border}`,
+          boxShadow: `0 0 16px ${accent}44`,
+        }}
+      >
+        <Flame size={22} style={{ color: accent }} strokeWidth={2.5} />
+      </div>
+
+      {/* Data */}
+      <div className="flex-1 min-w-0 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.15em]" style={{ color: `${accent}cc` }}>
+              Kitchen Gas Sensor
+            </p>
+            <p className="text-2xl font-black tabular-nums mt-0.5" style={{ color: accent }}>
+              {gasLevel} <span className="text-sm font-bold opacity-60">ppm</span>
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-1.5">
+            {/* Status badge */}
+            <span
+              className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest"
+              style={{
+                background: isLeak ? 'rgba(239,68,68,0.2)' : 'rgba(74,222,128,0.15)',
+                border: `1px solid ${border}`,
+                color: accent,
+              }}
+            >
+              {isLeak ? '⚠ GAS LEAK' : '✓ Secure'}
+            </span>
+            {/* Valve state */}
+            <span
+              className="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider"
+              style={{
+                background: gasValveOpen ? 'rgba(239,68,68,0.1)' : 'rgba(74,222,128,0.1)',
+                border: `1px solid ${gasValveOpen ? 'rgba(239,68,68,0.25)' : 'rgba(74,222,128,0.2)'}`,
+                color: gasValveOpen ? '#fca5a5' : '#86efac',
+              }}
+            >
+              Valve: {gasValveOpen ? 'Open' : 'Closed'}
+            </span>
+          </div>
+        </div>
+
+        {/* Gauge bar */}
+        <div>
+          <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${pct}%`,
+                background: isLeak
+                  ? 'linear-gradient(90deg, #dc2626, #ef4444)'
+                  : 'linear-gradient(90deg, #16a34a, #4ade80)',
+                boxShadow: `0 0 8px ${accent}88`,
+              }}
+            />
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-[9px] font-bold" style={{ color: 'rgba(255,255,255,0.25)' }}>0 ppm</span>
+            <span className="text-[9px] font-bold" style={{ color: isLeak ? '#f87171' : 'rgba(255,255,255,0.25)' }}>
+              Threshold: {threshold} ppm
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ── Shimmer skeleton for device cards during refresh ── */
 function DeviceSkeleton() {
@@ -56,6 +154,7 @@ const DEVICE_TYPES = [
   { value: 'camera',  label: 'Camera',          emoji: '📷', accent: '#4ade80' },
   { value: 'machine', label: 'Washing Machine', emoji: '🌀', accent: '#f97316' },
   { value: 'sensor',  label: 'Sensor',          emoji: '🌡️', accent: '#f87171' },
+  { value: 'window',  label: 'Window / Blinds', emoji: '🪟', accent: '#7dd3fc' },
 ];
 
 const ROOM_OPTIONS = [
@@ -308,7 +407,7 @@ const normalizeRoom = (room) => {
 const normalizeActionKey = (value) => String(value || '').trim().toLowerCase();
 
 const Dashboard = ({ accessMode = 'admin' }) => {
-  const { user, myPermissionRequests, hasApprovedPermission, requestPermission } = useContext(AuthContext);
+  const { user, myPermissionRequests, hasApprovedPermission, requestPermission, isSuperAdmin } = useContext(AuthContext);
   const isResidentView = accessMode === 'resident';
   const [now, setNow] = useState(() => new Date());
   const [selectedControlDeviceId, setSelectedControlDeviceId] = useState(null);
@@ -391,13 +490,15 @@ const Dashboard = ({ accessMode = 'admin' }) => {
       const type = String(device?.type || '').toLowerCase();
       return type === 'light' || type === 'lamp';
     });
-    const doors = devices.filter((device) => String(device?.type || '').toLowerCase() === 'door');
+    const doors    = devices.filter((device) => String(device?.type || '').toLowerCase() === 'door');
+    const windows  = devices.filter((device) => ['window','blind','blinds'].includes(String(device?.type || '').toLowerCase()));
 
     return {
-      total: devices.length,
-      active: devices.filter((device) => device?.state === 'ON').length,
-      lightsOn: lights.filter((light) => light.state === 'ON').length,
-      doorsOpen: doors.filter((door) => door.state === 'ON').length,
+      total:       devices.length,
+      active:      devices.filter((device) => device?.state === 'ON').length,
+      lightsOn:    lights.filter((light) => light.state === 'ON').length,
+      doorsOpen:   doors.filter((door) => door.state === 'ON').length,
+      windowsOpen: windows.filter((w) => w.state === 'ON').length,
     };
   }, [floorPlanState.devices]);
 
@@ -406,6 +507,7 @@ const Dashboard = ({ accessMode = 'admin' }) => {
     return devices
       .map((device) => {
       const type = String(device?.type || '').toLowerCase();
+      const isWindowDev = ['window','blind','blinds'].includes(type);
       const mappedType = type === 'light' || type === 'lamp'
         ? 'light'
         : type === 'door'
@@ -414,6 +516,8 @@ const Dashboard = ({ accessMode = 'admin' }) => {
             ? 'camera'
           : type === 'tv'
             ? 'media'
+          : isWindowDev
+            ? 'window'
             : 'appliance';
 
       return {
@@ -421,6 +525,8 @@ const Dashboard = ({ accessMode = 'admin' }) => {
         type: mappedType,
         status: device.state === 'ON' ? 'on' : 'off',
         value: mappedType === 'light' ? Number(device.brightness || 0) : device.value,
+        // Pass openPct through for window cards
+        openPct: isWindowDev ? Number(device.openPct ?? (device.state === 'ON' ? 100 : 0)) : undefined,
         locked: mappedType === 'security' ? device.state !== 'ON' : undefined,
         accessLocked: !canControlDevice(device),
         lastSeen: 'Live',
@@ -599,7 +705,7 @@ const Dashboard = ({ accessMode = 'admin' }) => {
             <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-100/75">Dashboard</p>
             <h1 className="mt-1 text-3xl font-black text-white md:text-4xl">{greeting()}, {user?.name || 'User'}</h1>
             <p className="mt-1 text-sm text-zinc-300/75">
-              {isResidentView ? 'Resident access mode' : 'Admin control mode'}
+              {isResidentView ? 'Resident access mode' : isSuperAdmin ? '⚡ Super Admin — Full unit control' : 'Admin control mode'}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
               <span className="state-chip px-3 py-1 text-zinc-200">{liveDate}</span>
@@ -723,14 +829,21 @@ const Dashboard = ({ accessMode = 'admin' }) => {
               <h2 className="text-xl font-black text-white">Home Control Panel</h2>
               <p className="text-sm text-zinc-300/75">Live device controls and home status synchronized with the floor plan overlay.</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 xl:grid-cols-5">
               <div className="premium-panel-soft interactive-lift px-3 py-2 text-zinc-100">Devices: {deviceStats.total}</div>
               <div className="premium-panel-soft interactive-lift state-chip-active px-3 py-2 text-zinc-100">Active: {deviceStats.active}</div>
               <div className="premium-panel-soft interactive-lift px-3 py-2 text-zinc-100">Lights On: {deviceStats.lightsOn}</div>
               <div className="premium-panel-soft interactive-lift px-3 py-2 text-zinc-100">Doors Open: {deviceStats.doorsOpen}</div>
+              <div className="premium-panel-soft interactive-lift px-3 py-2 text-sky-200"
+                style={{ borderColor: deviceStats.windowsOpen > 0 ? 'rgba(125,211,252,0.35)' : undefined, background: deviceStats.windowsOpen > 0 ? 'rgba(125,211,252,0.08)' : undefined }}>
+                🪟 Windows: {deviceStats.windowsOpen}
+              </div>
             </div>
           </div>
         </div>
+
+        {/* ── Gas Sensor PPM Gauge Card (Safety Priority) ───── */}
+        <GasSensorCard />
 
         {isRefreshing ? (
           /* ┌─ Shimmer skeletons while re-fetching after Add Device ─┐ */

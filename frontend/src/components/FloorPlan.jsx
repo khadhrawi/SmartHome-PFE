@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { Lightbulb, Lock, Plus, Settings, Tv, WashingMachine, Sun, Moon, Utensils, Film } from 'lucide-react';
+import { Lightbulb, Lock, Plus, Settings, Tv, WashingMachine, Sun, Moon, Utensils, Film, AppWindow, Flame } from 'lucide-react';
+import { useGasMonitor } from '../hooks/useGasMonitor';
 
 /* ─── Constants ───────────────────────────────────────────────────── */
 const LIGHTING_MODES = ['Cinematic', 'Dinner', 'Morning', 'Sleep'];
@@ -14,16 +15,20 @@ const SCENE_CONFIG = {
 };
 
 const REQUIRED_CONTROLS = [
-  { id: 'bathroom-light',  room: 'bathroom',    type: 'light',   label: 'Bathroom Light' },
-  { id: 'utility-light',   room: 'utility',     type: 'light',   label: 'Utility Light' },
-  { id: 'utility-machine', room: 'utility',     type: 'machine', label: 'Washing Machine' },
-  { id: 'bedroom-light',   room: 'bedroom',     type: 'light',   label: 'Bedroom Light' },
-  { id: 'kitchen-light',   room: 'kitchen',     type: 'light',   label: 'Kitchen Light' },
-  { id: 'living-light',    room: 'living_room', type: 'light',   label: 'Living Room Light' },
-  { id: 'living-tv',       room: 'living_room', type: 'tv',      label: 'Living Room TV' },
-  { id: 'garage-light',    room: 'garage',      type: 'light',   label: 'Garage Light' },
-  { id: 'garage-door',     room: 'garage',      type: 'door',    label: 'Garage Door' },
-  { id: 'main-door',       room: 'entrance',    type: 'door',    label: 'Main Door' },
+  { id: 'bathroom-light',    room: 'bathroom',    type: 'light',      label: 'Bathroom Light' },
+  { id: 'utility-light',    room: 'utility',     type: 'light',      label: 'Utility Light' },
+  { id: 'utility-machine',  room: 'utility',     type: 'machine',    label: 'Washing Machine' },
+  { id: 'bedroom-light',    room: 'bedroom',     type: 'light',      label: 'Bedroom Light' },
+  { id: 'bedroom-window',   room: 'bedroom',     type: 'window',     label: 'Bedroom Window' },
+  { id: 'kitchen-light',    room: 'kitchen',     type: 'light',      label: 'Kitchen Light' },
+  { id: 'kitchen-window',   room: 'kitchen',     type: 'window',     label: 'Kitchen Window' },
+  { id: 'kitchen-gas',      room: 'kitchen',     type: 'gas_sensor', label: 'Gas Sensor' },
+  { id: 'living-light',     room: 'living_room', type: 'light',      label: 'Living Room Light' },
+  { id: 'living-tv',        room: 'living_room', type: 'tv',         label: 'Living Room TV' },
+  { id: 'living-window',    room: 'living_room', type: 'window',     label: 'Living Room Window' },
+  { id: 'garage-light',     room: 'garage',      type: 'light',      label: 'Garage Light' },
+  { id: 'garage-door',      room: 'garage',      type: 'door',       label: 'Garage Door' },
+  { id: 'main-door',        room: 'entrance',    type: 'door',       label: 'Main Door' },
 ];
 
 /* ─── Isometric geometry ──────────────────────────────────────────── */
@@ -77,16 +82,20 @@ const ROOM_LIGHT_SLOT = {
 // Overlay positions for each slot (% of container relative to SVG viewBox)
 // Computed via iso() + svgPct() for each device's 3-D position
 const SLOT_POS = {
-  'bathroom-light':  svgPct(...iso(0.55, 0.65, 0)),
-  'utility-light':   svgPct(...iso(1.65, 0.60, 0)),
-  'utility-machine': svgPct(...iso(1.75, 1.00, 0)),
-  'bedroom-light':   svgPct(...iso(1.10, 2.10, 0)),
-  'kitchen-light':   svgPct(...iso(3.10, 0.65, 0)),
-  'living-light':    svgPct(...iso(3.10, 2.10, 0)),
-  'living-tv':       svgPct(...iso(3.60, 2.50, 0)),
-  'garage-light':    svgPct(...iso(4.80, 1.00, 0)),
-  'garage-door':     svgPct(...iso(5.45, 2.50, 0)),
-  'main-door':       svgPct(...iso(2.00, 3.55, 0)),
+  'bathroom-light':   svgPct(...iso(0.55, 0.65, 0)),
+  'utility-light':    svgPct(...iso(1.65, 0.60, 0)),
+  'utility-machine':  svgPct(...iso(1.75, 1.00, 0)),
+  'bedroom-light':    svgPct(...iso(1.10, 2.10, 0)),
+  'bedroom-window':   svgPct(...iso(0.15, 2.10, 0)),   // Left exterior wall (bedroom)
+  'kitchen-light':    svgPct(...iso(3.10, 0.65, 0)),
+  'kitchen-window':   svgPct(...iso(3.80, 0.25, 0)),   // Top exterior wall (kitchen)
+  'kitchen-gas':      svgPct(...iso(2.45, 0.30, 0)),   // Kitchen — near hob area
+  'living-light':     svgPct(...iso(3.10, 2.10, 0)),
+  'living-tv':        svgPct(...iso(3.60, 2.50, 0)),
+  'living-window':    svgPct(...iso(3.80, 2.80, 0)),   // Right exterior wall (living room)
+  'garage-light':     svgPct(...iso(4.80, 1.00, 0)),
+  'garage-door':      svgPct(...iso(5.45, 2.50, 0)),
+  'main-door':        svgPct(...iso(2.00, 3.55, 0)),
 };
 
 /* ─── Utility helpers (device state) ─────────────────────────────── */
@@ -97,6 +106,8 @@ const normalizeType = t => {
   if (['tv','television'].includes(l)) return 'tv';
   if (['ac','climate'].includes(l)) return 'ac';
   if (['machine','washer','washing_machine','washing-machine'].includes(l)) return 'machine';
+  if (['window','blind','blinds'].includes(l)) return 'window';
+  if (['gas_sensor','gas-sensor','gassensor','gas'].includes(l)) return 'gas_sensor';
   return l || 'other';
 };
 
@@ -130,10 +141,11 @@ const getStateLabel = device => {
   if (!device || typeof device !== 'object') return 'OFFLINE';
   const type = normalizeType(device.type);
   const on = isDeviceOn(device);
-  if (type === 'door') return on ? 'OPEN' : 'LOCKED';
-  if (type === 'tv') return on ? 'ON' : 'OFF';
+  if (type === 'door')    return on ? 'OPEN' : 'LOCKED';
+  if (type === 'tv')      return on ? 'ON' : 'OFF';
   if (type === 'machine') return on ? 'ACTIVE' : 'IDLE';
-  if (type === 'light') return on ? `${Math.round(Number(device.brightness || 0))}%` : 'OFF';
+  if (type === 'light')   return on ? `${Math.round(Number(device.brightness || 0))}%` : 'OFF';
+  if (type === 'window')  return `${Math.round(Number(device.openPct ?? (on ? 100 : 0)))}% OPEN`;
   return on ? 'ON' : 'OFF';
 };
 
@@ -141,10 +153,15 @@ const matchesRequiredSlot = (slot, device) => {
   const type = normalizeType(device.type);
   const room = roomForDevice(device);
   const name = String(device.name || '').toLowerCase();
-  if (slot.id === 'garage-door') return type === 'door' && /garage/.test(name);
-  if (slot.id === 'main-door')   return type === 'door' && /(main|entrance|front)/.test(name);
-  if (slot.id === 'living-tv')   return type === 'tv'   && room === 'living_room';
-  if (slot.id === 'utility-machine') return type === 'machine' && room === 'utility';
+  if (slot.id === 'garage-door')    return type === 'door'   && /garage/.test(name);
+  if (slot.id === 'main-door')      return type === 'door'   && /(main|entrance|front)/.test(name);
+  if (slot.id === 'living-tv')      return type === 'tv'     && room === 'living_room';
+  if (slot.id === 'utility-machine')return type === 'machine' && room === 'utility';
+  // Window slots — match by type + room
+  if (slot.id === 'bedroom-window') return type === 'window' && room === 'bedroom';
+  if (slot.id === 'kitchen-window') return type === 'window' && room === 'kitchen';
+  if (slot.id === 'living-window')  return type === 'window' && room === 'living_room';
+  if (slot.id === 'kitchen-gas')    return type === 'gas_sensor' && room === 'kitchen';
   if (slot.type === 'light') return type === 'light' && room === slot.room;
   return type === slot.type && room === slot.room;
 };
@@ -468,6 +485,175 @@ const DeviceMarker = ({ slot, device, canControl, awayMode, lockdownMode, onTogg
   );
 };
 
+/* ─── Window / Blinds overlay marker ──────────────────────────────────── */
+const WindowMarker = ({ slot, device, canControl, lockdownMode, onToggle, onCreateMissing, isAdmin, dimmed, isLockedByPermission = false }) => {
+  const missing  = !device;
+  const openPct  = Number(device?.openPct ?? (device?.state === 'ON' ? 100 : 0));
+  const isOpen   = openPct > 0;
+  const readOnly = isLockedByPermission;
+
+  // In lockdown: deep coral; open: sky-blue; closed: dark tinted
+  const tintColor   = lockdownMode ? 'rgba(255,100,80,0.55)' : isOpen ? 'rgba(100,180,255,0.22)' : 'rgba(20,60,130,0.55)';
+  const borderColor = lockdownMode ? 'rgba(255,100,80,0.85)' : isOpen ? 'rgba(100,200,255,0.75)' : 'rgba(60,100,200,0.50)';
+  const iconColor   = lockdownMode ? '#ff6450'                 : isOpen ? '#7dd3fc'               : '#475da3';
+  const labelText   = lockdownMode ? 'SECURED' : isOpen ? `${openPct}% OPEN` : 'CLOSED';
+
+  const [px, py] = SLOT_POS[slot.id] || [50, 50];
+
+  const handleClick = () => {
+    if (!missing && canControl && !readOnly) onToggle(device);
+  };
+
+  return (
+    <div
+      className="group absolute"
+      style={{ left: `${px}%`, top: `${py}%`, transform: 'translate(-50%,-50%)', zIndex: 5, opacity: dimmed ? 0.25 : 1, transition: 'opacity 0.4s' }}
+    >
+      {/* Aura Tint block — privacy-glass / shutter effect */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: '-6px -4px',
+          borderRadius: 6,
+          background: tintColor,
+          border: `1px solid ${borderColor}`,
+          backdropFilter: 'blur(4px)',
+          transition: 'background 0.5s ease, border-color 0.5s ease',
+          pointerEvents: 'none',
+          zIndex: -1,
+        }}
+      />
+      <button
+        type="button"
+        disabled={missing || !canControl || readOnly}
+        onClick={handleClick}
+        className="relative flex items-center gap-1 rounded-xl border px-2 py-1 text-[9px] font-bold backdrop-blur-sm transition-all duration-300 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+        style={{
+          borderColor,
+          background: 'rgba(5,10,25,0.60)',
+          color: iconColor,
+          boxShadow: lockdownMode
+            ? '0 0 12px rgba(255,100,80,0.4)'
+            : isOpen
+              ? '0 0 10px rgba(100,200,255,0.3)'
+              : 'none',
+          minWidth: 46,
+        }}
+        title={slot.label}
+      >
+        <AppWindow size={10} />
+        <span>{labelText}</span>
+      </button>
+      <p className="mt-0.5 text-center text-[8px] font-bold tracking-wider" style={{ color: iconColor }}>
+        {missing ? '–' : slot.label.replace(' Window','')}
+      </p>
+      {readOnly && (
+        <p className="mt-0.5 text-center text-[8px] font-black tracking-widest text-rose-200/85">LOCKED</p>
+      )}
+      {/* Tooltip */}
+      <div className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 -translate-y-1 whitespace-nowrap rounded-full border border-white/15 bg-black/70 px-2.5 py-1 text-[9px] font-semibold text-zinc-100 opacity-0 backdrop-blur-md transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100">
+        {missing ? 'Not configured' : getStateLabel(device)}
+      </div>
+      {missing && isAdmin && (
+        <button type="button" onClick={() => onCreateMissing(slot)}
+          className="mx-auto mt-0.5 flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/15 px-1.5 py-0.5 text-[8px] font-bold text-amber-200">
+          <Plus size={8} /> Add
+        </button>
+      )}
+    </div>
+  );
+};
+
+/* ─── Gas Sensor overlay marker ───────────────────────────────────── */
+const GasMarker = ({ slot, gasLevel, threshold, emergencyMode, dimmed }) => {
+  const [px, py] = SLOT_POS[slot.id] || [50, 50];
+  const isLeak = emergencyMode;
+  const pct = Math.min(100, Math.round((gasLevel / (threshold || 400)) * 100));
+
+  // Normal: soft green/gold glow. Leak: rapid red pulse.
+  const glowColor   = isLeak ? '#ef4444' : '#4ade80';
+  const borderColor = isLeak ? 'rgba(239,68,68,0.80)' : 'rgba(74,222,128,0.50)';
+  const bgColor     = isLeak ? 'rgba(30,4,4,0.85)'    : 'rgba(4,20,10,0.80)';
+  const iconColor   = isLeak ? '#f87171'               : '#4ade80';
+
+  return (
+    <div
+      className="group absolute"
+      style={{
+        left: `${px}%`, top: `${py}%`,
+        transform: 'translate(-50%,-50%)',
+        zIndex: 6,
+        opacity: dimmed ? 0.25 : 1,
+        transition: 'opacity 0.4s',
+      }}
+    >
+      {/* Outer glow ring */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: -5,
+          borderRadius: '50%',
+          boxShadow: isLeak
+            ? `0 0 0 3px rgba(239,68,68,0.5), 0 0 18px ${glowColor}`
+            : `0 0 0 2px rgba(74,222,128,0.28), 0 0 10px ${glowColor}55`,
+          animation: isLeak ? 'gas-marker-leak 0.5s ease-in-out infinite' : undefined,
+          borderRadius: 10,
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Main badge */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 5,
+          padding: '4px 8px',
+          borderRadius: 10,
+          background: bgColor,
+          border: `1.5px solid ${borderColor}`,
+          boxShadow: `0 0 12px ${glowColor}${isLeak ? 'aa' : '44'}`,
+          cursor: 'default',
+          minWidth: 52,
+        }}
+      >
+        <Flame size={11} color={iconColor} />
+        <span style={{ fontSize: 9, fontWeight: 900, color: iconColor, letterSpacing: '0.05em' }}>
+          {isLeak ? 'LEAK!' : `${gasLevel} ppm`}
+        </span>
+      </div>
+
+      {/* Label */}
+      <p style={{ marginTop: 2, textAlign: 'center', fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', color: isLeak ? '#f87171' : 'rgba(74,222,128,0.7)' }}>
+        GAS
+      </p>
+
+      {/* Gauge bar */}
+      <div style={{ width: '100%', height: 2, borderRadius: 2, background: 'rgba(255,255,255,0.08)', marginTop: 1, overflow: 'hidden' }}>
+        <div style={{
+          width: `${pct}%`,
+          height: '100%',
+          background: isLeak ? '#ef4444' : '#4ade80',
+          boxShadow: `0 0 4px ${glowColor}`,
+          transition: 'width 0.6s ease, background 0.3s ease',
+        }} />
+      </div>
+
+      {/* Tooltip */}
+      <div className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/15 bg-black/70 px-2.5 py-1 text-[9px] font-semibold text-zinc-100 opacity-0 backdrop-blur-md transition-all duration-200 group-hover:opacity-100">
+        {isLeak ? `⚠ GAS LEAK — ${gasLevel} ppm` : `Gas: ${gasLevel} ppm — Secure`}
+      </div>
+
+      <style>{`
+        @keyframes gas-marker-leak {
+          0%, 100% { box-shadow: 0 0 0 3px rgba(239,68,68,0.6), 0 0 18px #ef4444; }
+          50%       { box-shadow: 0 0 0 6px rgba(239,68,68,0.2), 0 0 28px #ef4444; }
+        }
+      `}</style>
+    </div>
+  );
+};
+
 /* ─── Room label overlay ──────────────────────────────────────────── */
 const RoomLabel = ({ room, selectedRoom, onSelect }) => {
   const { id, label, rx, ry, w, d } = room;
@@ -503,6 +689,8 @@ const FloorPlan = ({
   canControlDevice = () => true,
 }) => {
   const [selectedRoom, setSelectedRoom] = useState(null);
+  // Live gas sensor data from socket
+  const { gasLevel, threshold, emergencyMode: gasEmergency } = useGasMonitor();
 
   const devices = useMemo(() =>
     (state.devices || [])
@@ -638,6 +826,39 @@ const FloorPlan = ({
                 const dimmed = selectedRoom && selectedRoom !== slot.room;
                 const slotDevice = slotBinding[slot.id];
                 const slotLockedByPermission = slotDevice ? !canControlDevice(slotDevice) : false;
+
+                // Gas sensor slot — renders live ppm GasMarker (read-only, no toggle)
+                if (slot.type === 'gas_sensor') {
+                  return (
+                    <GasMarker
+                      key={slot.id}
+                      slot={slot}
+                      gasLevel={gasLevel}
+                      threshold={threshold}
+                      emergencyMode={gasEmergency}
+                      dimmed={dimmed}
+                    />
+                  );
+                }
+
+                // Window slots get their own specialised marker
+                if (slot.type === 'window') {
+                  return (
+                    <WindowMarker
+                      key={slot.id}
+                      slot={slot}
+                      device={slotDevice}
+                      canControl={canControl}
+                      lockdownMode={state.lockdownMode}
+                      onToggle={handleDeviceToggle}
+                      onCreateMissing={createRequiredControl}
+                      isAdmin={isAdmin}
+                      dimmed={dimmed}
+                      isLockedByPermission={slotLockedByPermission}
+                    />
+                  );
+                }
+
                 return (
                   <DeviceMarker
                     key={slot.id}
@@ -671,6 +892,22 @@ const FloorPlan = ({
           <div className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" />
             <span className="text-[9px] font-bold tracking-widest text-zinc-400">OPEN</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.9)]" />
+            <span className="text-[9px] font-bold tracking-widest text-zinc-400">WINDOW</span>
+          </div>
+          <div className="flex items-center gap-1.5" id="gas-hud-legend">
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{
+                background: gasEmergency ? '#ef4444' : '#4ade80',
+                boxShadow: gasEmergency ? '0 0 6px rgba(239,68,68,0.9)' : '0 0 6px rgba(74,222,128,0.9)',
+              }}
+            />
+            <span className="text-[9px] font-bold tracking-widest" style={{ color: gasEmergency ? '#f87171' : '#86efac' }}>
+              {gasEmergency ? 'GAS LEAK!' : 'GAS OK'}
+            </span>
           </div>
           {selectedRoom && (
             <button
@@ -779,6 +1016,7 @@ const FloorPlan = ({
                         : typeIcon === 'tv'    ? '📺'
                         : typeIcon === 'ac'    ? '❄️'
                         : typeIcon === 'machine' ? '🌀'
+                        : typeIcon === 'window' ? '🪟'
                         : '📦'}
                       </span>
                       <span

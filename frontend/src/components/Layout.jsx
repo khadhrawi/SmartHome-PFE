@@ -1,9 +1,12 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Layers, Grid, Zap, User, LogOut, Shield, Mail, PanelTopClose, PanelTopOpen } from 'lucide-react';
+import { Home, Layers, Grid, Zap, User, LogOut, Shield, Mail, PanelTopClose, PanelTopOpen, Wrench } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import PermissionNotificationCenter from './PermissionNotificationCenter';
 import SupportModal from './SupportModal';
+import GasEmergencyOverlay from './GasEmergencyOverlay';
+import GasSafetyBanner from './GasSafetyBanner';
+import { useGasMonitor } from '../hooks/useGasMonitor';
 
 /* ── Module-level constants (never re-created on render) ── */
 const NAV_MOOD_STYLES = {
@@ -89,12 +92,15 @@ const NavIconLink = ({ name, path, Icon, moodTheme }) => {
 
 /* ── Layout ── */
 const Layout = ({ children }) => {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, isSuperAdmin, isManaged } = useContext(AuthContext);
   const [compactNav, setCompactNav] = useState(false);
   const [navMood, setNavMood] = useState(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const navigate = useNavigate();
+
+  /* Gas safety monitor — always active while logged in */
+  const { gasLevel, threshold, emergencyMode, gasValveOpen, clearEmergency } = useGasMonitor();
 
   const handleLogout = () => { logout(); navigate('/auth/choose'); };
   const handleContact = () => setSupportOpen(true);
@@ -112,7 +118,16 @@ const Layout = ({ children }) => {
     { name: 'Profile',   path: '/profile',   icon: User },
   ];
 
-  const navItems = user?.role === 'admin' ? adminNavItems : residentNavItems;
+  const agencyNavItems = [
+    { name: 'Agency Hub', path: '/agency-dashboard', icon: Home },
+    { name: 'Profile',    path: '/profile',           icon: User },
+  ];
+
+  // isSuperAdmin solo users get full admin nav
+  const navItems =
+    user?.role === 'agency' ? agencyNavItems
+    : (user?.role === 'admin' || isSuperAdmin) ? adminNavItems
+    : residentNavItems;
 
   const navMoodTheme = useMemo(
     () => NAV_MOOD_STYLES[navMood] || NAV_MOOD_STYLES.default,
@@ -189,12 +204,27 @@ const Layout = ({ children }) => {
                   <span
                     className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest"
                     style={{
-                      background: user?.role === 'admin' ? 'rgba(14,165,233,0.18)' : 'rgba(74,222,128,0.18)',
-                      border: user?.role === 'admin' ? '1px solid rgba(14,165,233,0.45)' : '1px solid rgba(74,222,128,0.45)',
-                      color: user?.role === 'admin' ? '#bae6fd' : '#bbf7d0',
+                      background:
+                        user?.role === 'agency'   ? 'rgba(139,92,246,0.18)'
+                        : isSuperAdmin            ? 'rgba(167,139,250,0.18)'
+                        : user?.role === 'admin'  ? 'rgba(14,165,233,0.18)'
+                        : 'rgba(74,222,128,0.18)',
+                      border:
+                        user?.role === 'agency'   ? '1px solid rgba(139,92,246,0.45)'
+                        : isSuperAdmin            ? '1px solid rgba(167,139,250,0.45)'
+                        : user?.role === 'admin'  ? '1px solid rgba(14,165,233,0.45)'
+                        : '1px solid rgba(74,222,128,0.45)',
+                      color:
+                        user?.role === 'agency'   ? '#c4b5fd'
+                        : isSuperAdmin            ? '#ddd6fe'
+                        : user?.role === 'admin'  ? '#bae6fd'
+                        : '#bbf7d0',
                     }}
                   >
-                    {user?.role === 'admin' ? 'Admin Mode' : 'Resident Mode'}
+                    {user?.role === 'agency' ? 'Agency Mode'
+                      : isSuperAdmin         ? 'Super Admin'
+                      : user?.role === 'admin' ? 'Admin Mode'
+                      : 'Resident Mode'}
                   </span>
                 </div>
               </div>
@@ -227,28 +257,57 @@ const Layout = ({ children }) => {
                 </span>
               </button>
 
-              <button
-                className={actionBtnClass}
-                onClick={handleContact}
-                title="Support Concierge"
-                style={{ background: navMoodTheme.actionBg, border: `1px solid ${navMoodTheme.actionBorder}`, transition: 'all 0.25s ease' }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = 'rgba(227,197,152,0.13)';
-                  e.currentTarget.style.borderColor = 'rgba(227,197,152,0.45)';
-                  e.currentTarget.style.boxShadow = '0 0 18px rgba(227,197,152,0.30), 0 0 6px rgba(227,197,152,0.18)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = navMoodTheme.actionBg;
-                  e.currentTarget.style.borderColor = navMoodTheme.actionBorder;
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                <Mail size={16} style={{ color: '#E3C598' }} />
-                <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider opacity-0 transition-all duration-200 group-hover:opacity-100 whitespace-nowrap"
-                  style={{ background: 'rgba(8,16,13,0.92)', border: '1px solid rgba(227,197,152,0.25)', color: '#E3C598' }}>
-                  Support Concierge
-                </span>
-              </button>
+              {/* Support Concierge — hidden for solo (isSuperAdmin) users */}
+              {isManaged !== false && (
+                <button
+                  className={actionBtnClass}
+                  onClick={handleContact}
+                  title="Support Concierge"
+                  style={{ background: navMoodTheme.actionBg, border: `1px solid ${navMoodTheme.actionBorder}`, transition: 'all 0.25s ease' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(227,197,152,0.13)';
+                    e.currentTarget.style.borderColor = 'rgba(227,197,152,0.45)';
+                    e.currentTarget.style.boxShadow = '0 0 18px rgba(227,197,152,0.30), 0 0 6px rgba(227,197,152,0.18)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = navMoodTheme.actionBg;
+                    e.currentTarget.style.borderColor = navMoodTheme.actionBorder;
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <Mail size={16} style={{ color: '#E3C598' }} />
+                  <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider opacity-0 transition-all duration-200 group-hover:opacity-100 whitespace-nowrap"
+                    style={{ background: 'rgba(8,16,13,0.92)', border: '1px solid rgba(227,197,152,0.25)', color: '#E3C598' }}>
+                    Support Concierge
+                  </span>
+                </button>
+              )}
+
+              {/* Request Maintenance — hidden for solo (isSuperAdmin) users */}
+              {isManaged !== false && (
+                <button
+                  className={actionBtnClass}
+                  onClick={() => setSupportOpen(true)}
+                  title="Request Maintenance"
+                  style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.22)', transition: 'all 0.25s ease' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(251,191,36,0.15)';
+                    e.currentTarget.style.borderColor = 'rgba(251,191,36,0.50)';
+                    e.currentTarget.style.boxShadow = '0 0 18px rgba(251,191,36,0.22)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(251,191,36,0.08)';
+                    e.currentTarget.style.borderColor = 'rgba(251,191,36,0.22)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <Wrench size={16} style={{ color: 'rgba(251,191,36,0.90)' }} />
+                  <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider opacity-0 transition-all duration-200 group-hover:opacity-100 whitespace-nowrap"
+                    style={{ background: 'rgba(8,16,13,0.92)', border: '1px solid rgba(251,191,36,0.30)', color: '#fbbf24' }}>
+                    Request Maintenance
+                  </span>
+                </button>
+              )}
 
               <button
                 className={actionBtnClass}
@@ -275,6 +334,25 @@ const Layout = ({ children }) => {
 
       <PermissionNotificationCenter isOpen={isNotificationsOpen} setIsOpen={setIsNotificationsOpen} />
       {supportOpen && <SupportModal onClose={() => setSupportOpen(false)} />}
+
+      {/* ⚠ Slide-down Gas Safety Banner — visible on any screen */}
+      <GasSafetyBanner
+        gasLevel={gasLevel}
+        threshold={threshold}
+        emergencyMode={emergencyMode}
+        isAdmin={user?.role === 'admin'}
+        onClear={clearEmergency}
+      />
+
+      {/* 🚨 Full-screen Gas Emergency Overlay — only for extreme levels (> 1.5x threshold) */}
+      {emergencyMode && gasLevel > threshold * 1.5 && (
+        <GasEmergencyOverlay
+          gasLevel={gasLevel}
+          threshold={threshold}
+          gasValveOpen={gasValveOpen}
+          onClear={clearEmergency}
+        />
+      )}
     </div>
   );
 };

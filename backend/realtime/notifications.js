@@ -57,6 +57,11 @@ const initNotificationsServer = (httpServer) => {
       socket.join(`house-admin:${houseCode}`);
     }
 
+    // Agency accounts get their own global room so they receive cross-unit alerts
+    if (userRole === 'agency') {
+      socket.join('agency:global');
+    }
+
     console.log(`[socket] connected user=${userId} role=${userRole} house=${houseCode || 'n/a'}`);
   });
 
@@ -176,6 +181,30 @@ const emitDashboardStateUpdated = ({ houseCode, payload }) => {
   ioInstance.to(`house:${houseCode}`).emit('dashboard:state-updated', payload);
 };
 
+/**
+ * Broadcast a gas-level reading + emergency state to every client in the house.
+ * Emitted on every sensor reading so the UI can show live ppm even if not in emergency.
+ */
+const emitGasEmergency = ({ houseCode, gasLevel, threshold, emergencyMode, gasValveOpen }) => {
+  if (!ioInstance || !houseCode) return;
+  const payload = { houseCode, gasLevel, threshold, emergencyMode, gasValveOpen, ts: Date.now() };
+  ioInstance.to(`house:${houseCode}`).emit('house:gas-emergency', payload);
+  // Also update the main dashboard state so the header reacts
+  ioInstance.to(`house:${houseCode}`).emit('dashboard:gas-update', payload);
+  // Forward gas leaks to every connected agency dashboard in real-time
+  if (emergencyMode) {
+    ioInstance.to('agency:global').emit('agency:gas-alert', { houseCode, gasLevel, threshold, ts: Date.now() });
+  }
+};
+
+/**
+ * Broadcast a unit-status change to all agency dashboards.
+ */
+const emitAgencyUnitUpdated = (unit) => {
+  if (!ioInstance) return;
+  ioInstance.to('agency:global').emit('agency:unit-updated', unit);
+};
+
 module.exports = {
   initNotificationsServer,
   emitPermissionCreated,
@@ -185,4 +214,6 @@ module.exports = {
   emitHouseUserUpdated,
   emitHouseUserDeleted,
   emitDashboardStateUpdated,
+  emitGasEmergency,
+  emitAgencyUnitUpdated,
 };
