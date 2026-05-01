@@ -79,45 +79,7 @@ const AuthEntry = () => {
               </p>
             </button>
 
-            {/* Agency card */}
-            <button
-              type="button"
-              id="auth-entry-agency"
-              onClick={() => navigate('/auth/agency/login')}
-              className={`${cardBase}`}
-              style={{
-                borderColor: 'rgba(167,139,250,0.38)',
-                background: 'rgba(139,92,246,0.10)',
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="rounded-2xl p-3"
-                    style={{
-                      border: '1px solid rgba(167,139,250,0.35)',
-                      background: 'rgba(139,92,246,0.15)',
-                      color: '#c4b5fd',
-                    }}
-                  >
-                    <Building2 size={24} />
-                  </div>
-                  <div>
-                    <p
-                      className="text-xs font-bold uppercase tracking-[0.2em]"
-                      style={{ color: '#c4b5fd' }}
-                    >
-                      Agency Portal
-                    </p>
-                    <h2 className="mt-1 text-2xl font-black text-white">Continue as Agency</h2>
-                  </div>
-                </div>
-                <ChevronRight style={{ color: '#c4b5fd' }} />
-              </div>
-              <p className="mt-4 text-sm text-zinc-100">
-                Top-level management access — oversee all units, generate house codes, and monitor safety.
-              </p>
-            </button>
+            {/* Concierge/Agency hidden — not shown */}
           </div>
         </motion.section>
       </main>

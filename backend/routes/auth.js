@@ -336,7 +336,7 @@ router.post('/agency/register', async (req, res) => {
 });
 
 // ── @route   POST /api/auth/agency/login ─────────────────────────────────────
-// @desc    Auth agency user & get token — redirects client to /agency-dashboard
+// @desc    Auth agency user & get token — legacy agency login (no dashboard route)
 // @access  Public
 router.post('/agency/login', async (req, res) => {
   try {
@@ -360,7 +360,7 @@ router.post('/agency/login', async (req, res) => {
         role: user.role,
         status: user.status || 'active',
         token: generateToken(user._id),
-        redirectTo: '/agency-dashboard',
+        redirectTo: '/dashboard',
       });
     } else {
       res.status(401).json({ message: 'Invalid credentials.' });

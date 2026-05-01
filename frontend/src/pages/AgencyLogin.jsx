@@ -29,7 +29,7 @@ const AgencyLogin = () => {
     setIsLoading(false);
 
     if (res.success) {
-      navigate('/agency-dashboard');
+      navigate('/dashboard');
       return;
     }
     setError('Invalid credentials. Please verify your email, password, and agency access code.');

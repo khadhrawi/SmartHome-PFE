@@ -55,6 +55,18 @@ const initNotificationsServer = (httpServer) => {
 
     if (userRole === 'admin' && houseCode) {
       socket.join(`house-admin:${houseCode}`);
+      // mark as connected for concierge view
+      try {
+        // lazy require to avoid cycles
+        // track connected admins via rooms
+        socket.conciergeHouse = houseCode;
+      } catch (e) {
+        // ignore
+      }
+      // emit connected event for concierge subscribers
+      try {
+        conciergeEmitter.emit('admin:connected', { houseCode });
+      } catch (e) {}
     }
 
     // Agency accounts get their own global room so they receive cross-unit alerts
@@ -63,6 +75,24 @@ const initNotificationsServer = (httpServer) => {
     }
 
     console.log(`[socket] connected user=${userId} role=${userRole} house=${houseCode || 'n/a'}`);
+    // attach disconnect handler to update concierge listeners
+    socket.on('disconnect', () => {
+      try {
+        const house = socket.conciergeHouse || socket.user?.houseCode;
+        if (socket.user?.role === 'admin' && house) {
+          const room = io.sockets.adapter.rooms.get(`house-admin:${house}`);
+          const count = room ? room.size : 0;
+          if (count === 0) {
+            // emit via conciergeEmitter if present
+            if (typeof conciergeEmitter !== 'undefined') {
+              conciergeEmitter.emit('admin:disconnected', { houseCode: house });
+            }
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
+    });
   });
 
   ioInstance = io;
@@ -193,18 +223,22 @@ const emitGasEmergency = ({ houseCode, gasLevel, threshold, emergencyMode, gasVa
   ioInstance.to(`house:${houseCode}`).emit('dashboard:gas-update', payload);
   // Forward gas leaks to every connected agency dashboard in real-time
   if (emergencyMode) {
+    // Forward gas leaks to any connected concierge/global listeners in real-time
     ioInstance.to('agency:global').emit('agency:gas-alert', { houseCode, gasLevel, threshold, ts: Date.now() });
   }
 };
 
-/**
- * Broadcast a unit-status change to all agency dashboards.
- */
+// Concierge event emitter: used by concierge SSE/routes to subscribe to agency events
+const EventEmitter = require('events');
+const conciergeEmitter = new EventEmitter();
+
 const emitAgencyUnitUpdated = (unit) => {
   if (!ioInstance) return;
   ioInstance.to('agency:global').emit('agency:unit-updated', unit);
+  conciergeEmitter.emit('agency:unit-updated', unit);
 };
 
+// export additional helpers for concierge endpoints
 module.exports = {
   initNotificationsServer,
   emitPermissionCreated,
@@ -216,4 +250,17 @@ module.exports = {
   emitDashboardStateUpdated,
   emitGasEmergency,
   emitAgencyUnitUpdated,
+  conciergeEmitter,
 };
+
+// Helper to check if any sockets remain in a house-admin room
+module.exports.isHouseAdminOnline = (houseCode) => {
+  try {
+    if (!ioInstance) return false;
+    const room = ioInstance.sockets.adapter.rooms.get(`house-admin:${houseCode}`);
+    return !!(room && room.size > 0);
+  } catch (err) {
+    return false;
+  }
+};
+

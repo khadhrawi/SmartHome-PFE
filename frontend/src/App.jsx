@@ -8,9 +8,7 @@ import Layout from './components/Layout';
 import AuthEntry from './pages/AuthEntry';
 import AdminLogin from './pages/AdminLogin';
 import AdminRegister from './pages/AdminRegister';
-import AgencyLogin from './pages/AgencyLogin';
-import AgencyRegister from './pages/AgencyRegister';
-import AgencyDashboard from './pages/AgencyDashboard';
+import ConciergeHub from './pages/ConciergeHub';
 import ResidentLogin from './pages/ResidentLogin';
 import ResidentRegister from './pages/ResidentRegister';
 import UnitOnboarding from './pages/UnitOnboarding';
@@ -39,7 +37,6 @@ const userNeedsOnboarding = (user) =>
 const PublicRoute = ({ children }) => {
   const { user } = useContext(AuthContext);
   if (!user) return children;
-  if (user.role === 'agency') return <Navigate to="/agency-dashboard" />;
   if (userNeedsOnboarding(user)) return <Navigate to="/onboarding" />;
   return <Navigate to="/dashboard" />;
 };
@@ -51,7 +48,6 @@ const PublicRoute = ({ children }) => {
 const OnboardingGuard = ({ children }) => {
   const { user } = useContext(AuthContext);
   if (!user) return <Navigate to="/auth/choose" />;
-  if (user.role === 'agency') return <Navigate to="/agency-dashboard" />;
   if (userNeedsOnboarding(user)) return <Navigate to="/onboarding" />;
   return children;
 };
@@ -70,7 +66,6 @@ const PrivateRoute = ({ children }) => (
 const RoleRoute = ({ allow, children }) => {
   const { user } = useContext(AuthContext);
   if (!user) return <Navigate to="/auth/choose" />;
-  if (user.role === 'agency') return <Navigate to="/agency-dashboard" />;
   if (userNeedsOnboarding(user)) return <Navigate to="/onboarding" />;
 
   const isPermitted = allow.includes(user.role) || user.isSuperAdmin;
@@ -83,7 +78,6 @@ const RoleRoute = ({ allow, children }) => {
 const FeatureRoute = ({ children, residentFallback }) => {
   const { user } = useContext(AuthContext);
   if (!user) return <Navigate to="/auth/choose" />;
-  if (user.role === 'agency') return <Navigate to="/agency-dashboard" />;
   if (userNeedsOnboarding(user)) return <Navigate to="/onboarding" />;
 
   const showAdmin = user.role === 'admin' || user.isSuperAdmin;
@@ -91,18 +85,12 @@ const FeatureRoute = ({ children, residentFallback }) => {
 };
 
 /** Agency-only route */
-const AgencyRoute = ({ children }) => {
-  const { user } = useContext(AuthContext);
-  if (!user) return <Navigate to="/auth/agency/login" />;
-  if (user.role !== 'agency') return <Navigate to="/dashboard" />;
-  return <Layout>{children}</Layout>;
-};
+// Concierge hub is accessed via secret code only; page handles its own access guard.
 
 /** Smart dashboard router by role */
 const DashboardByRole = () => {
   const { user } = useContext(AuthContext);
   if (!user) return <Navigate to="/auth/choose" />;
-  if (user.role === 'agency') return <Navigate to="/agency-dashboard" />;
   if (userNeedsOnboarding(user)) return <Navigate to="/onboarding" />;
 
   const showAdmin = user.role === 'admin' || user.isSuperAdmin;
@@ -113,7 +101,6 @@ const DashboardByRole = () => {
 const OnboardingRoute = () => {
   const { user } = useContext(AuthContext);
   if (!user) return <Navigate to="/auth/choose" />;
-  if (user.role === 'agency') return <Navigate to="/agency-dashboard" />;
   if (!userNeedsOnboarding(user)) return <Navigate to="/dashboard" />;
   return <UnitOnboarding />;
 };
@@ -136,9 +123,8 @@ const AnimatedRoutes = () => {
         <Route path="/auth/admin/login"    element={<PublicRoute><AdminLogin /></PublicRoute>} />
         <Route path="/auth/admin/register" element={<PublicRoute><AdminRegister /></PublicRoute>} />
 
-        {/* Auth — Agency */}
-        <Route path="/auth/agency/login"    element={<PublicRoute><AgencyLogin /></PublicRoute>} />
-        <Route path="/auth/agency/register" element={<PublicRoute><AgencyRegister /></PublicRoute>} />
+        {/* Concierge (hidden) */}
+        <Route path="/concierge-hub" element={<PublicRoute><ConciergeHub /></PublicRoute>} />
 
         {/* Auth — Resident */}
         <Route path="/auth/resident/login"    element={<PublicRoute><ResidentLogin /></PublicRoute>} />
@@ -147,8 +133,7 @@ const AnimatedRoutes = () => {
         {/* ── Onboarding (no Layout — fullscreen) ── */}
         <Route path="/onboarding" element={<OnboardingRoute />} />
 
-        {/* Agency-only */}
-        <Route path="/agency-dashboard" element={<AgencyRoute><AgencyDashboard /></AgencyRoute>} />
+        {/* (Concierge hub handled at /concierge-hub) */}
 
         {/* Standard dashboard (admin / resident / isSuperAdmin) */}
         <Route path="/dashboard" element={<DashboardByRole />} />

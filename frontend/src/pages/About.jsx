@@ -1,6 +1,7 @@
 import { Home as HomeIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import api from '../api/axios';
 import PublicMotionShell from '../components/PublicMotionShell';
 
 const containerVariants = {
@@ -105,6 +106,32 @@ const About = () => {
       >
         © 2026 Smart Home. All rights reserved.
       </motion.footer>
+
+      {/* Subtle Concierge access — bottom-left */}
+      <div className="fixed left-4 bottom-6 z-50">
+        <button
+          onClick={async () => {
+            const code = window.prompt('Enter concierge access code');
+            if (!code) return;
+            try {
+              const res = await api.post('/concierge/token', { code });
+              if (res?.data?.ok) {
+                window.sessionStorage.setItem('conciergeCode', code);
+                // go to hidden hub
+                window.location.href = '/concierge-hub';
+              } else {
+                window.alert('Invalid code');
+              }
+            } catch (err) {
+              window.alert('Invalid code');
+            }
+          }}
+          title="Concierge Space"
+          className="px-3 py-2 rounded-lg bg-white/6 text-zinc-200 text-sm backdrop-blur-sm border border-white/8 hover:opacity-90"
+        >
+          Concierge Space
+        </button>
+      </div>
     </PublicMotionShell>
   );
 };

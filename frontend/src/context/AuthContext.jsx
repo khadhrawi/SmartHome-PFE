@@ -131,7 +131,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data } = await api.post('/auth/agency/login', { email, password, agencyAccessCode });
       saveAuthState(data);
-      return { success: true, redirectTo: data.redirectTo || '/agency-dashboard' };
+      return { success: true, redirectTo: data.redirectTo || '/dashboard' };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || 'Login failed' };
     }
@@ -384,7 +384,7 @@ export const AuthProvider = ({ children }) => {
     if (user.role === 'admin') {
       fetchAdminRequests();
       fetchHouseCrew();
-    } else if (user.role !== 'agency') {
+    } else {
       fetchMyPermissionRequests();
     }
   }, [token, user]);
@@ -553,7 +553,7 @@ export const AuthProvider = ({ children }) => {
         // Convenience computed
         isSuperAdmin: user?.isSuperAdmin === true,
         isManaged: user?.isManaged,
-        needsOnboarding: !!user && user.role !== 'agency' && !user.houseCode,
+        needsOnboarding: !!user && !user.houseCode,
       }}
     >
       {children}
