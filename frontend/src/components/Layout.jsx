@@ -121,11 +121,13 @@ const Layout = ({ children }) => {
   ];
 
   const agencyNavItems = [
-    { name: 'Profile',    path: '/profile',           icon: User },
+    { name: 'Dashboard', path: '/dashboard', icon: Home },
+    { name: 'Profile',   path: '/profile',   icon: User },
   ];
 
-  // isSuperAdmin solo users get full admin nav
-  const navItems = (user?.role === 'admin' || isSuperAdmin) ? adminNavItems : residentNavItems;
+  const navItems = user?.role === 'agency'
+    ? agencyNavItems
+    : (user?.role === 'admin' || isSuperAdmin) ? adminNavItems : residentNavItems;
 
   const navMoodTheme = useMemo(
     () => NAV_MOOD_STYLES[navMood] || NAV_MOOD_STYLES.default,
@@ -204,12 +206,12 @@ const Layout = ({ children }) => {
                   <span
                     className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest"
                     style={{
-                      background: isSuperAdmin ? 'rgba(167,139,250,0.18)' : (user?.role === 'admin' ? 'rgba(14,165,233,0.18)' : 'rgba(74,222,128,0.18)'),
-                      border: isSuperAdmin ? '1px solid rgba(167,139,250,0.45)' : (user?.role === 'admin' ? '1px solid rgba(14,165,233,0.45)' : '1px solid rgba(74,222,128,0.45)'),
-                      color: isSuperAdmin ? '#ddd6fe' : (user?.role === 'admin' ? '#bae6fd' : '#bbf7d0'),
+                      background: user?.role === 'agency' ? 'rgba(251,191,36,0.18)' : isSuperAdmin ? 'rgba(167,139,250,0.18)' : (user?.role === 'admin' ? 'rgba(14,165,233,0.18)' : 'rgba(74,222,128,0.18)'),
+                      border: user?.role === 'agency' ? '1px solid rgba(251,191,36,0.45)' : isSuperAdmin ? '1px solid rgba(167,139,250,0.45)' : (user?.role === 'admin' ? '1px solid rgba(14,165,233,0.45)' : '1px solid rgba(74,222,128,0.45)'),
+                      color: user?.role === 'agency' ? '#fde68a' : isSuperAdmin ? '#ddd6fe' : (user?.role === 'admin' ? '#bae6fd' : '#bbf7d0'),
                     }}
                   >
-                    {isSuperAdmin ? 'Super Admin' : (user?.role === 'admin' ? 'Admin Mode' : 'Resident Mode')}
+                    {user?.role === 'agency' ? 'Platform Admin' : isSuperAdmin ? 'Super Admin' : (user?.role === 'admin' ? 'House Owner' : 'Resident Mode')}
                   </span>
                 </div>
               </div>

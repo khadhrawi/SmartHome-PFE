@@ -44,8 +44,21 @@ router.post('/request', protect, async (req, res) => {
       return res.status(403).json({ message: 'Only residents can create permission requests' });
     }
 
-    if (!req.user.houseCode || !req.user.linkedAdmin) {
-      return res.status(403).json({ message: 'Resident account is not linked to a house owner' });
+    if (!req.user.houseCode) {
+      return res.status(403).json({ message: 'Resident account is not linked to a house' });
+    }
+
+    // Find the admin for this house code if linkedAdmin is missing or points to self
+    let houseAdmin = req.user.linkedAdmin;
+    if (!houseAdmin || String(houseAdmin) === String(req.user._id)) {
+      const Unit = require('../models/Unit');
+      const unit = await Unit.findOne({ unitCode: req.user.houseCode });
+      if (!unit || !unit.ownerID || String(unit.ownerID) === String(req.user._id)) {
+        return res.status(403).json({ message: 'No admin found for this house. Make sure an admin owns this unit.' });
+      }
+      houseAdmin = unit.ownerID;
+      // Fix the resident's linkedAdmin for future requests
+      await User.findByIdAndUpdate(req.user._id, { linkedAdmin: houseAdmin });
     }
 
     const { actionKey, actionLabel, room, reason } = req.body;
@@ -70,7 +83,7 @@ router.post('/request', protect, async (req, res) => {
     const created = await PermissionRequest.create({
       requester: req.user._id,
       houseCode: req.user.houseCode,
-      houseAdmin: req.user.linkedAdmin,
+      houseAdmin,
       actionKey: normalizedActionKey,
       actionLabel,
       room: normalizedRoom,

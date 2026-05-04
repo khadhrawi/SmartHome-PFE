@@ -100,7 +100,7 @@ const Pill = ({ color, label }) => (
 );
 
 // ─── Join Panel ───────────────────────────────────────────────────────────────
-const JoinPanel = ({ onBack, onSuccess }) => {
+const JoinPanel = ({ onBack, onSuccess, hideBack = false }) => {
   const { joinUnit } = useContext(AuthContext);
   const [code, setCode] = useState('');
   const [status, setStatus] = useState('idle'); // idle | loading | error | success
@@ -129,12 +129,14 @@ const JoinPanel = ({ onBack, onSuccess }) => {
       className="w-full max-w-md"
     >
       <div className="rounded-3xl p-8" style={PANEL}>
-        <button
-          onClick={onBack}
-          className="mb-6 flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white"
-        >
-          <X size={15} /> Cancel
-        </button>
+        {!hideBack && (
+          <button
+            onClick={onBack}
+            className="mb-6 flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white"
+          >
+            <X size={15} /> Cancel
+          </button>
+        )}
 
         <div
           className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl"
@@ -143,10 +145,15 @@ const JoinPanel = ({ onBack, onSuccess }) => {
           <KeyRound size={26} style={{ color: '#38bdf8' }} />
         </div>
 
-        <h2 className="text-2xl font-black text-white">Enter Your Residence Code</h2>
+        <h2 className="text-2xl font-black text-white">Enter Your House Code</h2>
         <p className="mt-2 text-sm text-zinc-400">
-          Your agency or building manager should have provided a 5-character code (e.g. <span className="font-mono font-bold text-sky-300">A1234</span>).
+          Ask your <span className="font-semibold text-sky-300">home admin</span> for the 5-character house code. They can find it on their dashboard (e.g. <span className="font-mono font-bold text-sky-300">A1234</span>).
         </p>
+
+        <div className="mt-4 rounded-xl px-4 py-3" style={{ background: 'rgba(56,189,248,0.07)', border: '1px solid rgba(56,189,248,0.18)' }}>
+          <p className="text-xs text-sky-300 font-semibold">📋 How to get your house code</p>
+          <p className="text-xs text-zinc-400 mt-1">Your admin logs in → Dashboard → copies the <span className="text-sky-300 font-mono">House Code</span> shown at the top and shares it with you.</p>
+        </div>
 
         {/* Input */}
         <div className="mt-6 flex flex-col gap-3">
@@ -328,7 +335,10 @@ const SoloPanel = ({ onBack, onSuccess }) => {
 // ─── Main UnitOnboarding Page ─────────────────────────────────────────────────
 const UnitOnboarding = ({ onComplete }) => {
   const { user } = useContext(AuthContext);
-  const [step, setStep] = useState('choose'); // choose | join | solo
+
+  // Residents must join an existing home — they cannot create a solo unit
+  const isResident = user?.role === 'resident';
+  const [step, setStep] = useState(isResident ? 'join' : 'choose'); // residents skip straight to join
 
   const handleSuccess = () => {
     if (onComplete) onComplete();
@@ -382,7 +392,9 @@ const UnitOnboarding = ({ onComplete }) => {
             Welcome{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
           </h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-zinc-300">
-            How would you like to set up your smart home? Choose an option below to get started.
+            {isResident
+              ? 'Enter the house code provided by your admin to connect to your smart home.'
+              : 'How would you like to set up your smart home? Choose an option below to get started.'}
           </p>
         </motion.div>
 
@@ -419,7 +431,11 @@ const UnitOnboarding = ({ onComplete }) => {
 
           {step === 'join' && (
             <motion.div key="join" className="flex justify-center">
-              <JoinPanel onBack={() => setStep('choose')} onSuccess={handleSuccess} />
+              <JoinPanel
+                onBack={() => setStep('choose')}
+                onSuccess={handleSuccess}
+                hideBack={isResident}
+              />
             </motion.div>
           )}
 

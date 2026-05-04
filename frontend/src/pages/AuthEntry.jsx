@@ -46,14 +46,14 @@ const AuthEntry = () => {
                     <ShieldCheck size={24} />
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-200">Admin Portal</p>
-                    <h2 className="mt-1 text-2xl font-black text-white">Continue as Admin</h2>
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-200">House Owner Portal</p>
+                    <h2 className="mt-1 text-2xl font-black text-white">Continue as House Owner</h2>
                   </div>
                 </div>
                 <ChevronRight className="text-sky-100" />
               </div>
               <p className="mt-4 text-sm text-zinc-100">
-                You are logging in as an Admin with full control over the smart home system.
+                Own and manage your smart home, control devices and manage residents.
               </p>
             </button>
 
@@ -79,7 +79,27 @@ const AuthEntry = () => {
               </p>
             </button>
 
-            {/* Concierge/Agency hidden — not shown */}
+            <button
+              type="button"
+              onClick={() => navigate('/auth/agency/login')}
+              className={`${cardBase} border-amber-300/35 bg-amber-400/10`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-2xl border border-amber-200/35 bg-amber-200/15 p-3 text-amber-100">
+                    <Building2 size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">Platform Admin</p>
+                    <h2 className="mt-1 text-2xl font-black text-white">Continue as Platform Admin</h2>
+                  </div>
+                </div>
+                <ChevronRight className="text-amber-100" />
+              </div>
+              <p className="mt-4 text-sm text-zinc-100">
+                Platform administrators manage house owner requests and monitor all active homes.
+              </p>
+            </button>
           </div>
         </motion.section>
       </main>

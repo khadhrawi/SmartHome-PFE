@@ -7,17 +7,16 @@ import { AuthContext } from '../context/AuthContext';
 import { isEmailValid } from '../utils/validation';
 
 const AgencyLogin = () => {
-  const [email, setEmail]                     = useState('');
-  const [password, setPassword]               = useState('');
-  const [agencyAccessCode, setAgencyAccessCode] = useState('');
-  const [error, setError]                     = useState('');
-  const [isLoading, setIsLoading]             = useState(false);
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError]       = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const { loginAgency } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const emailValid = isEmailValid(email);
-  const canSubmit  = emailValid && password.length > 0 && agencyAccessCode.trim().length > 0 && !isLoading;
+  const canSubmit  = emailValid && password.length > 0 && !isLoading;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,7 +24,7 @@ const AgencyLogin = () => {
     setError('');
     setIsLoading(true);
 
-    const res = await loginAgency(email, password, agencyAccessCode);
+    const res = await loginAgency(email, password);
     setIsLoading(false);
 
     if (res.success) {
@@ -153,24 +152,6 @@ const AgencyLogin = () => {
                 className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/55"
                 placeholder="Password"
                 autoComplete="current-password"
-                required
-              />
-            </div>
-
-            {/* Agency Access Code */}
-            <div
-              className="flex items-center gap-3 rounded-2xl px-4 py-3"
-              style={{ background: 'rgba(0,0,0,0.28)', border: '1px solid rgba(167,139,250,0.22)' }}
-            >
-              <KeyRound size={17} style={{ color: 'rgba(196,181,253,0.80)' }} />
-              <input
-                id="agency-login-code"
-                type="password"
-                value={agencyAccessCode}
-                onChange={(e) => setAgencyAccessCode(e.target.value)}
-                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/55"
-                placeholder="Agency Access Code"
-                autoComplete="off"
                 required
               />
             </div>

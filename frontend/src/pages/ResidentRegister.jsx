@@ -266,6 +266,14 @@ const ResidentRegister = () => {
               Sign In as Resident
             </Link>
           </div>
+
+          <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/8 px-4 py-3 text-center text-xs text-amber-200">
+            Want to <strong>own a smart home</strong> and manage residents?{' '}
+            <Link to="/request-owner-account" className="font-bold text-amber-300 underline underline-offset-2 hover:text-amber-100">
+              Request House Owner access
+            </Link>
+            .
+          </div>
         </motion.section>
       </main>
     </PublicMotionShell>

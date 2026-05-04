@@ -171,9 +171,44 @@ const PrivacyModal = ({ onClose }) => {
   const [showNew, setShowNew] = useState(false);
   const [twoFA, setTwoFA]   = useState(false);
   const [form, setForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState('');
+  const [success, setSuccess] = useState(false);
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const { isDarkMode } = useTheme();
+  const { pushToast } = useTheme();
   const C = getTokens(isDarkMode);
+
+  const handleSave = async () => {
+    setError('');
+    if (!form.oldPassword || !form.newPassword || !form.confirmPassword) {
+      return setError('All password fields are required.');
+    }
+    if (form.newPassword.length < 8) {
+      return setError('New password must be at least 8 characters.');
+    }
+    if (form.newPassword !== form.confirmPassword) {
+      return setError('New passwords do not match.');
+    }
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('aura_token') || sessionStorage.getItem('aura_token');
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/users/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ currentPassword: form.oldPassword, newPassword: form.newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to update password.');
+      setSuccess(true);
+      pushToast('Password updated successfully', '#4ade80');
+      setTimeout(onClose, 1200);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const inputStyle = {
     background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
@@ -216,23 +251,18 @@ const PrivacyModal = ({ onClose }) => {
         <PasswordField label="New Password" field="newPassword" show={showNew} onToggle={() => setShowNew(p => !p)} />
         <PasswordField label="Confirm New Password" field="confirmPassword" show={showNew} onToggle={() => setShowNew(p => !p)} />
 
-        {/* 2FA row */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 16, padding: '14px 18px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Shield size={18} style={{ color: C.gold }} />
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Two-Factor Auth</p>
-              <p style={{ fontSize: 11, color: C.dimmed, margin: '2px 0 0' }}>Extra layer of protection</p>
-            </div>
+        {error && (
+          <div style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', borderRadius: 12, padding: '10px 14px', fontSize: 13, color: '#f87171', fontWeight: 600 }}>
+            {error}
           </div>
-          <GlassToggle isOn={twoFA} accent="#4ade80" onToggle={() => setTwoFA(p => !p)} />
-        </div>
+        )}
+        {success && (
+          <div style={{ background: 'rgba(74,222,128,0.10)', border: '1px solid rgba(74,222,128,0.30)', borderRadius: 12, padding: '10px 14px', fontSize: 13, color: '#4ade80', fontWeight: 600 }}>
+            Password updated!
+          </div>
+        )}
 
-        <ModalFooter onClose={onClose} onSave={onClose} saveLabel="Update Password" />
+        <ModalFooter onClose={onClose} onSave={handleSave} saveLabel={saving ? 'Updating…' : 'Update Password'} />
       </div>
     </SlideOverShell>
   );
