@@ -8,14 +8,21 @@ import {
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
-/* ── Design tokens ─────────────────────────────────────────── */
-const C = {
+/* ── Design tokens — computed per theme ─────────────────────── */
+const getTokens = (isDark) => isDark ? {
   text:   '#F8F9FA',
   muted:  'rgba(248,249,250,0.50)',
   dimmed: 'rgba(248,249,250,0.25)',
   gold:   '#E3C598',
   bg:     'rgba(255,255,255,0.04)',
   border: 'rgba(255,255,255,0.08)',
+} : {
+  text:   '#1a1008',
+  muted:  'rgba(26,16,8,0.60)',
+  dimmed: 'rgba(26,16,8,0.35)',
+  gold:   '#b8860b',
+  bg:     'rgba(0,0,0,0.04)',
+  border: 'rgba(0,0,0,0.08)',
 };
 
 /* ── Glassmorphic toggle (matches ScenarioCard style) ─────── */
@@ -43,9 +50,12 @@ const GlassToggle = ({ isOn, accent = C.gold, onToggle }) => (
 );
 
 /* ── Clickable setting row ────────────────────────────────── */
-const SettingRow = ({ icon: Icon, label, subtitle, accent = C.gold, onClick, rightEl }) => {
+const SettingRow = ({ icon: Icon, label, subtitle, accent, onClick, rightEl }) => {
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
+  const { isDarkMode } = useTheme();
+  const T = getTokens(isDarkMode);
+  const ac = accent ?? T.gold;
 
   return (
     <button
@@ -58,8 +68,8 @@ const SettingRow = ({ icon: Icon, label, subtitle, accent = C.gold, onClick, rig
         width: '100%', display: 'flex', alignItems: 'center',
         justifyContent: 'space-between', padding: '14px 16px',
         borderRadius: 18, border: 'none', cursor: 'pointer',
-        background: hovered ? 'rgba(255,255,255,0.06)' : 'transparent',
-        boxShadow: hovered ? `0 0 20px ${accent}14` : 'none',
+        background: hovered ? (isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent',
+        boxShadow: hovered ? `0 0 20px ${ac}14` : 'none',
         transform: pressed ? 'scale(0.99)' : hovered ? 'scale(1.012)' : 'scale(1)',
         transition: 'all 0.22s cubic-bezier(0.4,0,0.2,1)',
         textAlign: 'left',
@@ -69,24 +79,24 @@ const SettingRow = ({ icon: Icon, label, subtitle, accent = C.gold, onClick, rig
         <div style={{
           width: 38, height: 38, borderRadius: 12,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: hovered ? `${accent}18` : 'rgba(255,255,255,0.07)',
-          border: `1px solid ${hovered ? accent + '35' : 'rgba(255,255,255,0.09)'}`,
-          color: hovered ? accent : C.muted,
+          background: hovered ? `${ac}18` : (isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'),
+          border: `1px solid ${hovered ? ac + '35' : T.border}`,
+          color: hovered ? ac : T.muted,
           transition: 'all 0.22s ease',
           flexShrink: 0,
         }}>
           <Icon size={17} />
         </div>
         <div>
-          <p style={{ fontSize: 14, fontWeight: 700, color: hovered ? C.text : C.muted, transition: 'color 0.2s' }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: hovered ? T.text : T.muted, transition: 'color 0.2s' }}>
             {label}
           </p>
           {subtitle && (
-            <p style={{ fontSize: 11, color: C.dimmed, marginTop: 2 }}>{subtitle}</p>
+            <p style={{ fontSize: 11, color: T.dimmed, marginTop: 2 }}>{subtitle}</p>
           )}
         </div>
       </div>
-      {rightEl ?? <ChevronRight size={16} style={{ color: hovered ? accent : C.dimmed, transition: 'color 0.2s' }} />}
+      {rightEl ?? <ChevronRight size={16} style={{ color: hovered ? ac : T.dimmed, transition: 'color 0.2s' }} />}
     </button>
   );
 };
@@ -97,9 +107,12 @@ const SettingRow = ({ icon: Icon, label, subtitle, accent = C.gold, onClick, rig
 const PersonalInfoModal = ({ profile, onSave, onClose }) => {
   const [form, setForm] = useState({ name: profile.name, email: profile.email, phone: profile.phone ?? '' });
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const { isDarkMode } = useTheme();
+  const C = getTokens(isDarkMode);
 
   const inputStyle = {
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+    background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+    border: `1px solid ${C.border}`,
     color: C.text, borderRadius: 14, padding: '12px 16px', width: '100%',
     fontSize: 14, fontWeight: 600, outline: 'none', boxSizing: 'border-box',
     fontFamily: "'Outfit', sans-serif",
@@ -159,9 +172,12 @@ const PrivacyModal = ({ onClose }) => {
   const [twoFA, setTwoFA]   = useState(false);
   const [form, setForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const { isDarkMode } = useTheme();
+  const C = getTokens(isDarkMode);
 
   const inputStyle = {
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+    background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+    border: `1px solid ${C.border}`,
     color: C.text, borderRadius: 14, padding: '12px 48px 12px 16px', width: '100%',
     fontSize: 14, fontWeight: 600, outline: 'none', boxSizing: 'border-box',
     fontFamily: "'Outfit', sans-serif",
@@ -223,30 +239,34 @@ const PrivacyModal = ({ onClose }) => {
 };
 
 /* ── Shared slide-over shell ─────────────────────────────── */
-const SlideOverShell = ({ title, children, onClose }) => (
+const SlideOverShell = ({ title, children, onClose }) => {
+  const { isDarkMode } = useTheme();
+  const C = getTokens(isDarkMode);
+  return (
   <div
     style={{
       position: 'fixed', inset: 0, zIndex: 500,
       display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-      background: 'rgba(8,16,13,0.72)', backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
+      background: isDarkMode ? 'rgba(8,16,13,0.72)' : 'rgba(240,236,228,0.72)',
+      backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
     }}
     onClick={e => e.target === e.currentTarget && onClose()}
   >
     <div
       style={{
         width: '100%', maxWidth: 440, height: '100%',
-        background: 'linear-gradient(170deg, rgba(18,28,24,0.98) 0%, rgba(10,20,16,0.99) 100%)',
+        background: isDarkMode
+          ? 'linear-gradient(170deg, rgba(18,28,24,0.98) 0%, rgba(10,20,16,0.99) 100%)'
+          : 'linear-gradient(170deg, rgba(255,253,248,0.99) 0%, rgba(245,240,232,0.99) 100%)',
         borderLeft: `1px solid ${C.gold}22`,
-        boxShadow: `-40px 0 100px rgba(0,0,0,0.65), 0 0 0 1px ${C.gold}0a`,
+        boxShadow: `-40px 0 100px rgba(0,0,0,0.35), 0 0 0 1px ${C.gold}0a`,
         display: 'flex', flexDirection: 'column',
         animation: 'slide-in-right 0.35s cubic-bezier(0.22,1,0.36,1) both',
       }}
     >
-      {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '28px 28px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+        padding: '28px 28px 20px', borderBottom: `1px solid ${C.border}`,
       }}>
         <h3 style={{ fontSize: 20, fontWeight: 900, color: C.text, margin: 0, letterSpacing: '-0.02em' }}>
           {title}
@@ -254,28 +274,30 @@ const SlideOverShell = ({ title, children, onClose }) => (
         <button onClick={onClose} style={{
           width: 34, height: 34, borderRadius: 10, display: 'flex',
           alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-          background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)',
-          color: C.muted,
+          background: isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+          border: `1px solid ${C.border}`, color: C.muted,
         }}>
           <X size={16} />
         </button>
       </div>
-
-      {/* Scrollable body */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
         {children}
       </div>
     </div>
   </div>
-);
+  );
+};
 
 /* ── Modal footer ────────────────────────────────────────── */
-const ModalFooter = ({ onClose, onSave, saveLabel = 'Save Changes' }) => (
+const ModalFooter = ({ onClose, onSave, saveLabel = 'Save Changes' }) => {
+  const { isDarkMode } = useTheme();
+  const C = getTokens(isDarkMode);
+  return (
   <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
     <button onClick={onClose} style={{
       flex: 1, padding: '13px 0', borderRadius: 14, fontWeight: 700,
-      fontSize: 14, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.10)',
-      background: 'rgba(255,255,255,0.05)', color: C.muted,
+      fontSize: 14, cursor: 'pointer', border: `1px solid ${C.border}`,
+      background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: C.muted,
     }}>
       Cancel
     </button>
@@ -283,47 +305,55 @@ const ModalFooter = ({ onClose, onSave, saveLabel = 'Save Changes' }) => (
       flex: 1, padding: '13px 0', borderRadius: 14, fontWeight: 800,
       fontSize: 14, cursor: 'pointer', border: 'none',
       background: `linear-gradient(135deg, ${C.gold}, #D4AF37)`,
-      color: '#08100D',
-      boxShadow: `0 8px 24px rgba(227,197,152,0.35)`,
+      color: '#08100D', boxShadow: `0 8px 24px rgba(227,197,152,0.35)`,
     }}>
       <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
         <Check size={14} /> {saveLabel}
       </span>
     </button>
   </div>
-);
+  );
+};
 
 /* ── Field label ─────────────────────────────────────────── */
-const FieldLabel = ({ children }) => (
+const FieldLabel = ({ children }) => {
+  const { isDarkMode } = useTheme();
+  const C = getTokens(isDarkMode);
+  return (
   <p style={{
     fontSize: 10, fontWeight: 900, textTransform: 'uppercase',
     letterSpacing: '0.16em', color: C.gold, marginBottom: 8, marginTop: 0,
   }}>
     {children}
   </p>
-);
+  );
+};
 
 /* ── Logout confirmation modal ───────────────────────────── */
-const LogoutModal = ({ onConfirm, onCancel }) => (
+const LogoutModal = ({ onConfirm, onCancel }) => {
+  const { isDarkMode } = useTheme();
+  const C = getTokens(isDarkMode);
+  return (
   <div
     style={{
       position: 'fixed', inset: 0, zIndex: 600,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(8,16,13,0.82)', backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
+      background: isDarkMode ? 'rgba(8,16,13,0.82)' : 'rgba(240,236,228,0.82)',
+      backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
     }}
     onClick={e => e.target === e.currentTarget && onCancel()}
   >
     <div style={{
       width: '100%', maxWidth: 400, margin: '0 16px',
-      background: 'linear-gradient(160deg, rgba(26,31,29,0.97) 0%, rgba(13,26,21,0.99) 100%)',
+      background: isDarkMode
+        ? 'linear-gradient(160deg, rgba(26,31,29,0.97) 0%, rgba(13,26,21,0.99) 100%)'
+        : 'linear-gradient(160deg, rgba(255,253,248,0.99) 0%, rgba(245,240,232,0.99) 100%)',
       border: '1px solid rgba(248,113,113,0.25)',
       borderRadius: 28,
-      boxShadow: '0 40px 100px rgba(0,0,0,0.70), 0 0 0 1px rgba(248,113,113,0.10)',
+      boxShadow: isDarkMode ? '0 40px 100px rgba(0,0,0,0.70)' : '0 20px 60px rgba(0,0,0,0.15)',
       padding: 36,
       animation: 'fade-up 0.3s cubic-bezier(0.22,1,0.36,1) both',
     }}>
-      {/* Icon */}
       <div style={{
         width: 56, height: 56, borderRadius: 18,
         background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.22)',
@@ -342,8 +372,8 @@ const LogoutModal = ({ onConfirm, onCancel }) => (
       <div style={{ display: 'flex', gap: 12 }}>
         <button onClick={onCancel} style={{
           flex: 1, padding: '13px 0', borderRadius: 14, fontWeight: 700,
-          fontSize: 14, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.10)',
-          background: 'rgba(255,255,255,0.05)', color: C.muted,
+          fontSize: 14, cursor: 'pointer', border: `1px solid ${C.border}`,
+          background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: C.muted,
         }}>
           Stay
         </button>
@@ -358,7 +388,8 @@ const LogoutModal = ({ onConfirm, onCancel }) => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 /* ══════════════════════════════════════════════════════════════
    PROFILE PAGE
@@ -366,6 +397,7 @@ const LogoutModal = ({ onConfirm, onCancel }) => (
 const Profile = () => {
   const { user, logout } = useContext(AuthContext);
   const { isDarkMode, toggleDarkMode, notificationsEnabled, toggleNotifications, pushToast } = useTheme();
+  const C = getTokens(isDarkMode);
 
   /* ── Local user profile state ── */
   const [userProfile, setUserProfile] = useState({
@@ -419,13 +451,13 @@ const Profile = () => {
   const Section = ({ title, children }) => (
     <div style={{
       borderRadius: 24, overflow: 'hidden',
-      background: 'rgba(255,255,255,0.04)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      background: C.bg,
+      border: `1px solid ${C.border}`,
       backdropFilter: 'blur(25px)',
       WebkitBackdropFilter: 'blur(25px)',
-      boxShadow: '0 20px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+      boxShadow: isDarkMode ? '0 20px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)' : '0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
     }}>
-      <div style={{ padding: '18px 20px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ padding: '18px 20px 12px', borderBottom: `1px solid ${C.border}` }}>
         <p style={{
           fontSize: 10, fontWeight: 900, textTransform: 'uppercase',
           letterSpacing: '0.18em', color: C.gold, margin: 0,
@@ -615,7 +647,7 @@ const Profile = () => {
                 subtitle={notificationsEnabled ? "Enabled — you'll hear from us" : 'Disabled'}
                 accent="#4ade80"
                 onClick={() => handlePreferenceChange('notifications')}
-                rightEl={<GlassToggle isOn={notificationsEnabled} accent="#4ade80" onToggle={() => handlePreferenceChange('notifications')} />}
+                rightEl={<GlassToggle isOn={notificationsEnabled} accent="#4ade80" onToggle={(e) => { e.stopPropagation(); handlePreferenceChange('notifications'); }} />}
               />
               <SettingRow
                 icon={Moon}
@@ -623,7 +655,7 @@ const Profile = () => {
                 subtitle={isDarkMode ? 'On — rich & moody' : 'Off — light theme'}
                 accent="#a78bfa"
                 onClick={() => handlePreferenceChange('darkMode')}
-                rightEl={<GlassToggle isOn={isDarkMode} accent="#a78bfa" onToggle={() => handlePreferenceChange('darkMode')} />}
+                rightEl={<GlassToggle isOn={isDarkMode} accent="#a78bfa" onToggle={(e) => { e.stopPropagation(); handlePreferenceChange('darkMode'); }} />}
               />
               <SettingRow
                 icon={Settings}

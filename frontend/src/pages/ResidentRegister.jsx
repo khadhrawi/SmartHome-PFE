@@ -70,7 +70,7 @@ const ResidentRegister = () => {
 
     setIsLoading(false);
     if (res.success) {
-      navigate('/dashboard');
+      navigate('/verify-email');
       return;
     }
 

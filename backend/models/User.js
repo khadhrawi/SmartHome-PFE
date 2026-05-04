@@ -51,9 +51,21 @@ const UserSchema = new mongoose.Schema({
   roomRequest: { type: String, default: '' },
   inviteCodeUsed: { type: String, default: '' },
   /** Onboarding: set after join/solo choice */
-  isManaged:   { type: Boolean, default: null },   // null = not yet onboarded
-  isSuperAdmin: { type: Boolean, default: false },  // true = solo/unmanaged owner
-  createdAt: { type: Date, default: Date.now }
+  isManaged:   { type: Boolean, default: null },
+  isSuperAdmin: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+
+  /** OAuth */
+  googleId: { type: String, default: null },
+
+  /** Email verification */
+  isEmailVerified:          { type: Boolean, default: false },
+  emailVerificationToken:   { type: String, default: null },
+  emailVerificationExpires: { type: Date, default: null },
+
+  /** Password reset */
+  passwordResetToken:   { type: String, default: null },
+  passwordResetExpires: { type: Date, default: null },
 });
 
 UserSchema.index(

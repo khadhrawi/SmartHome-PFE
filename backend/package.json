@@ -18,6 +18,9 @@
     "mongodb": "^6.5.0",
     "mongoose": "^8.3.4",
     "mqtt": "^5.5.2",
+    "nodemailer": "^8.0.7",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "socket.io": "^4.8.3",
     "websocket-stream": "^5.5.2",
     "ws": "^8.17.0"

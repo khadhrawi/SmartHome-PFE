@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import Navbar from './Navbar';
+import { useTheme } from '../context/ThemeContext';
 
 const pageTransition = {
   initial: { opacity: 0, scale: 0.988, y: 10 },
@@ -20,6 +21,7 @@ const pageTransition = {
 
 const PublicMotionShell = ({ children, showNavbar = true, onBackgroundClick }) => {
   const [isHoveringInteractive, setIsHoveringInteractive] = useState(false);
+  const { isDarkMode } = useTheme();
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -40,7 +42,7 @@ const PublicMotionShell = ({ children, showNavbar = true, onBackgroundClick }) =
 
   return (
     <motion.div
-      className="relative min-h-screen overflow-hidden bg-zinc-950 text-white"
+      className={`relative min-h-screen overflow-hidden ${isDarkMode ? 'bg-zinc-950 text-white' : 'bg-stone-100 text-zinc-900'}`}
       variants={pageTransition}
       initial="initial"
       animate="animate"
@@ -51,8 +53,9 @@ const PublicMotionShell = ({ children, showNavbar = true, onBackgroundClick }) =
       <motion.div
         className="pointer-events-none absolute inset-0"
         style={{
-          background:
-            'radial-gradient(125% 110% at 10% 8%, rgba(251,191,36,0.28), transparent 53%), radial-gradient(110% 90% at 90% 82%, rgba(186,230,253,0.14), transparent 52%), linear-gradient(130deg, #09090b 0%, #111827 48%, #05060b 100%)',
+          background: isDarkMode
+            ? 'radial-gradient(125% 110% at 10% 8%, rgba(251,191,36,0.28), transparent 53%), radial-gradient(110% 90% at 90% 82%, rgba(186,230,253,0.14), transparent 52%), linear-gradient(130deg, #09090b 0%, #111827 48%, #05060b 100%)'
+            : 'radial-gradient(125% 110% at 10% 8%, rgba(251,191,36,0.14), transparent 53%), radial-gradient(110% 90% at 90% 82%, rgba(186,230,253,0.10), transparent 52%), linear-gradient(130deg, #f0ece4 0%, #e8e2d8 48%, #ede8df 100%)',
           backgroundSize: '140% 140%, 150% 150%, 100% 100%',
         }}
         animate={{

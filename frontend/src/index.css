@@ -306,26 +306,27 @@
 
 /* ── Light mode overrides (applied when .aura-light is on <html>) ── */
 html.aura-light body {
-  color: rgba(26,16,8,0.80);
+  background: #ede8df;
+  color: rgba(26,16,8,0.85);
 }
 
 html.aura-light .glass {
-  background: rgba(240,235,225,0.72);
-  border-color: rgba(180,140,80,0.15);
+  background: rgba(240,235,225,0.80);
+  border-color: rgba(180,140,80,0.18);
 }
 
 html.aura-light .glass-card {
-  background: rgba(255,255,255,0.55);
-  border-color: rgba(180,140,80,0.12);
+  background: rgba(255,255,255,0.65);
+  border-color: rgba(180,140,80,0.15);
   box-shadow:
-    0 8px 32px rgba(100,70,20,0.12),
-    inset 0 1px 0 rgba(255,255,255,0.9);
+    0 8px 32px rgba(100,70,20,0.10),
+    inset 0 1px 0 rgba(255,255,255,0.95);
 }
 
 html.aura-light .glass-card-lift:hover {
-  border-color: rgba(180,140,80,0.28);
+  border-color: rgba(180,140,80,0.32);
   box-shadow:
-    0 20px 50px rgba(100,70,20,0.18),
+    0 20px 50px rgba(100,70,20,0.16),
     0 0 0 1px rgba(180,140,80,0.14),
     inset 0 1px 0 rgba(255,255,255,0.95);
 }
@@ -335,4 +336,37 @@ html.aura-light h2,
 html.aura-light h3,
 html.aura-light .font-headline {
   color: #1a1008;
+}
+
+html.aura-light .premium-panel {
+  background: linear-gradient(145deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.55) 100%);
+  border-color: rgba(180,140,80,0.18);
+  box-shadow: 0 22px 45px rgba(100,70,20,0.10), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+html.aura-light .premium-panel-soft {
+  background: linear-gradient(145deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.40) 100%);
+  border-color: rgba(180,140,80,0.14);
+}
+
+html.aura-light .ui-depth-bg {
+  background:
+    radial-gradient(1200px 600px at 8% -10%, rgba(59,130,246,0.07), transparent 60%),
+    radial-gradient(1000px 560px at 110% -30%, rgba(168,85,247,0.05), transparent 62%),
+    linear-gradient(155deg, #f0ece4 0%, #e8e2d8 48%, #ede8df 100%);
+}
+
+html.aura-light .state-chip {
+  border-color: rgba(26,16,8,0.14);
+  background: rgba(26,16,8,0.05);
+}
+
+html.aura-light .control-button {
+  border-color: rgba(26,16,8,0.14);
+  background: rgba(26,16,8,0.05);
+}
+
+html.aura-light .control-button:hover {
+  border-color: rgba(59,130,246,0.45);
+  box-shadow: 0 0 20px rgba(59,130,246,0.18);
 }

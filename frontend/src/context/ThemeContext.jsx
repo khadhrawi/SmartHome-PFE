@@ -90,7 +90,7 @@ export const ThemeProvider = ({ children }) => {
               gap: 10,
               padding: '12px 16px',
               borderRadius: 18,
-              background: 'rgba(8,16,13,0.88)',
+              background: isDarkMode ? 'rgba(8,16,13,0.88)' : 'rgba(255,255,255,0.92)',
               border: `1px solid ${t.accent}40`,
               backdropFilter: 'blur(24px)',
               WebkitBackdropFilter: 'blur(24px)',
@@ -106,7 +106,7 @@ export const ThemeProvider = ({ children }) => {
               flexShrink: 0,
             }} />
             <span style={{
-              fontSize: 13, fontWeight: 700, color: '#F8F9FA',
+              fontSize: 13, fontWeight: 700, color: isDarkMode ? '#F8F9FA' : '#1a1008',
               fontFamily: "'Outfit', sans-serif",
             }}>
               {t.message}

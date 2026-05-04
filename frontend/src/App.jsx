@@ -25,6 +25,10 @@ import Security from './pages/Security';
 import Energy from './pages/Energy';
 import AdminRequests from './pages/AdminRequests';
 import UserManagement from './pages/UserManagement';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
+import OAuthCallback from './pages/OAuthCallback';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 /** Returns true if this user still needs to pick Join / Solo */
@@ -155,6 +159,12 @@ const AnimatedRoutes = () => {
         <Route path="/permissions" element={<RoleRoute allow={['admin']}><AdminRequests /></RoleRoute>} />
         <Route path="/users"       element={<RoleRoute allow={['admin']}><UserManagement /></RoleRoute>} />
         <Route path="/profile"     element={<PrivateRoute><Profile /></PrivateRoute>} />
+
+        {/* Password reset & email verification (public, no Layout) */}
+        <Route path="/forgot-password"    element={<ForgotPassword />} />
+        <Route path="/reset-password"     element={<ResetPassword />} />
+        <Route path="/verify-email"       element={<VerifyEmail />} />
+        <Route path="/auth/oauth/callback" element={<OAuthCallback />} />
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/auth/choose" />} />
