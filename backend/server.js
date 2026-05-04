@@ -27,6 +27,7 @@ const { router: gasRoutes } = require('./routes/gas');
 const agencyRoutes         = require('./routes/agency');
 const unitsRoutes          = require('./routes/units');
 const conciergeRoutes      = require('./routes/concierge');
+const ownerRequestRoutes   = require('./routes/ownerRequests');
 
 const app = express();
 
@@ -46,8 +47,9 @@ app.use('/api/messages',    messagesRoutes);
 app.use('/api/gas',         gasRoutes);
 app.use('/api/agency',      agencyRoutes);
 app.use('/api/units',       unitsRoutes);
-app.use('/api/concierge',   conciergeRoutes);
-app.use('/api/oauth',       oauthRoutes);
+app.use('/api/concierge',     conciergeRoutes);
+app.use('/api/oauth',         oauthRoutes);
+app.use('/api/owner-requests', ownerRequestRoutes);
 
 // Create HTTP server for Express and WebSockets
 const httpServer = http.createServer(app);

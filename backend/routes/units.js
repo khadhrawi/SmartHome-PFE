@@ -7,7 +7,7 @@ const { protect } = require('../middlewares/auth');
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Build the enriched user payload sent back after join / solo */
-const toOnboardedPayload = (user, unit) => ({
+const toOnboardedPayload = (user, unit, forceSuperAdmin) => ({
   _id: user._id,
   name: user.name,
   email: user.email,
@@ -15,7 +15,7 @@ const toOnboardedPayload = (user, unit) => ({
   status: user.status || 'active',
   houseCode: unit.unitCode,
   isManaged: unit.isManaged,
-  isSuperAdmin: !unit.isManaged,
+  isSuperAdmin: forceSuperAdmin ?? false,
   unitId: unit._id,
   permissions: user.permissions || [],
   assignedRoom: user.assignedRoom || '',
@@ -60,25 +60,26 @@ router.post('/join', protect, async (req, res) => {
       return res.status(404).json({ message: 'No residence found with that code. Please check and try again.' });
     }
 
-    if (unit.claimed && unit.ownerID && String(unit.ownerID) !== String(req.user._id)) {
-      return res.status(409).json({ message: 'This residence is already claimed by another user.' });
+    // Allow multiple residents to join the same unit
+    // Only block if requester is not the owner AND this is a resident trying to claim ownership
+    if (!unit.claimed) {
+      unit.claimed = true;
+      unit.ownerID = req.user._id;
+      unit.ownerName = req.user.name;
+      unit.lastUpdated = new Date();
+      await unit.save();
     }
 
-    // Link the unit to this user
-    unit.claimed = true;
-    unit.ownerID = req.user._id;
-    unit.ownerName = req.user.name;
-    unit.lastUpdated = new Date();
-    await unit.save();
-
-    // Persist houseCode on the User document
+    // Persist houseCode on the User document — residents are never superAdmin
+    // Link resident to the unit owner (admin) so permission requests can be routed
     await User.findByIdAndUpdate(req.user._id, {
       houseCode: unit.unitCode,
       isManaged: unit.isManaged,
-      isSuperAdmin: !unit.isManaged,
+      isSuperAdmin: false,
+      linkedAdmin: unit.ownerID,
     });
 
-    res.json(toOnboardedPayload(req.user, unit));
+    res.json(toOnboardedPayload(req.user, unit, false));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -109,7 +110,7 @@ router.post('/solo', protect, async (req, res) => {
       isSuperAdmin: true,
     });
 
-    res.status(201).json(toOnboardedPayload(req.user, unit));
+    res.status(201).json(toOnboardedPayload(req.user, unit, true));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

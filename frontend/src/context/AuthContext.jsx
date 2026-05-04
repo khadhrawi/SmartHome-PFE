@@ -127,9 +127,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginAgency = async (email, password, agencyAccessCode) => {
+  const loginAgency = async (email, password) => {
     try {
-      const { data } = await api.post('/auth/agency/login', { email, password, agencyAccessCode });
+      const { data } = await api.post('/auth/agency/login', { email, password });
       saveAuthState(data);
       return { success: true, redirectTo: data.redirectTo || '/dashboard' };
     } catch (error) {

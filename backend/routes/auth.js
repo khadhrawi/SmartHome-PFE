@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const User = require('../models/User');
+const HouseOwnerRequest = require('../models/HouseOwnerRequest');
 const jwt = require('jsonwebtoken');
 const { protect, admin } = require('../middlewares/auth');
 const { emitHouseUserCreated } = require('../realtime/notifications');
@@ -217,23 +218,29 @@ router.post('/admin/login', async (req, res) => {
 });
 
 // @route   POST /api/auth/admin/register
-// @desc    Register a new admin account with admin access code
+// @desc    Register a new house owner account using the unique code sent by admin after approval
 // @access  Public
 router.post('/admin/register', async (req, res) => {
   try {
     const { name, email, password, adminAccessCode } = req.body;
-    const normalizedAccessCode = normalizeAdminAccessCode(adminAccessCode);
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Name, email and password are required' });
+    if (!name || !email || !password || !adminAccessCode) {
+      return res.status(400).json({ message: 'All fields including the access code are required.' });
     }
 
     if (!email.includes('@')) {
-      return res.status(400).json({ message: 'Invalid email format' });
+      return res.status(400).json({ message: 'Invalid email format.' });
     }
 
-    if (normalizedAccessCode !== ADMIN_ACCESS_CODE) {
-      return res.status(401).json({ message: INVALID_ADMIN_ACCESS_CODE_MESSAGE });
+    // Validate the unique access code against approved HouseOwnerRequests
+    const approvedRequest = await HouseOwnerRequest.findOne({
+      email: email.toLowerCase(),
+      status: 'approved',
+      accessCode: adminAccessCode.trim().toUpperCase(),
+    });
+
+    if (!approvedRequest) {
+      return res.status(401).json({ message: 'Invalid or expired access code. Make sure you are using the code sent to this exact email.' });
     }
 
     const pwError = validatePasswordStrength(password);
@@ -243,30 +250,29 @@ router.post('/admin/register', async (req, res) => {
 
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: 'An account with this email already exists.' });
     }
 
-    const adminVerificationToken = crypto.randomBytes(32).toString('hex');
     const newAdmin = await User.create({
       name,
       email,
       password,
       role: 'admin',
-      adminAccessCode: normalizedAccessCode,
-      isEmailVerified: false,
-      emailVerificationToken: adminVerificationToken,
-      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      isEmailVerified: true,
     });
 
-    sendVerificationEmail(newAdmin.email, adminVerificationToken).catch(() => {});
+    // Mark the request as consumed so the code can't be reused
+    approvedRequest.status = 'consumed';
+    await approvedRequest.save();
+
+    const token = jwt.sign({ id: newAdmin._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
     res.status(201).json({
       _id: newAdmin._id,
       name: newAdmin.name,
       email: newAdmin.email,
       role: newAdmin.role,
-      houseCode: newAdmin.houseCode,
-      emailVerificationSent: true,
+      token,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -361,12 +367,7 @@ router.post('/agency/register', async (req, res) => {
 // @access  Public
 router.post('/agency/login', async (req, res) => {
   try {
-    const { email, password, agencyAccessCode } = req.body;
-    const normalizedCode = normalizeAdminAccessCode(agencyAccessCode);
-
-    if (normalizedCode !== AGENCY_ACCESS_CODE) {
-      return res.status(401).json({ message: 'Invalid Agency Access Code. Please check and try again.' });
-    }
+    const { email, password } = req.body;
 
     const user = await User.findOne({ email });
     if (!user || user.role !== 'agency') {

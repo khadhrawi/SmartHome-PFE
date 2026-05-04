@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Unit = require('../models/Unit');
+const User = require('../models/User');
 const { protect, agencyOnly } = require('../middlewares/auth');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -75,6 +76,58 @@ router.delete('/units/:id', protect, agencyOnly, async (req, res) => {
     const unit = await Unit.findByIdAndDelete(req.params.id);
     if (!unit) return res.status(404).json({ message: 'Unit not found' });
     res.json({ message: 'Unit removed' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── GET /api/agency/house-owners ─────────────────────────────────────────────
+// Returns all house owners with their residents
+router.get('/house-owners', protect, agencyOnly, async (req, res) => {
+  try {
+    const owners = await User.find({ role: 'admin' }).select('name email houseCode createdAt status').lean();
+    const result = await Promise.all(owners.map(async (owner) => {
+      const residents = owner.houseCode
+        ? await User.find({ role: 'resident', houseCode: owner.houseCode }).select('name email createdAt').lean()
+        : [];
+      return { ...owner, residents };
+    }));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── DELETE /api/agency/house-owners/:id ──────────────────────────────────────
+// Kick a house owner: delete their account, their residents, and their unit
+router.delete('/house-owners/:id', protect, agencyOnly, async (req, res) => {
+  try {
+    const owner = await User.findById(req.params.id);
+    if (!owner || owner.role !== 'admin') return res.status(404).json({ message: 'House owner not found.' });
+
+    const houseCode = owner.houseCode;
+
+    // Remove all residents linked to this house
+    if (houseCode) {
+      await User.deleteMany({ houseCode, role: 'resident' });
+      await Unit.deleteOne({ unitCode: houseCode });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: `House owner and all residents removed.` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── DELETE /api/agency/residents/:id ─────────────────────────────────────────
+// Kick a single resident
+router.delete('/residents/:id', protect, agencyOnly, async (req, res) => {
+  try {
+    const resident = await User.findById(req.params.id);
+    if (!resident || resident.role !== 'resident') return res.status(404).json({ message: 'Resident not found.' });
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: `Resident ${resident.name} removed.` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

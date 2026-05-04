@@ -710,9 +710,13 @@ const Dashboard = ({ accessMode = 'admin' }) => {
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
               <span className="state-chip px-3 py-1 text-zinc-200">{liveDate}</span>
               {user?.houseCode ? (
-                <span className="state-chip light-state-on border-amber-200/45 bg-amber-300/20 px-3 py-1 font-bold text-amber-100">
-                  House Code: {user.houseCode}
-                </span>
+                <button
+                  onClick={() => navigator.clipboard.writeText(user.houseCode).then(() => alert(`House code "${user.houseCode}" copied! Share it with your residents.`))}
+                  title="Click to copy house code"
+                  className="state-chip light-state-on border-amber-200/45 bg-amber-300/20 px-3 py-1 font-bold text-amber-100 cursor-pointer hover:bg-amber-300/30 transition-colors"
+                >
+                  🏠 House Code: {user.houseCode} · Copy
+                </button>
               ) : null}
             </div>
           </div>

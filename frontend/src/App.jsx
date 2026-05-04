@@ -29,6 +29,10 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
 import OAuthCallback from './pages/OAuthCallback';
+import RequestOwnerAccount from './pages/RequestOwnerAccount';
+import AgencyDashboard from './pages/AgencyDashboard';
+import AgencyLogin from './pages/AgencyLogin';
+import AgencyRegister from './pages/AgencyRegister';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 /** Returns true if this user still needs to pick Join / Solo */
@@ -97,6 +101,7 @@ const DashboardByRole = () => {
   if (!user) return <Navigate to="/auth/choose" />;
   if (userNeedsOnboarding(user)) return <Navigate to="/onboarding" />;
 
+  if (user.role === 'agency') return <Layout><AgencyDashboard /></Layout>;
   const showAdmin = user.role === 'admin' || user.isSuperAdmin;
   return <Layout>{showAdmin ? <Dashboard /> : <ResidentDashboard />}</Layout>;
 };
@@ -126,6 +131,10 @@ const AnimatedRoutes = () => {
         {/* Auth — Admin */}
         <Route path="/auth/admin/login"    element={<PublicRoute><AdminLogin /></PublicRoute>} />
         <Route path="/auth/admin/register" element={<PublicRoute><AdminRegister /></PublicRoute>} />
+
+        {/* Auth — Agency (Platform Admin) */}
+        <Route path="/auth/agency/login"    element={<PublicRoute><AgencyLogin /></PublicRoute>} />
+        <Route path="/auth/agency/register" element={<PublicRoute><AgencyRegister /></PublicRoute>} />
 
         {/* Concierge (hidden) */}
         <Route path="/concierge-hub" element={<PublicRoute><ConciergeHub /></PublicRoute>} />
@@ -159,6 +168,9 @@ const AnimatedRoutes = () => {
         <Route path="/permissions" element={<RoleRoute allow={['admin']}><AdminRequests /></RoleRoute>} />
         <Route path="/users"       element={<RoleRoute allow={['admin']}><UserManagement /></RoleRoute>} />
         <Route path="/profile"     element={<PrivateRoute><Profile /></PrivateRoute>} />
+
+        {/* House Owner request (public) */}
+        <Route path="/request-owner-account" element={<RequestOwnerAccount />} />
 
         {/* Password reset & email verification (public, no Layout) */}
         <Route path="/forgot-password"    element={<ForgotPassword />} />
