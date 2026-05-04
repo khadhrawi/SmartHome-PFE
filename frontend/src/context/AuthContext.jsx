@@ -368,6 +368,46 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const verifyEmail = async (token) => {
+    try {
+      const { data } = await api.post('/auth/verify-email', { token });
+      return { success: true, message: data.message };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || 'Verification failed' };
+    }
+  };
+
+  const resendVerification = async (email) => {
+    try {
+      const { data } = await api.post('/auth/resend-verification', { email });
+      return { success: true, message: data.message };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || 'Failed to resend' };
+    }
+  };
+
+  const forgotPassword = async (email) => {
+    try {
+      const { data } = await api.post('/auth/forgot-password', { email });
+      return { success: true, message: data.message };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || 'Request failed' };
+    }
+  };
+
+  const resetPassword = async (token, password) => {
+    try {
+      const { data } = await api.post('/auth/reset-password', { token, password });
+      return { success: true, message: data.message };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || 'Reset failed' };
+    }
+  };
+
+  const loginWithOAuthData = (data) => {
+    saveAuthState(data);
+  };
+
   const logout = () => {
     localStorage.removeItem('userInfo');
     setUser(null);
@@ -550,6 +590,11 @@ export const AuthProvider = ({ children }) => {
         createHouseMember,
         deleteHouseMember,
         updateHouseMember,
+        verifyEmail,
+        resendVerification,
+        forgotPassword,
+        resetPassword,
+        loginWithOAuthData,
         // Convenience computed
         isSuperAdmin: user?.isSuperAdmin === true,
         isManaged: user?.isManaged,

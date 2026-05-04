@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Layers, Grid, Zap, User, LogOut, Shield, Mail, PanelTopClose, PanelTopOpen, Wrench } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import PermissionNotificationCenter from './PermissionNotificationCenter';
 import SupportModal from './SupportModal';
 import GasEmergencyOverlay from './GasEmergencyOverlay';
@@ -93,6 +94,7 @@ const NavIconLink = ({ name, path, Icon, moodTheme }) => {
 /* ── Layout ── */
 const Layout = ({ children }) => {
   const { user, logout, isSuperAdmin, isManaged } = useContext(AuthContext);
+  const { isDarkMode } = useTheme();
   const [compactNav, setCompactNav] = useState(false);
   const [navMood, setNavMood] = useState(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -145,7 +147,7 @@ const Layout = ({ children }) => {
   return (
     <div
       className="min-h-screen relative overflow-hidden"
-      style={{ color: '#F8F9FA' }}
+      style={{ color: isDarkMode ? '#F8F9FA' : '#1a1008' }}
     >
       {/* ════════════════════════════════════════
           GLOBAL AMBIENT BACKGROUND
@@ -156,8 +158,9 @@ const Layout = ({ children }) => {
         className="fixed inset-0 pointer-events-none"
         style={{
           zIndex: 0,
-          background:
-            'linear-gradient(155deg, #07080E 0%, #101624 48%, #090A13 100%)',
+          background: isDarkMode
+            ? 'linear-gradient(155deg, #07080E 0%, #101624 48%, #090A13 100%)'
+            : 'linear-gradient(155deg, #f0ece4 0%, #e8e2d8 48%, #ede8df 100%)',
         }}
       />
 
@@ -166,8 +169,9 @@ const Layout = ({ children }) => {
         className="fixed inset-0 pointer-events-none"
         style={{
           zIndex: 1,
-          background:
-            'radial-gradient(100% 100% at 14% 8%, rgba(59,130,246,0.18), transparent 52%), radial-gradient(95% 95% at 88% 84%, rgba(99,102,241,0.16), transparent 58%)',
+          background: isDarkMode
+            ? 'radial-gradient(100% 100% at 14% 8%, rgba(59,130,246,0.18), transparent 52%), radial-gradient(95% 95% at 88% 84%, rgba(99,102,241,0.16), transparent 58%)'
+            : 'radial-gradient(100% 100% at 14% 8%, rgba(59,130,246,0.07), transparent 52%), radial-gradient(95% 95% at 88% 84%, rgba(99,102,241,0.06), transparent 58%)',
         }}
       />
 
@@ -193,7 +197,7 @@ const Layout = ({ children }) => {
                 <Shield size={17} style={{ color: '#1a1008' }} strokeWidth={2.5} />
               </div>
               <div className="hidden sm:block">
-                <span className="text-[18px] font-black tracking-tight" style={{ color: '#F8F9FA' }}>
+                <span className="text-[18px] font-black tracking-tight" style={{ color: isDarkMode ? '#F8F9FA' : '#1a1008' }}>
                   Smart<span style={{ color: '#E3C598' }}>Home</span>
                 </span>
                 <div className="mt-1 inline-flex items-center gap-2">

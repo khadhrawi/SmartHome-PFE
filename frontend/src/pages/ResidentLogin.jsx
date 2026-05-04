@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Lock, User, Loader2, AlertTriangle } from 'lucide-react';
 import PublicMotionShell from '../components/PublicMotionShell';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 import { AuthContext } from '../context/AuthContext';
 import { isEmailValid } from '../utils/validation';
 
@@ -43,8 +44,11 @@ const ResidentLogin = () => {
       return;
     }
 
-    // Vague, professional error — do not reveal which field failed
-    setError('Invalid credentials. Please check your email, password, and house code.');
+    if (res.error?.includes('verify your email')) {
+      setError('Please verify your email before logging in. Check your inbox or resend below.');
+    } else {
+      setError('Invalid credentials. Please check your email, password, and house code.');
+    }
   };
 
   return (
@@ -148,6 +152,12 @@ const ResidentLogin = () => {
               />
             </div>
 
+            <div className="flex justify-end">
+              <Link to="/forgot-password" className="text-xs text-emerald-200 hover:text-emerald-100">
+                Forgot password?
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={!canSubmit}
@@ -156,6 +166,16 @@ const ResidentLogin = () => {
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Sign In as Resident'}
             </button>
           </form>
+
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-xs text-zinc-400">or</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
+          <div className="mt-4">
+            <GoogleAuthButton role="resident" label="Sign in with Google" />
+          </div>
 
           <div className="mt-6 text-center text-sm text-zinc-200">
             No resident account yet?{' '}

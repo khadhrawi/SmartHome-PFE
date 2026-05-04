@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { protect, admin } = require('../middlewares/auth');
 const { emitHouseUserCreated } = require('../realtime/notifications');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/email');
 
 const HOUSE_CODE_REGEX = /^[A-Z]\d{4}$/;
 const INVALID_HOUSE_CODE_MESSAGE = 'Invalid House Code. Please check and try again.';
@@ -95,6 +97,7 @@ router.post('/resident/register', async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    const verificationToken = crypto.randomBytes(32).toString('hex');
     const user = await User.create({
       name,
       email,
@@ -107,9 +110,13 @@ router.post('/resident/register', async (req, res) => {
       permissions: [],
       roomRequest: roomRequest || '',
       inviteCodeUsed: inviteCode || '',
+      isEmailVerified: false,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
     if (user) {
+      sendVerificationEmail(user.email, verificationToken).catch(() => {});
       emitHouseUserCreated({
         _id: user._id,
         name: user.name,
@@ -159,6 +166,10 @@ router.post('/resident/login', async (req, res) => {
       return res.status(400).json({ message: INVALID_HOUSE_CODE_MESSAGE });
     }
 
+    if (!user.isEmailVerified) {
+      return res.status(403).json({ message: 'Please verify your email before logging in.', code: 'EMAIL_NOT_VERIFIED' });
+    }
+
     if (await user.matchPassword(password)) {
       res.json(toAuthPayload(user));
     } else {
@@ -189,6 +200,10 @@ router.post('/admin/login', async (req, res) => {
     if (!HOUSE_CODE_REGEX.test(normalizeHouseCode(user.houseCode))) {
       user.houseCode = undefined;
       await user.save();
+    }
+
+    if (!user.isEmailVerified) {
+      return res.status(403).json({ message: 'Please verify your email before logging in.', code: 'EMAIL_NOT_VERIFIED' });
     }
 
     if (await user.matchPassword(password)) {
@@ -231,13 +246,19 @@ router.post('/admin/register', async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    const adminVerificationToken = crypto.randomBytes(32).toString('hex');
     const newAdmin = await User.create({
       name,
       email,
       password,
       role: 'admin',
       adminAccessCode: normalizedAccessCode,
+      isEmailVerified: false,
+      emailVerificationToken: adminVerificationToken,
+      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
+
+    sendVerificationEmail(newAdmin.email, adminVerificationToken).catch(() => {});
 
     res.status(201).json({
       _id: newAdmin._id,
@@ -245,7 +266,7 @@ router.post('/admin/register', async (req, res) => {
       email: newAdmin.email,
       role: newAdmin.role,
       houseCode: newAdmin.houseCode,
-      token: jwt.sign({ id: newAdmin._id }, process.env.JWT_SECRET, { expiresIn: '30d' }),
+      emailVerificationSent: true,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -386,6 +407,108 @@ router.post('/login', async (req, res) => {
 
 router.post('/register', async (req, res) => {
   return res.status(410).json({ message: 'Use the dedicated house resident registration portal' });
+});
+
+// ── @route   POST /api/auth/verify-email ─────────────────────────────────────
+router.post('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'Verification token is required' });
+
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired verification link.' });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+
+    res.json({ message: 'Email verified successfully. You can now log in.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ── @route   POST /api/auth/resend-verification ───────────────────────────────
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user || user.isEmailVerified) {
+      return res.json({ message: 'If an unverified account exists, a new email has been sent.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = token;
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+
+    await sendVerificationEmail(user.email, token);
+    res.json({ message: 'Verification email resent.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ── @route   POST /api/auth/forgot-password ───────────────────────────────────
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    // Always return 200 to avoid user enumeration
+    if (!user || !user.isEmailVerified) {
+      return res.json({ message: 'If that email exists, a reset link has been sent.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    user.passwordResetToken = token;
+    user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await user.save();
+
+    await sendPasswordResetEmail(user.email, token);
+    res.json({ message: 'If that email exists, a reset link has been sent.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ── @route   POST /api/auth/reset-password ────────────────────────────────────
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ message: 'Token and new password are required' });
+    }
+
+    const pwError = validatePasswordStrength(password);
+    if (pwError) return res.status(422).json({ message: pwError });
+
+    const user = await User.findOne({
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset link.' });
+    }
+
+    user.password = password;
+    user.passwordResetToken = null;
+    user.passwordResetExpires = null;
+    await user.save();
+
+    res.json({ message: 'Password reset successfully. You can now log in.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 module.exports = router;

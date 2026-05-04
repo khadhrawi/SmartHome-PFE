@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, User, Lock, Loader2, Key, AlertTriangle } from 'lucide-react';
 import PublicMotionShell from '../components/PublicMotionShell';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 import { AuthContext } from '../context/AuthContext';
 import { isEmailValid } from '../utils/validation';
 
@@ -33,8 +34,11 @@ const AdminLogin = () => {
       return;
     }
 
-    // Keep error messages vague — never expose which field failed
-    setError('Invalid credentials. Please verify your email, password, and access code.');
+    if (res.error?.includes('verify your email')) {
+      setError('Please verify your email before logging in. Check your inbox or resend below.');
+    } else {
+      setError('Invalid credentials. Please verify your email, password, and access code.');
+    }
   };
 
   return (
@@ -140,6 +144,12 @@ const AdminLogin = () => {
               />
             </div>
 
+            <div className="flex justify-end">
+              <Link to="/forgot-password" className="text-xs text-sky-200 hover:text-sky-100">
+                Forgot password?
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={!canSubmit}
@@ -148,6 +158,16 @@ const AdminLogin = () => {
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Sign In as Admin'}
             </button>
           </form>
+
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-xs text-zinc-400">or</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
+          <div className="mt-4">
+            <GoogleAuthButton role="admin" label="Sign in with Google" />
+          </div>
 
           <div className="mt-6 text-center text-sm text-zinc-200">
             No admin account yet?{' '}

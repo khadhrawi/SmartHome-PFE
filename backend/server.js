@@ -10,8 +10,13 @@ const { initNotificationsServer } = require('./realtime/notifications');
 const { aedes, mqttServer } = require('./broker');
 const ws = require('ws');
 
+// Passport (OAuth — stateless, no session needed)
+const passport = require('passport');
+require('./routes/oauth'); // registers the GoogleStrategy
+
 // Import Routes
 const authRoutes       = require('./routes/auth');
+const oauthRoutes      = require('./routes/oauth');
 const deviceRoutes     = require('./routes/devices');
 const floorPlanRoutes  = require('./routes/floorplan');
 const scenarioRoutes   = require('./routes/scenarios');
@@ -28,6 +33,7 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(passport.initialize());
 
 // Load API Routes
 app.use('/api/auth',        authRoutes);
@@ -41,6 +47,7 @@ app.use('/api/gas',         gasRoutes);
 app.use('/api/agency',      agencyRoutes);
 app.use('/api/units',       unitsRoutes);
 app.use('/api/concierge',   conciergeRoutes);
+app.use('/api/oauth',       oauthRoutes);
 
 // Create HTTP server for Express and WebSockets
 const httpServer = http.createServer(app);
