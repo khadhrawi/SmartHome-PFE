@@ -1,12 +1,13 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User, Mail, Shield, Bell, Moon, LogOut,
   ChevronRight, X, Lock, Eye, EyeOff,
-  Camera, Settings, Check, AlertTriangle, Copy,
+  Camera, Settings, Check, AlertTriangle, Copy, KeyRound, ShieldCheck, ShieldOff,
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import api from '../api/axios';
 
 /* ── Design tokens — computed per theme ─────────────────────── */
 const getTokens = (isDark) => isDark ? {
@@ -422,22 +423,344 @@ const LogoutModal = ({ onConfirm, onCancel }) => {
 };
 
 /* ══════════════════════════════════════════════════════════════
+   TWO-FACTOR AUTHENTICATION SECTION COMPONENT
+══════════════════════════════════════════════════════════════ */
+const TwoFASection = ({ twoFactorEnabled, onStatusChange }) => {
+  const { isDarkMode } = useTheme();
+  const { pushToast } = useTheme();
+  const C = getTokens(isDarkMode);
+
+  const [phase, setPhase] = useState('idle'); // idle | setup | confirm | disable
+  const [qr, setQr] = useState('');
+  const [secret, setSecret] = useState('');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const inputStyle = {
+    background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+    border: `1px solid ${C.border}`,
+    color: C.text, borderRadius: 14, padding: '12px 16px', width: '100%',
+    fontSize: 15, fontWeight: 700, outline: 'none', boxSizing: 'border-box',
+    letterSpacing: '0.18em', textAlign: 'center',
+    fontFamily: "'Outfit', sans-serif",
+  };
+
+  const handleSetup = async () => {
+    setBusy(true); setError('');
+    try {
+      const { data } = await api.post('/2fa/setup');
+      setQr(data.qr);
+      setSecret(data.secret);
+      setPhase('confirm');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to start 2FA setup.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleEnable = async () => {
+    if (code.length !== 6) return setError('Please enter the 6-digit code from your authenticator app.');
+    setBusy(true); setError('');
+    try {
+      await api.post('/2fa/enable', { code });
+      pushToast('Two-factor authentication enabled', '#4ade80');
+      setPhase('idle'); setCode('');
+      onStatusChange(true);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid code. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDisable = async () => {
+    if (code.length !== 6) return setError('Please enter your 6-digit code to confirm.');
+    setBusy(true); setError('');
+    try {
+      await api.post('/2fa/disable', { code });
+      pushToast('Two-factor authentication disabled', C.gold);
+      setPhase('idle'); setCode('');
+      onStatusChange(false);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid code. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reset = () => { setPhase('idle'); setCode(''); setError(''); setQr(''); setSecret(''); };
+
+  return (
+    <div style={{
+      borderRadius: 24, overflow: 'hidden',
+      background: C.bg,
+      border: `1px solid ${twoFactorEnabled ? 'rgba(74,222,128,0.22)' : C.border}`,
+      backdropFilter: 'blur(25px)', WebkitBackdropFilter: 'blur(25px)',
+      boxShadow: twoFactorEnabled
+        ? '0 20px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(74,222,128,0.08)'
+        : isDarkMode ? '0 20px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)' : '0 8px 32px rgba(0,0,0,0.08)',
+    }}>
+      {/* Header */}
+      <div style={{ padding: '18px 20px 12px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <p style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.18em', color: C.gold, margin: 0 }}>
+          Two-Factor Authentication
+        </p>
+        {twoFactorEnabled && (
+          <span style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 800,
+            background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.30)', color: '#4ade80',
+          }}>
+            <ShieldCheck size={12} /> 2FA Enabled
+          </span>
+        )}
+      </div>
+
+      <div style={{ padding: '20px 20px 20px' }}>
+        {/* IDLE — 2FA OFF */}
+        {!twoFactorEnabled && phase === 'idle' && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+                background: isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+                border: `1px solid ${C.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <KeyRound size={20} style={{ color: C.muted }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Two-Factor Authentication</p>
+                <p style={{ fontSize: 11, color: C.dimmed, marginTop: 2 }}>Add an extra layer of security to your account</p>
+              </div>
+            </div>
+            <button
+              onClick={handleSetup}
+              disabled={busy}
+              style={{
+                flexShrink: 0, padding: '10px 18px', borderRadius: 14, fontWeight: 800,
+                fontSize: 13, cursor: busy ? 'not-allowed' : 'pointer', border: 'none',
+                background: `linear-gradient(135deg, ${C.gold}, #D4AF37)`,
+                color: '#08100D', boxShadow: `0 6px 18px rgba(227,197,152,0.30)`,
+                opacity: busy ? 0.7 : 1,
+              }}
+            >
+              {busy ? 'Loading…' : 'Enable 2FA'}
+            </button>
+          </div>
+        )}
+
+        {/* SETUP / CONFIRM phase — show QR + secret + code input */}
+        {!twoFactorEnabled && phase === 'confirm' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
+              Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.), then enter the 6-digit code below.
+            </p>
+            {qr && (
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div style={{
+                  padding: 12, borderRadius: 16, background: '#fff',
+                  border: `2px solid ${C.gold}44`, display: 'inline-block',
+                  boxShadow: `0 8px 24px rgba(0,0,0,0.25)`,
+                }}>
+                  <img src={qr} alt="2FA QR Code" style={{ width: 160, height: 160, display: 'block' }} />
+                </div>
+              </div>
+            )}
+            {secret && (
+              <div style={{
+                background: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 14px', textAlign: 'center',
+              }}>
+                <p style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.14em', color: C.gold, margin: '0 0 6px' }}>
+                  Manual Entry Key
+                </p>
+                <code style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: '0.12em', wordBreak: 'break-all' }}>
+                  {secret}
+                </code>
+              </div>
+            )}
+            <div>
+              <p style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.16em', color: C.gold, marginBottom: 8, marginTop: 0 }}>
+                6-Digit Code
+              </p>
+              <input
+                style={inputStyle}
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                maxLength={6}
+                inputMode="numeric"
+              />
+            </div>
+            {error && (
+              <div style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', borderRadius: 12, padding: '10px 14px', fontSize: 13, color: '#f87171', fontWeight: 600 }}>
+                {error}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={reset} style={{
+                flex: 1, padding: '12px 0', borderRadius: 14, fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                border: `1px solid ${C.border}`, background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: C.muted,
+              }}>
+                Cancel
+              </button>
+              <button onClick={handleEnable} disabled={busy || code.length !== 6} style={{
+                flex: 2, padding: '12px 0', borderRadius: 14, fontWeight: 800, fontSize: 13,
+                cursor: (busy || code.length !== 6) ? 'not-allowed' : 'pointer', border: 'none',
+                background: (busy || code.length !== 6) ? 'rgba(255,255,255,0.08)' : `linear-gradient(135deg, ${C.gold}, #D4AF37)`,
+                color: (busy || code.length !== 6) ? C.dimmed : '#08100D',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}>
+                <Check size={14} /> {busy ? 'Verifying…' : 'Confirm & Enable'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* IDLE — 2FA ON */}
+        {twoFactorEnabled && phase === 'idle' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+                background: 'rgba(74,222,128,0.10)', border: '1px solid rgba(74,222,128,0.22)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <ShieldCheck size={20} style={{ color: '#4ade80' }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Two-factor authentication is active</p>
+                <p style={{ fontSize: 11, color: C.dimmed, marginTop: 2 }}>Your account is protected with an authenticator app</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setPhase('disable'); setError(''); setCode(''); }}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 14, fontWeight: 700, fontSize: 13,
+                cursor: 'pointer', border: '1px solid rgba(248,113,113,0.25)',
+                background: 'rgba(248,113,113,0.08)', color: '#f87171',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.15)'; e.currentTarget.style.borderColor = 'rgba(248,113,113,0.40)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.08)'; e.currentTarget.style.borderColor = 'rgba(248,113,113,0.25)'; }}
+            >
+              <ShieldOff size={14} /> Disable 2FA
+            </button>
+          </div>
+        )}
+
+        {/* DISABLE phase */}
+        {twoFactorEnabled && phase === 'disable' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
+              Enter the 6-digit code from your authenticator app to confirm disabling 2FA.
+            </p>
+            <div>
+              <p style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.16em', color: C.gold, marginBottom: 8, marginTop: 0 }}>
+                6-Digit Code
+              </p>
+              <input
+                style={inputStyle}
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                maxLength={6}
+                inputMode="numeric"
+              />
+            </div>
+            {error && (
+              <div style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', borderRadius: 12, padding: '10px 14px', fontSize: 13, color: '#f87171', fontWeight: 600 }}>
+                {error}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={reset} style={{
+                flex: 1, padding: '12px 0', borderRadius: 14, fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                border: `1px solid ${C.border}`, background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: C.muted,
+              }}>
+                Cancel
+              </button>
+              <button onClick={handleDisable} disabled={busy || code.length !== 6} style={{
+                flex: 2, padding: '12px 0', borderRadius: 14, fontWeight: 800, fontSize: 13,
+                cursor: (busy || code.length !== 6) ? 'not-allowed' : 'pointer',
+                border: '1px solid rgba(248,113,113,0.35)',
+                background: (busy || code.length !== 6) ? 'rgba(248,113,113,0.05)' : 'rgba(248,113,113,0.14)',
+                color: (busy || code.length !== 6) ? 'rgba(248,113,113,0.4)' : '#f87171',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}>
+                <ShieldOff size={14} /> {busy ? 'Disabling…' : 'Confirm Disable'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ══════════════════════════════════════════════════════════════
    PROFILE PAGE
 ══════════════════════════════════════════════════════════════ */
 const Profile = () => {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, updateUser, verifyTwoFactor } = useContext(AuthContext);
   const { isDarkMode, toggleDarkMode, notificationsEnabled, toggleNotifications, pushToast } = useTheme();
   const C = getTokens(isDarkMode);
 
+  /* ── Avatar upload ── */
+  const fileInputRef = useRef(null);
+  const [avatarUrl, setAvatarUrl]   = useState(user?.avatar ?? null);
+  const [uploading, setUploading]   = useState(false);
+
+  const handleAvatarClick = () => fileInputRef.current?.click();
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { pushToast('Image must be under 2 MB', '#f87171'); return; }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const { data } = await api.post('/profile/avatar', formData);
+      setAvatarUrl(data.avatar);
+      updateUser(prev => ({ ...prev, avatar: data.avatar }));
+      pushToast('Profile picture updated', C.gold);
+    } catch {
+      pushToast('Upload failed', '#f87171');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    try {
+      await api.delete('/profile/avatar');
+      setAvatarUrl(null);
+      updateUser(prev => ({ ...prev, avatar: null }));
+      pushToast('Profile picture removed', C.gold);
+    } catch {
+      pushToast('Failed to remove picture', '#f87171');
+    }
+  };
+
   /* ── Local user profile state ── */
   const [userProfile, setUserProfile] = useState({
-    name:  user?.name  ?? 'Farah',
-    email: user?.email ?? 'imenkhadhrawi9@gmail.com',
+    name:  user?.name  ?? '',
+    email: user?.email ?? '',
     phone: user?.phone ?? '',
     role:  user?.role === 'admin' ? 'Admin' : 'House Resident',
     houseCode: user?.houseCode ?? '',
   });
   const [houseCodeCopied, setHouseCodeCopied] = useState(false);
+
+  /* ── 2FA state — read from user context, can be updated locally ── */
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(user?.twoFactorEnabled ?? false);
 
   /* ── Modal state ── */
   const [modal, setModal] = useState(null); // null | 'personal' | 'privacy' | 'logout'
@@ -542,19 +865,60 @@ const Profile = () => {
               boxShadow: `0 20px 50px rgba(0,0,0,0.38), 0 0 32px ${C.gold}14, inset 0 1px 0 rgba(255,255,255,0.07)`,
               display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
             }}>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleAvatarChange}
+              />
+
               {/* Avatar ring */}
               <div style={{ position: 'relative', marginBottom: 20 }}>
-                <div style={{
-                  width: 90, height: 90, borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${C.gold}44, #a78bfa33)`,
-                  border: `2px solid ${C.gold}50`,
-                  boxShadow: `0 0 30px ${C.gold}25`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 30, fontWeight: 900, color: C.gold,
-                  fontFamily: "'Outfit', sans-serif",
-                }}>
-                  {initials}
+                <div
+                  onClick={handleAvatarClick}
+                  title="Click to change profile picture"
+                  style={{
+                    width: 90, height: 90, borderRadius: '50%',
+                    background: avatarUrl ? 'transparent' : `linear-gradient(135deg, ${C.gold}44, #a78bfa33)`,
+                    border: `2px solid ${C.gold}50`,
+                    boxShadow: `0 0 30px ${C.gold}25`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 30, fontWeight: 900, color: C.gold,
+                    fontFamily: "'Outfit', sans-serif",
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    position: 'relative',
+                  }}>
+                  {avatarUrl
+                    ? <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : initials}
+                  {/* Hover overlay */}
+                  <div style={{
+                    position: 'absolute', inset: 0, borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.45)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    opacity: uploading ? 1 : 0,
+                    transition: 'opacity 0.2s',
+                  }} className="avatar-hover-overlay">
+                    <Camera size={20} color="#fff" />
+                  </div>
                 </div>
+                {/* Camera badge */}
+                <button
+                  onClick={handleAvatarClick}
+                  disabled={uploading}
+                  title="Upload photo"
+                  style={{
+                    position: 'absolute', bottom: 0, right: 0,
+                    width: 28, height: 28, borderRadius: '50%',
+                    background: C.gold, border: '2px solid ' + (isDarkMode ? '#08100D' : '#fff'),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}>
+                  <Camera size={13} style={{ color: '#08100D' }} />
+                </button>
                 {/* Online dot */}
                 <div style={{
                   position: 'absolute', bottom: 4, right: 4,
@@ -562,6 +926,27 @@ const Profile = () => {
                   background: '#4ade80', border: '2px solid #08100D',
                   boxShadow: '0 0 8px #4ade80',
                 }} />
+              </div>
+
+              {/* Upload / Remove buttons */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                <button onClick={handleAvatarClick} disabled={uploading}
+                  style={{
+                    padding: '6px 14px', borderRadius: 12, fontSize: 11, fontWeight: 700,
+                    background: `${C.gold}18`, border: `1px solid ${C.gold}40`, color: C.gold, cursor: 'pointer',
+                  }}>
+                  {uploading ? 'Uploading…' : avatarUrl ? 'Change photo' : 'Upload photo'}
+                </button>
+                {avatarUrl && (
+                  <button onClick={handleRemoveAvatar}
+                    style={{
+                      padding: '6px 14px', borderRadius: 12, fontSize: 11, fontWeight: 700,
+                      background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.30)',
+                      color: '#f87171', cursor: 'pointer',
+                    }}>
+                    Remove
+                  </button>
+                )}
               </div>
 
               <h3 style={{ fontSize: 20, fontWeight: 900, margin: '0 0 4px', color: C.text }}>
@@ -705,6 +1090,15 @@ const Profile = () => {
                 />
               </Section>
             ) : null}
+
+            {/* Two-Factor Authentication */}
+            <TwoFASection
+              twoFactorEnabled={twoFactorEnabled}
+              onStatusChange={(enabled) => {
+                setTwoFactorEnabled(enabled);
+                updateUser(prev => ({ ...prev, twoFactorEnabled: enabled }));
+              }}
+            />
 
             {/* Quick stats */}
             <div style={{

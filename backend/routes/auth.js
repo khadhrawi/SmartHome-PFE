@@ -7,6 +7,15 @@ const jwt = require('jsonwebtoken');
 const { protect, admin } = require('../middlewares/auth');
 const { emitHouseUserCreated } = require('../realtime/notifications');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/email');
+const { logAudit } = require('../utils/audit');
+const { body } = require('express-validator');
+const validate = require('../middlewares/validate');
+
+const registerRules = validate([
+  body('name').trim().notEmpty().withMessage('Name is required.').isLength({ max: 60 }).withMessage('Name too long.'),
+  body('email').trim().isEmail().withMessage('Valid email is required.').normalizeEmail(),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters.'),
+]);
 
 const HOUSE_CODE_REGEX = /^[A-Z]\d{4}$/;
 const INVALID_HOUSE_CODE_MESSAGE = 'Invalid House Code. Please check and try again.';
@@ -42,6 +51,10 @@ const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
+const generateTempToken = (id) => {
+  return jwt.sign({ id, twofa: true }, process.env.JWT_SECRET, { expiresIn: '5m' });
+};
+
 const toAuthPayload = (user) => ({
   _id: user._id,
   name: user.name,
@@ -55,13 +68,15 @@ const toAuthPayload = (user) => ({
   roomRequest: user.roomRequest,
   isManaged: user.isManaged ?? null,
   isSuperAdmin: user.isSuperAdmin ?? false,
+  avatar: user.avatar || null,
+  twoFactorEnabled: user.twoFactorEnabled ?? false,
   token: generateToken(user._id),
 });
 
 // @route   POST /api/auth/resident/register
 // @desc    Register a new resident user
 // @access  Public
-router.post('/resident/register', async (req, res) => {
+router.post('/resident/register', registerRules, async (req, res) => {
   try {
     const { name, email, password, assignedRoom, roomRequest, inviteCode, houseCode } = req.body;
     const normalizedHouseCode = normalizeHouseCode(houseCode);
@@ -172,6 +187,10 @@ router.post('/resident/login', async (req, res) => {
     }
 
     if (await user.matchPassword(password)) {
+      if (user.twoFactorEnabled) {
+        return res.json({ requiresTwoFactor: true, tempToken: generateTempToken(user._id) });
+      }
+      logAudit({ req, action: 'Resident login', category: 'auth', details: `${user.name} logged in`, meta: { userId: user._id, houseCode: user.houseCode } });
       res.json(toAuthPayload(user));
     } else {
       res.status(401).json({ message: 'Invalid credentials.' });
@@ -208,6 +227,10 @@ router.post('/admin/login', async (req, res) => {
     }
 
     if (await user.matchPassword(password)) {
+      if (user.twoFactorEnabled) {
+        return res.json({ requiresTwoFactor: true, tempToken: generateTempToken(user._id) });
+      }
+      logAudit({ req, action: 'Admin login', category: 'auth', details: `${user.name} logged in`, meta: { userId: user._id, houseCode: user.houseCode } });
       res.json(toAuthPayload(user));
     } else {
       res.status(401).json({ message: 'Invalid credentials.' });
@@ -375,13 +398,11 @@ router.post('/agency/login', async (req, res) => {
     }
 
     if (await user.matchPassword(password)) {
+      if (user.twoFactorEnabled) {
+        return res.json({ requiresTwoFactor: true, tempToken: generateTempToken(user._id) });
+      }
       res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status || 'active',
-        token: generateToken(user._id),
+        ...toAuthPayload(user),
         redirectTo: '/dashboard',
       });
     } else {

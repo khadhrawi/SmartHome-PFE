@@ -1,0 +1,118 @@
+\chapter{Database Design and Domain Models}
+
+\section{Data Strategy}
+MongoDB is used as the primary persistence layer. The design follows bounded domain entities with pragmatic denormalization where needed for query simplicity and runtime performance.
+
+\section{Main Collections}
+
+\subsection{User}
+The user model captures identity and role governance:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Core identity: name, email, password hash.
+  \item Role domain: admin, resident, agency.
+  \item House linkage: houseCode, linkedAdmin.
+  \item Access metadata: permissions, assignedRoom.
+  \item Account lifecycle: email verification and reset token fields.
+  \item OAuth metadata: googleId.
+\end{itemize}
+
+Unique constraints and generation logic enforce house-code integrity for admin accounts.
+
+\subsection{Device}
+Devices represent connected assets and include:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Human metadata: name, room, type, color.
+  \item Integration metadata: topic, owner, houseCode.
+  \item Runtime state: status, state payload, brightness/openPct.
+  \item Spatial metadata: position coordinates for floor plan rendering.
+\end{itemize}
+
+\subsection{HouseState}
+House-level global state includes:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Lighting mode and occupancy/security flags.
+  \item Gas safety data: gasLevel, gasThreshold, emergencyMode, gasValveOpen.
+  \item Audit fields: updatedBy and timestamps.
+\end{itemize}
+
+\subsection{PermissionRequest}
+This collection implements access-governance workflow:
+\begin{itemize}[leftmargin=1.2cm]
+  \item requester and houseAdmin references.
+  \item action key/label and optional room scope.
+  \item status lifecycle: pending, approved, denied.
+  \item read-state metadata for admin and requester.
+\end{itemize}
+
+\subsection{Unit}
+Unit entities support agency-level management:
+\begin{itemize}[leftmargin=1.2cm]
+  \item unique unitCode, claim status, and owner linkage.
+  \item managed/unmanaged mode with operational status indicators.
+\end{itemize}
+
+\subsection{HouseOwnerRequest}
+This collection tracks candidate owner requests submitted for agency review, including approval workflow and one-time access code lifecycle.
+
+\section{Entity Relationship View}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  entity/.style={draw, rounded corners, fill=purple!8, minimum width=3.2cm, minimum height=1cm, align=center},
+  rel/.style={-{Latex[length=3mm]}}
+]
+\node[entity] (user) at (0,0) {User};
+\node[entity] (device) at (5,0) {Device};
+\node[entity] (house) at (10,0) {HouseState};
+\node[entity] (perm) at (0,-3) {PermissionRequest};
+\node[entity] (unit) at (5,-3) {Unit};
+\node[entity] (ownerreq) at (10,-3) {HouseOwnerRequest};
+
+\draw[rel] (user) -- node[above]{owns/manages} (device);
+\draw[rel] (device) -- node[above]{belongs to} (house);
+\draw[rel] (user) -- node[left]{creates/reviews} (perm);
+\draw[rel] (user) -- node[above,sloped]{linked by houseCode} (house);
+\draw[rel] (unit) -- node[right]{owned by} (user);
+\draw[rel] (ownerreq) -- node[right]{approved to create} (user);
+\end{tikzpicture}
+\caption{Conceptual data relationship view}
+\end{figure}
+
+\section{Schema Decisions and Justification}
+\subsection{Document-oriented Flexibility}
+Device state payloads may differ by type; MongoDB mixed fields simplify this heterogeneity.
+
+\subsection{House Code as Domain Anchor}
+Many queries are scoped by houseCode, making it a key partition-like attribute in authorization and event fan-out.
+
+\subsection{Auditability}
+Timestamp and reviewer fields across workflow collections provide traceability for governance actions.
+
+\section{Indexing Strategy}
+Recommended indexes for scale:
+\begin{itemize}[leftmargin=1.2cm]
+  \item User(email) unique.
+  \item User(role, houseCode) for role/house queries.
+  \item Device(topic) unique and Device(houseCode, room).
+  \item PermissionRequest(houseCode, status, createdAt).
+  \item Unit(unitCode) unique.
+\end{itemize}
+
+\section{Data Integrity Rules}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Password must be hashed before persistence.
+  \item House code pattern must follow one-letter + four-digit format.
+  \item Permission request decisions restricted to approved/denied set.
+  \item Gas threshold bounded to safe operational range.
+\end{itemize}
+
+\section{Migration and Evolution Notes}
+Future schema evolution can include:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Time-series collection for telemetry historical analytics.
+  \item Event journal for full audit replay.
+  \item Soft-delete flags for compliance and operational recovery.
+\end{itemize}
+
+\section{Data Governance Summary}
+The current model set balances expressive domain coverage and implementation simplicity while preserving clear migration paths for advanced analytics and enterprise compliance.

@@ -1,0 +1,75 @@
+\chapter{Project Management, Planning, and Risk Governance}
+
+\section{Project Planning Approach}
+The project followed iterative delivery with milestone-based checkpoints:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Requirement analysis and actor mapping.
+  \item Architectural baseline and domain modeling.
+  \item Backend feature slices with route and model implementation.
+  \item Frontend role flows and dashboard composition.
+  \item Realtime integration and safety workflows.
+  \item Validation, documentation, and reporting.
+\end{itemize}
+
+\section{Work Breakdown Structure}
+\begin{longtable}{p{2cm}p{5cm}p{7cm}}
+\toprule
+Phase & Work Package & Deliverables \\
+\midrule
+P1 & Analysis and specification & Requirements document, use cases, acceptance criteria \\
+P2 & Architecture and UML & Context/component/deployment diagrams, sequence models \\
+P3 & Backend core implementation & Auth, users, units, devices, permissions, gas APIs \\
+P4 & Frontend implementation & Routing guards, dashboards, contexts, pages \\
+P5 & Realtime and IoT integration & Socket room model, MQTT broker flow, emergency loop \\
+P6 & Validation and deployment prep & Tests, hardening checklist, deployment notes \\
+P7 & Report finalization & Full PFE manuscript and appendices \\
+\bottomrule
+\end{longtable}
+
+\section{Timeline (Illustrative)}
+\begin{table}[H]
+\centering
+\caption{Milestone timeline}
+\begin{tabular}{p{5cm}p{4cm}p{5cm}}
+\toprule
+Milestone & Period & Outcome \\
+\midrule
+M1: Scope freeze & Week 1-2 & Functional perimeter approved \\
+M2: Architecture freeze & Week 3-4 & Core technical decisions validated \\
+M3: Backend MVP & Week 5-8 & Essential APIs and models delivered \\
+M4: Frontend MVP & Week 9-11 & Role-based UI and route guards delivered \\
+M5: Realtime and safety & Week 12-14 & MQTT + Socket workflows operational \\
+M6: Validation and report & Week 15-18 & Testing, optimization, and full report \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Risk Register}
+\begin{longtable}{p{4cm}p{2cm}p{2cm}p{6cm}}
+\toprule
+Risk & Probability & Impact & Mitigation \\
+\midrule
+Missing critical dependency in runtime & Medium & High & Lock dependency list, perform clean install checks \\
+Auth misconfiguration between frontend and backend & Medium & High & Contract tests and environment templates \\
+MQTT payload inconsistency & Medium & Medium & Introduce schema validation and topic contract docs \\
+Role leakage in endpoints & Low & High & Strict middleware and security test cases \\
+Realtime event drift & Medium & Medium & Event naming registry and client compatibility tests \\
+\bottomrule
+\end{longtable}
+
+\section{Communication and Governance}
+Weekly status reviews and integration demos reduce delivery risk by exposing mismatches early between UI assumptions and backend behavior.
+
+\section{Cost and Resource Perspective}
+The chosen open-source stack minimizes licensing cost and is suitable for academic projects and small teams. Main investment remains engineering time and operational discipline.
+
+\section{Lessons Learned}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Event contracts must be documented as first-class artifacts.
+  \item Role governance must be tested as rigorously as business logic.
+  \item Safety workflows demand deterministic transitions and explicit edge handling.
+  \item Monorepo improves cohesion but requires dependency hygiene.
+\end{itemize}
+
+\section{Management Summary}
+Project management outcomes show successful alignment between planning and technical delivery, while highlighting concrete maturity actions for production-level governance.

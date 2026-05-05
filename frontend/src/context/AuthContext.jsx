@@ -110,6 +110,7 @@ export const AuthProvider = ({ children }) => {
   const loginResident = async (email, password, houseCode) => {
     try {
       const { data } = await api.post('/auth/resident/login', { email, password, houseCode });
+      if (data.requiresTwoFactor) return { success: false, requiresTwoFactor: true, tempToken: data.tempToken };
       saveAuthState(data);
       return { success: true };
     } catch (error) {
@@ -120,6 +121,7 @@ export const AuthProvider = ({ children }) => {
   const loginAdmin = async (email, password, adminAccessCode) => {
     try {
       const { data } = await api.post('/auth/admin/login', { email, password, adminAccessCode });
+      if (data.requiresTwoFactor) return { success: false, requiresTwoFactor: true, tempToken: data.tempToken };
       saveAuthState(data);
       return { success: true };
     } catch (error) {
@@ -127,9 +129,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const verifyTwoFactor = async (code, tempToken) => {
+    try {
+      const { data } = await api.post('/2fa/verify', { code, tempToken });
+      saveAuthState(data);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || 'Invalid code' };
+    }
+  };
+
   const loginAgency = async (email, password) => {
     try {
       const { data } = await api.post('/auth/agency/login', { email, password });
+      if (data.requiresTwoFactor) return { success: false, requiresTwoFactor: true, tempToken: data.tempToken };
       saveAuthState(data);
       return { success: true, redirectTo: data.redirectTo || '/dashboard' };
     } catch (error) {
@@ -568,6 +581,7 @@ export const AuthProvider = ({ children }) => {
         token,
         loginResident,
         loginAdmin,
+        verifyTwoFactor,
         loginAgency,
         registerAdmin,
         registerAgency,
@@ -595,6 +609,7 @@ export const AuthProvider = ({ children }) => {
         forgotPassword,
         resetPassword,
         loginWithOAuthData,
+        updateUser: setUserWithLocalSync,
         // Convenience computed
         isSuperAdmin: user?.isSuperAdmin === true,
         isManaged: user?.isManaged,

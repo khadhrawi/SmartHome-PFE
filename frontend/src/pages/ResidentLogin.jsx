@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Lock, User, Loader2, AlertTriangle } from 'lucide-react';
+import { Users, Lock, User, Loader2, AlertTriangle, Key } from 'lucide-react';
 import PublicMotionShell from '../components/PublicMotionShell';
 import GoogleAuthButton from '../components/GoogleAuthButton';
 import { AuthContext } from '../context/AuthContext';
@@ -17,13 +17,16 @@ const formatHouseCodeInput = (value = '') => {
 };
 
 const ResidentLogin = () => {
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail]         = useState('');
+  const [password, setPassword]   = useState('');
   const [houseCode, setHouseCode] = useState('');
-  const [error, setError]       = useState('');
+  const [error, setError]         = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [twoFAStep, setTwoFAStep] = useState(false);
+  const [tempToken, setTempToken] = useState('');
+  const [twoFACode, setTwoFACode] = useState('');
 
-  const { loginResident } = useContext(AuthContext);
+  const { loginResident, verifyTwoFactor } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const emailValid = isEmailValid(email);
@@ -39,8 +42,11 @@ const ResidentLogin = () => {
     const res = await loginResident(email, password, normalizedHouseCode);
 
     setIsLoading(false);
-    if (res.success) {
-      navigate('/dashboard');
+    if (res.success) { navigate('/dashboard'); return; }
+
+    if (res.requiresTwoFactor) {
+      setTempToken(res.tempToken);
+      setTwoFAStep(true);
       return;
     }
 
@@ -49,6 +55,17 @@ const ResidentLogin = () => {
     } else {
       setError('Invalid credentials. Please check your email, password, and house code.');
     }
+  };
+
+  const handleTwoFA = async (e) => {
+    e.preventDefault();
+    if (twoFACode.length !== 6 || isLoading) return;
+    setError('');
+    setIsLoading(true);
+    const res = await verifyTwoFactor(twoFACode, tempToken);
+    setIsLoading(false);
+    if (res.success) { navigate('/dashboard'); return; }
+    setError(res.error || 'Invalid code. Try again.');
   };
 
   return (
@@ -88,6 +105,34 @@ const ResidentLogin = () => {
             )}
           </AnimatePresence>
 
+          {twoFAStep ? (
+            <form className="mt-6 space-y-4" onSubmit={handleTwoFA}>
+              <p className="text-center text-sm text-zinc-200">Enter the 6-digit code from your authenticator app.</p>
+              <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
+                <Key size={17} className="text-emerald-100/80" />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={twoFACode}
+                  onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, ''))}
+                  className="w-full bg-transparent text-center text-xl font-bold tracking-[0.4em] text-white outline-none placeholder:text-zinc-300/65"
+                  placeholder="000000"
+                  autoFocus
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={twoFACode.length !== 6 || isLoading}
+                className="mt-2 flex w-full items-center justify-center rounded-2xl bg-emerald-300 py-3.5 text-sm font-bold text-emerald-950 transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Verify & Sign In'}
+              </button>
+              <button type="button" onClick={() => { setTwoFAStep(false); setTwoFACode(''); setError(''); }} className="w-full text-center text-xs text-zinc-400 hover:text-zinc-200">
+                ← Back to login
+              </button>
+            </form>
+          ) : (
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             {/* Email */}
             <div
@@ -166,6 +211,7 @@ const ResidentLogin = () => {
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Sign In as Resident'}
             </button>
           </form>
+          )}
 
           <div className="mt-4 flex items-center gap-3">
             <div className="h-px flex-1 bg-white/10" />

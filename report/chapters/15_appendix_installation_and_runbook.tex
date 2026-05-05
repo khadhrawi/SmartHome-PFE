@@ -1,0 +1,222 @@
+\chapter{Appendix C: Installation Guide and Operations Runbook}
+
+\section{Scope}
+This appendix provides a complete practical guide to install, configure, run, troubleshoot, and maintain the SmartHome platform in development and pilot production environments.
+
+\section{Prerequisites}
+\subsection{Software}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Node.js LTS (recommended v20+).
+  \item npm (comes with Node.js).
+  \item MongoDB server (local or managed).
+  \item Optional: MQTT client tools for diagnostics.
+  \item Optional: PM2 or container runtime for service supervision.
+\end{itemize}
+
+\subsection{System}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Minimum 4 GB RAM for development.
+  \item Open ports for backend HTTP and MQTT.
+  \item Stable network for OAuth/email features.
+\end{itemize}
+
+\section{Repository Setup}
+\begin{lstlisting}[style=codeblock,basicstyle=\ttfamily\small]
+git clone <repository-url>
+cd SmartHome-PFE
+npm install
+cd backend && npm install
+cd ../frontend && npm install
+\end{lstlisting}
+
+\section{Environment Configuration}
+Create backend environment file with keys such as:
+\begin{lstlisting}[style=codeblock]
+PORT=5000
+MQTT_PORT=1883
+MONGODB_URI=mongodb://127.0.0.1:27017/SmartHome
+JWT_SECRET=replace_with_secure_secret
+FRONTEND_URL=http://localhost:5173
+BACKEND_URL=http://localhost:5000
+ADMIN_ACCESS_CODE=ADMIN123
+AGENCY_ACCESS_CODE=AGENCY2024
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+\end{lstlisting}
+
+Frontend environment sample:
+\begin{lstlisting}[style=codeblock]
+VITE_API_BASE_URL=http://localhost:5000/api
+\end{lstlisting}
+
+\section{Local Run Commands}
+\subsection{Monorepo Orchestrated Run}
+\begin{lstlisting}[style=codeblock]
+npm run start
+\end{lstlisting}
+
+\subsection{Separate Run}
+\begin{lstlisting}[style=codeblock]
+# terminal 1
+cd backend
+npm run dev
+
+# terminal 2
+cd frontend
+npm run dev
+\end{lstlisting}
+
+\section{Health Verification Checklist}
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Backend logs show successful MongoDB connection.
+  \item HTTP API responds on configured port.
+  \item Frontend starts and route guard logic works.
+  \item MQTT TCP port accepts connections.
+  \item Socket authenticated events delivered after login.
+\end{enumerate}
+
+\section{First-use Functional Smoke Tests}
+\subsection{Auth Smoke}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Register resident and login.
+  \item Register or login admin.
+  \item Confirm token-based API access.
+\end{itemize}
+
+\subsection{Device Smoke}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Create a device as admin.
+  \item Send a command to the device endpoint.
+  \item Confirm MQTT publish and DB state update.
+\end{itemize}
+
+\subsection{Permission Smoke}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Submit resident permission request.
+  \item Review and approve from admin session.
+  \item Confirm resident receives realtime status update.
+\end{itemize}
+
+\subsection{Gas Smoke}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Publish gas reading below threshold.
+  \item Publish reading above threshold.
+  \item Confirm emergency flag and emitted alert.
+\end{itemize}
+
+\section{MQTT Diagnostic Recipes}
+\subsection{Subscribe to command channel}
+\begin{lstlisting}[style=codeblock]
+mosquitto_sub -h localhost -p 1883 -t "command/#" -v
+\end{lstlisting}
+
+\subsection{Publish gas reading}
+\begin{lstlisting}[style=codeblock]
+mosquitto_pub -h localhost -p 1883 -t "sensors/H1234/gas" -m "{\"level\":650}"
+\end{lstlisting}
+
+\section{Common Incidents and Resolution}
+\subsection{Incident: Cannot find module passport}
+\textbf{Symptoms}: backend crashes at startup with module-not-found.
+
+\textbf{Resolution}:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Verify backend dependencies installed.
+  \item Install missing package in backend project.
+  \item Restart backend runtime.
+\end{enumerate}
+
+\subsection{Incident: Socket authentication failed}
+\textbf{Symptoms}: client cannot receive realtime updates.
+
+\textbf{Resolution}:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Ensure valid JWT is sent in socket auth payload.
+  \item Verify JWT secret consistency across environments.
+  \item Confirm user still exists and token is not expired.
+\end{enumerate}
+
+\subsection{Incident: MQTT commands not reaching devices}
+\textbf{Resolution actions}:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Validate broker port and topic naming.
+  \item Check payload serialization and parser logic.
+  \item Confirm device simulator/client subscribes expected pattern.
+\end{itemize}
+
+\section{Security Hardening Checklist}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Replace all default secrets and access codes.
+  \item Enforce HTTPS and secure proxy headers.
+  \item Restrict CORS origins.
+  \item Add request rate limiting.
+  \item Add audit logs for admin actions.
+  \item Introduce secret rotation process.
+\end{itemize}
+
+\section{Backup and Restore Procedure}
+\subsection{Backup}
+\begin{lstlisting}[style=codeblock]
+# example
+mongodump --uri="mongodb://127.0.0.1:27017/SmartHome" --out=./backup
+\end{lstlisting}
+
+\subsection{Restore}
+\begin{lstlisting}[style=codeblock]
+# example
+mongorestore --uri="mongodb://127.0.0.1:27017/SmartHome" ./backup/SmartHome
+\end{lstlisting}
+
+\section{Release Management}
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Create release branch and freeze scope.
+  \item Execute test suite and smoke checklist.
+  \item Tag release candidate and deploy to staging.
+  \item Validate monitoring and rollback readiness.
+  \item Promote to production with changelog.
+\end{enumerate}
+
+\section{Rollback Strategy}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Keep prior deploy artifacts accessible.
+  \item Version database migrations and backups.
+  \item Revert frontend static build and backend image atomically.
+\end{itemize}
+
+\section{Service Ownership Matrix}
+\begin{table}[H]
+\centering
+\caption{Operational ownership examples}
+\begin{tabular}{p{5cm}p{4cm}p{5cm}}
+\toprule
+Component & Primary Owner & Secondary Owner \\
+\midrule
+Backend API & Backend Engineer & Full-stack Engineer \\
+Frontend SPA & Frontend Engineer & Full-stack Engineer \\
+MongoDB & DevOps Engineer & Backend Engineer \\
+MQTT Broker & IoT Engineer & Backend Engineer \\
+Incident Response & DevOps Lead & Product Tech Lead \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Capacity Planning Notes}
+For scaling households and devices, monitor:
+\begin{itemize}[leftmargin=1.2cm]
+  \item peak concurrent socket connections,
+  \item MQTT message rate,
+  \item DB write amplification during burst events,
+  \item API auth traffic under login spikes.
+\end{itemize}
+
+\section{Production Readiness Checklist}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Secrets externalized and rotated.
+  \item Monitoring and alerting active.
+  \item Backup/restore tested.
+  \item Security scan completed.
+  \item Runbooks approved.
+\end{itemize}
+
+\section{Appendix Summary}
+This runbook transforms the project from academic implementation to maintainable operational service by documenting reproducible procedures, controls, and recovery practices.

@@ -1,0 +1,92 @@
+\chapter{Deployment, DevOps, and Operations}
+
+\section{Environment Topology}
+A practical environment model includes:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Development: local monorepo with backend and frontend concurrently.
+  \item Staging: cloud VM or container stack with test data.
+  \item Production: hardened setup with managed database and observability stack.
+\end{itemize}
+
+\section{Configuration Management}
+Environment variables control ports, database URI, JWT secret, OAuth credentials, frontend origin, and access codes. Secret values must never be committed to source control.
+
+\section{Build and Run Pipeline}
+\subsection{Root Orchestration}
+The monorepo root starts backend and frontend together for integrated development testing.
+
+\subsection{Backend Runtime}
+Backend service starts HTTP server, websocket endpoint, MQTT broker, and DB connection in one process.
+
+\subsection{Frontend Runtime}
+Vite serves SPA with hot-module reload in development and optimized static build in production.
+
+\section{Containerization Strategy (Recommended)}
+A production-ready containerization path:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Backend image with Node runtime, non-root user, healthcheck endpoint.
+  \item Frontend static build served by Nginx or edge hosting.
+  \item Externalized MongoDB as managed database service.
+\end{enumerate}
+
+\section{CI/CD Blueprint}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Trigger on pull request and main branch merge.
+  \item Install dependencies and run lint checks.
+  \item Run automated test suites.
+  \item Build artifacts and publish deploy package.
+  \item Deploy to staging, then production with approval gate.
+\end{itemize}
+
+\section{Observability Architecture}
+\subsection{Logs}
+Adopt structured logs with request IDs and event correlation IDs.
+
+\subsection{Metrics}
+Capture HTTP latency, broker throughput, socket connection counts, and emergency incidents.
+
+\subsection{Alerts}
+Configure alerting for service downtime, DB connectivity issues, and abnormal emergency burst patterns.
+
+\section{Backup and Recovery}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Daily MongoDB backups with retention policy.
+  \item Configuration backup for environment templates.
+  \item Recovery drill procedure tested periodically.
+\end{itemize}
+
+\section{Operational Runbook Essentials}
+Operational teams should maintain runbooks for:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Incident triage and escalation.
+  \item Broker connection troubleshooting.
+  \item Emergency false alert investigation.
+  \item User account recovery and access revocation.
+\end{itemize}
+
+\section{Scalability Roadmap}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Separate broker and API services.
+  \item Introduce Redis adapter for horizontal socket scaling.
+  \item Add telemetry queueing for burst management.
+  \item Partition data and house-level workloads.
+\end{itemize}
+
+\section{Operational KPIs}
+\begin{table}[H]
+\centering
+\caption{Sample operational service-level indicators}
+\begin{tabular}{p{5cm}p{3cm}p{6cm}}
+\toprule
+Indicator & Target & Notes \\
+\midrule
+API Availability & > 99.5\% & Monthly rolling target \\
+p95 API Latency & < 350 ms & Authenticated business routes \\
+Socket Delivery Success & > 99\% & Event emission to intended rooms \\
+Emergency Processing Delay & < 2 s & Sensor receipt to user alert \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Operations Summary}
+The project is deployment-ready for educational and pilot usage. With incremental hardening in CI/CD, observability, and scaling controls, it can evolve into production-grade service operations.

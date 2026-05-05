@@ -1,0 +1,96 @@
+\chapter{Realtime and IoT Communication Flows}
+
+\section{Communication Architecture}
+The platform uses a dual-realtime strategy:
+\begin{itemize}[leftmargin=1.2cm]
+  \item MQTT for device-to-platform and platform-to-device messages.
+  \item Socket.IO for platform-to-user asynchronous events.
+\end{itemize}
+
+\section{MQTT Topic Design}
+Representative topic families:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Device telemetry: \texttt{devices/<deviceTopic>}
+  \item Commands: \texttt{command/<deviceTopic>}
+  \item Gas sensors: \texttt{sensors/<houseCode>/gas}
+  \item Auto-generated safety commands: \texttt{command/autogen/<house>/alarm} and \texttt{.../gas-valve}
+\end{itemize}
+
+The naming strategy allows deterministic routing and straightforward debugging.
+
+\section{Broker Events and Device State Handling}
+When a telemetry packet is received:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Broker emits publish event.
+  \item Handler parses payload and resolves device identity.
+  \item Device document state/status/lastSeen is updated.
+  \item Relevant state is exposed to frontend through API and sockets.
+\end{enumerate}
+
+\section{Socket Room Strategy}
+Socket connections join rooms by identity and context:
+\begin{itemize}[leftmargin=1.2cm]
+  \item user-scoped rooms for direct notifications.
+  \item role-scoped rooms for group updates.
+  \item house-scoped rooms for household state broadcasts.
+  \item agency-global room for cross-unit emergency visibility.
+\end{itemize}
+
+\section{Gas Emergency Control Loop}
+\subsection{Detection}
+Gas monitor listens for sensor topic messages and extracts numeric reading.
+
+\subsection{Evaluation}
+Reading is compared to stored threshold in house state.
+
+\subsection{Transition}
+If threshold is exceeded and transition edge detected, system enables emergency mode, stores alert timestamp, and closes valve state.
+
+\subsection{Actuation}
+Alarm and valve commands are published to auto-generated MQTT command topics.
+
+\subsection{Notification}
+Socket events broadcast emergency payload to house and agency audiences.
+
+\section{Permission Workflow Event Flow}
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Resident creates request via API.
+  \item Request persistence triggers socket emission to admin channels.
+  \item Admin decision updates request status and possibly resident permissions.
+  \item Updated status and permission payload pushed to requester.
+\end{enumerate}
+
+\section{Realtime Reliability Considerations}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Token-based handshake validation prevents anonymous socket access.
+  \item Reconnection strategies in frontend socket client mitigate transient failures.
+  \item Event naming consistency simplifies client subscription patterns.
+\end{itemize}
+
+\section{Latency and Throughput Notes}
+The architecture favors low-latency propagation for home-scale event rates. For larger deployments, dedicated brokers, queue buffering, and back-pressure controls should be introduced.
+
+\section{Event Schema Recommendation}
+A stable envelope is recommended for future-proofing:
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "event": "house:gas-emergency",
+  "version": "1.0",
+  "houseCode": "H1234",
+  "payload": { "gasLevel": 650, "threshold": 400, "emergencyMode": true },
+  "ts": 1710000000000,
+  "correlationId": "uuid"
+}
+\end{lstlisting}
+
+\section{Operational Monitoring of Realtime Paths}
+Recommended production metrics:
+\begin{itemize}[leftmargin=1.2cm]
+  \item MQTT publish rate per topic family.
+  \item Socket connection count and reconnect frequency.
+  \item Gas emergency transition counters per house.
+  \item Notification delivery lag estimations.
+\end{itemize}
+
+\section{Chapter Conclusion}
+Realtime and IoT channels are not peripheral in this platform; they are the core execution paths that transform user intent and physical sensor inputs into synchronized operational state.

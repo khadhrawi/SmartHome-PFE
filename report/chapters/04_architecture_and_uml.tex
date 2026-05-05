@@ -1,0 +1,194 @@
+\chapter{System Architecture and UML Modeling}
+
+\section{Architectural Vision}
+The SmartHome platform follows a layered event-driven architecture combining:
+\begin{itemize}[leftmargin=1.2cm]
+  \item API-oriented business services (REST).
+  \item Event-oriented machine communication (MQTT).
+  \item Real-time user synchronization (Socket.IO).
+  \item Persistent state and history (MongoDB).
+\end{itemize}
+
+This architecture separates concerns while allowing fast propagation of state changes across subsystems.
+
+\section{High-Level Context Diagram}
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=1.2cm and 1.6cm,
+  actor/.style={draw, rounded corners, fill=blue!10, minimum width=3.2cm, minimum height=0.9cm, align=center},
+  system/.style={draw, rounded corners, fill=green!12, minimum width=5.0cm, minimum height=1.2cm, align=center},
+  datastore/.style={draw, cylinder, shape border rotate=90, aspect=0.2, minimum height=1.2cm, minimum width=2.0cm, fill=orange!15, align=center}
+]
+\node[actor] (agency) {Agency User};
+\node[actor, below=of agency] (admin) {House Admin};
+\node[actor, below=of admin] (resident) {Resident};
+
+\node[system, right=3.2cm of admin] (platform) {SmartHome Platform\\(API + Realtime + Broker)};
+\node[datastore, right=3.6cm of platform] (db) {MongoDB};
+\node[actor, below=1.6cm of platform] (devices) {IoT Devices};
+
+\draw[-{Latex[length=3mm]}] (agency) -- node[above,sloped]{Manage units, requests} (platform);
+\draw[-{Latex[length=3mm]}] (admin) -- node[above,sloped]{Control home, review permissions} (platform);
+\draw[-{Latex[length=3mm]}] (resident) -- node[below,sloped]{Use allowed features} (platform);
+\draw[-{Latex[length=3mm]}] (platform) -- node[above]{Persist/read} (db);
+\draw[-{Latex[length=3mm]}] (devices) -- node[right]{MQTT telemetry / commands} (platform);
+\end{tikzpicture}
+}
+\caption{System context diagram}
+\end{figure}
+
+\section{Component Diagram}
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  comp/.style={draw, rounded corners, fill=cyan!10, minimum width=3.4cm, minimum height=1.0cm, align=center},
+  arr/.style={-{Latex[length=3mm]}}
+]
+\node[comp] (frontend) at (0,0) {React Frontend};
+\node[comp] (api) at (5,0) {Express API Layer};
+\node[comp] (socket) at (10,0) {Socket.IO Service};
+
+\node[comp] (auth) at (5,-2) {Auth and RBAC Middleware};
+\node[comp] (domain) at (5,-4) {Domain Routes and Services};
+\node[comp] (broker) at (10,-2) {Aedes MQTT Broker};
+\node[comp] (gas) at (10,-4) {Gas Monitor Service};
+\node[comp] (mongo) at (5,-6) {MongoDB and Models};
+
+\draw[arr] (frontend) -- node[above]{REST} (api);
+\draw[arr] (frontend) -- node[above]{Realtime events} (socket);
+\draw[arr] (api) -- (auth);
+\draw[arr] (auth) -- (domain);
+\draw[arr] (domain) -- (mongo);
+\draw[arr] (broker) -- node[right]{publish/subscribe} (gas);
+\draw[arr] (gas) -- (mongo);
+\draw[arr] (gas) -- node[left]{emit alerts} (socket);
+\draw[arr] (domain) -- (broker);
+\draw[arr] (api) -- (socket);
+\end{tikzpicture}
+}
+\caption{Logical component architecture}
+\end{figure}
+
+\section{Deployment Diagram}
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners, fill=gray!10, minimum width=4.4cm, minimum height=1.2cm, align=center},
+  arr/.style={-{Latex[length=3mm]}}
+]
+\node[box] (browser) at (0,0) {Client Browser\\(React SPA)};
+\node[box] (node) at (6,0) {Node.js Runtime\\Express + Socket.IO + Aedes};
+\node[box] (mongo) at (12,0) {MongoDB Server};
+\node[box] (iot) at (6,-2.2) {IoT Devices / Simulators\\MQTT TCP / MQTT over WS};
+\node[box] (mail) at (12,-2.2) {Email Service\\(verification/reset)};
+
+\draw[arr] (browser) -- node[above]{HTTPS/HTTP + WS} (node);
+\draw[arr] (node) -- node[above]{Mongoose} (mongo);
+\draw[arr] (iot) -- node[left]{MQTT topics} (node);
+\draw[arr] (node) -- node[right]{SMTP/API} (mail);
+\end{tikzpicture}
+}
+\caption{Deployment-level topology}
+\end{figure}
+
+\section{Use Case Diagram Narrative}
+The main use-case clusters are:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Agency governance: manage units, review owner requests, monitor analytics.
+  \item Admin operations: manage users and devices, approve permissions, activate scenes.
+  \item Resident interactions: controlled dashboard usage, permission requests, profile actions.
+  \item Automated safety loop: ingest sensor values, compute emergency state, propagate alerts.
+\end{itemize}
+
+\section{Sequence Diagram: Resident Permission Request}
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  lifeline/.style={draw, minimum width=2.6cm, minimum height=0.8cm, fill=blue!8, align=center},
+  arr/.style={-{Latex[length=2.5mm]}}
+]
+\node[lifeline] (res) at (0,0) {Resident UI};
+\node[lifeline] (api) at (4,0) {Permissions API};
+\node[lifeline] (db) at (8,0) {MongoDB};
+\node[lifeline] (sock) at (12,0) {Socket.IO};
+\node[lifeline] (adm) at (16,0) {Admin UI};
+
+\draw[dashed] (res) -- (0,-5.2);
+\draw[dashed] (api) -- (4,-5.2);
+\draw[dashed] (db) -- (8,-5.2);
+\draw[dashed] (sock) -- (12,-5.2);
+\draw[dashed] (adm) -- (16,-5.2);
+
+\draw[arr] (0,-1) -- node[above]{POST request} (4,-1);
+\draw[arr] (4,-2) -- node[above]{create doc} (8,-2);
+\draw[arr] (8,-2.6) -- node[below]{created} (4,-2.6);
+\draw[arr] (4,-3.4) -- node[above]{emit event} (12,-3.4);
+\draw[arr] (12,-4.2) -- node[above]{requestCreated} (16,-4.2);
+\end{tikzpicture}
+}
+\caption{Permission request event propagation}
+\end{figure}
+
+\section{Sequence Diagram: Gas Emergency}
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  lifeline/.style={draw, minimum width=2.4cm, minimum height=0.8cm, fill=red!8, align=center},
+  arr/.style={-{Latex[length=2.5mm]}}
+]
+\node[lifeline] (sensor) at (0,0) {Gas Sensor};
+\node[lifeline] (broker) at (3.8,0) {MQTT Broker};
+\node[lifeline] (monitor) at (7.6,0) {Gas Monitor};
+\node[lifeline] (db) at (11.4,0) {HouseState DB};
+\node[lifeline] (sock) at (15.2,0) {Socket.IO};
+\node[lifeline] (ui) at (19,0) {Dashboards};
+
+\foreach \x in {0,3.8,7.6,11.4,15.2,19} {\draw[dashed] (\x,-0.4) -- (\x,-6.2);} 
+
+\draw[arr] (0,-1.0) -- node[above]{publish sensors/H1234/gas} (3.8,-1.0);
+\draw[arr] (3.8,-1.8) -- node[above]{event packet} (7.6,-1.8);
+\draw[arr] (7.6,-2.6) -- node[above]{save level + emergencyMode} (11.4,-2.6);
+\draw[arr] (7.6,-3.4) -- node[above]{publish alarm + valve command} (3.8,-3.4);
+\draw[arr] (7.6,-4.2) -- node[above]{emit house:gas-emergency} (15.2,-4.2);
+\draw[arr] (15.2,-5.0) -- node[above]{real-time alert} (19,-5.0);
+\end{tikzpicture}
+}
+\caption{Gas emergency sequence}
+\end{figure}
+
+\section{Activity Diagram Narrative: User Onboarding}
+User onboarding branch logic:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item User authenticates.
+  \item If house code already exists in profile, redirect to dashboard.
+  \item Else choose between join existing unit and create solo unit.
+  \item Persist onboarding result and assign role capabilities.
+  \item Navigate to role-appropriate dashboard.
+\end{enumerate}
+
+\section{State Diagram Narrative: House Safety State}
+House safety states can be conceptualized as:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Normal: gas level below threshold, emergency disabled.
+  \item Alert Triggered: gas level exceeds threshold and transition detected.
+  \item Emergency Active: emergency mode true, valve closed, alarm command retained.
+  \item Recovery: value returns below threshold or admin clear action executed.
+\end{itemize}
+
+\section{Architectural Quality Attributes}
+The architecture optimizes for:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Modularity: independent route and service modules.
+  \item Responsiveness: push events to clients instead of polling.
+  \item Evolvability: model and route extensions with localized impact.
+  \item Operational clarity: deterministic handling for safety events.
+\end{itemize}
+
+\section{Design Constraints and Evolution Strategy}
+The architecture currently co-hosts API, sockets, and broker in one process. This is acceptable for project and early deployment stages. A future production strategy can separate broker, API, and realtime gateway into independent services while preserving contracts defined in this chapter.

@@ -1,0 +1,71 @@
+\chapter{General Introduction}
+
+\section{Background and Motivation}
+Smart homes have moved from isolated gadget ecosystems to interconnected cyber-physical systems where sensing, actuation, analytics, and user interaction are tightly coupled. In many residential contexts, however, available solutions remain fragmented: one mobile app for cameras, another for lights, and separate tools for safety devices. This fragmentation creates operational inefficiency, weakens security posture, and introduces user friction.
+
+The SmartHome IoT Platform was conceived as a unified solution that addresses this gap. Instead of providing only a visual dashboard, it implements a full operational backbone: role-based account management, real-time command and telemetry channels, household governance, emergency safety workflows, and extensible domain logic for automation scenarios.
+
+\section{Project Context}
+The project is developed as an end-of-studies engineering project with both academic and practical goals. Academically, it demonstrates mastery of software architecture, distributed systems, web engineering, and IoT integration. Practically, it provides a deployable product architecture that can support agency-managed and owner-managed homes.
+
+The repository is organized as a monorepo with two major applications:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Backend service written in Node.js/Express with MongoDB persistence and integrated MQTT broker.
+  \item Frontend client written in React/Vite with role-aware routing, real-time state synchronization, and domain-oriented user interfaces.
+\end{itemize}
+
+\section{Problem Statement}
+The central engineering problem addressed by this project is the design and implementation of a scalable smart-home platform that simultaneously satisfies:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Real-time responsiveness for user-facing events and IoT telemetry.
+  \item Clear role separation across agency, house owner/admin, and resident accounts.
+  \item Safety-critical behavior for gas incidents with deterministic emergency transitions.
+  \item Maintainable architecture that supports progressive feature extension.
+\end{enumerate}
+
+Traditional monolithic smart-home apps often fail in one or more of these dimensions due to limited event modeling, weak authorization boundaries, and ad-hoc data handling. This project intentionally applies layered architecture and event-driven communication to handle these constraints.
+
+\section{Objectives}
+The project objectives were defined as follows:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Build a complete role-based authentication and onboarding system.
+  \item Enable CRUD and command workflows for connected devices.
+  \item Integrate MQTT for machine-to-machine messaging and Socket.IO for human-facing notifications.
+  \item Implement gas emergency monitoring, thresholding, and hardware command propagation.
+  \item Provide resident permission-request workflows reviewed by house admins.
+  \item Deliver maintainable code organization with clear module boundaries.
+  \item Prepare documentation suitable for industrial continuation.
+\end{itemize}
+
+\section{Methodological Approach}
+The implementation followed an iterative approach:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Requirement capture and user-flow mapping.
+  \item Domain modeling and architectural decomposition.
+  \item Progressive implementation of backend modules and APIs.
+  \item Frontend development with role-specific route guards.
+  \item Real-time and IoT integration.
+  \item Security hardening, quality validation, and deployment readiness.
+\end{enumerate}
+
+Each iteration included feedback from integration tests and runtime behavior. Particular attention was given to synchronization points between database state, MQTT events, and Socket.IO events.
+
+\section{Scientific and Engineering Contributions}
+This report contributes in several dimensions:
+\begin{itemize}[leftmargin=1.2cm]
+  \item A practical architecture for combining REST APIs, MQTT brokering, and web sockets in one coherent backend.
+  \item A concrete role-governance model adaptable to residential operations.
+  \item A safety-control loop linking telemetry thresholds to machine commands and user notifications.
+  \item A detailed blueprint for extending smart-home platforms with modular domain services.
+\end{itemize}
+
+\section{Report Organization}
+The report is structured from analysis to operation:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Chapters 1 to 3: context, requirements, and technology foundations.
+  \item Chapters 4 to 8: architecture, UML modeling, backend/frontend design, and real-time IoT flows.
+  \item Chapters 9 to 11: security, testing, deployment, project management, and risk governance.
+  \item Chapters 12 to 15: conclusion, complete technical appendices, and runbook-level documentation.
+\end{itemize}
+
+This structure ensures that both evaluators and future maintainers can traverse from conceptual intent to implementation and operational details.

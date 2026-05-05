@@ -1,9 +1,10 @@
 require('dotenv').config();
-console.log("JWT Secret Check:", process.env.JWT_SECRET);
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { initNotificationsServer } = require('./realtime/notifications');
 
 // MQTT Broker
@@ -28,16 +29,41 @@ const agencyRoutes         = require('./routes/agency');
 const unitsRoutes          = require('./routes/units');
 const conciergeRoutes      = require('./routes/concierge');
 const ownerRequestRoutes   = require('./routes/ownerRequests');
+const auditRoutes          = require('./routes/audit');
+const twofaRoutes          = require('./routes/twofa');
+const statsRoutes          = require('./routes/stats');
+const energyRoutes         = require('./routes/energy');
+const profileRoutes        = require('./routes/profile');
 
 const app = express();
 
-// Middleware
+// ── Security middleware ────────────────────────────────────────────────────────
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(passport.initialize());
 
+// Global rate limit: 200 req / 15 min per IP
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests, please try again later.' },
+}));
+
+// Strict limit on auth endpoints: 20 attempts / 15 min
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many login attempts. Please wait 15 minutes.' },
+});
+
 // Load API Routes
-app.use('/api/auth',        authRoutes);
+app.use('/api/auth',        authLimiter, authRoutes);
 app.use('/api/devices',     deviceRoutes);
 app.use('/api/floorplan',   floorPlanRoutes);
 app.use('/api/scenarios',   scenarioRoutes);
@@ -50,6 +76,11 @@ app.use('/api/units',       unitsRoutes);
 app.use('/api/concierge',     conciergeRoutes);
 app.use('/api/oauth',         oauthRoutes);
 app.use('/api/owner-requests', ownerRequestRoutes);
+app.use('/api/audit',         auditRoutes);
+app.use('/api/2fa',           twofaRoutes);
+app.use('/api/stats',         statsRoutes);
+app.use('/api/energy',        energyRoutes);
+app.use('/api/profile',       profileRoutes);
 
 // Create HTTP server for Express and WebSockets
 const httpServer = http.createServer(app);
@@ -75,6 +106,9 @@ mongoose
 
     // Init gas MQTT listener (needs Mongoose ready)
     require('./gasMonitor').init();
+
+    // Start scenario scheduler (cron jobs for time-based automations)
+    require('./scheduler').initScheduler();
 
     // Start Express API Server + Websockets
     httpServer.listen(PORT, () => {

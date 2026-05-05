@@ -23,10 +23,6 @@ const SUBJECTS = [
   '🆘 Urgent Support',
 ];
 
-/**
- * SupportModal — Glassmorphic Support Concierge modal.
- * Sends a message to POST /api/messages, saved in MongoDB.
- */
 const SupportModal = ({ onClose }) => {
   const { user } = useContext(AuthContext);
 

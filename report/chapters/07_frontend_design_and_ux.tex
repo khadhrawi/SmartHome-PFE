@@ -1,0 +1,74 @@
+\chapter{Frontend Design, UX, and Role-aware Navigation}
+
+\section{Frontend Architecture}
+The frontend is a React single-page application structured around route-level capability boundaries and centralized auth context. It uses component-driven pages for distinct personas and feature domains.
+
+\section{Routing Strategy}
+The router defines:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Public routes for landing and authentication.
+  \item Private routes wrapped by onboarding and authentication guards.
+  \item Role routes allowing admin-specific and agency-specific views.
+  \item Fallback and redirection logic for unauthorized contexts.
+\end{itemize}
+
+\section{Onboarding and Access Experience}
+A user without house assignment is guided through onboarding before dashboard access. The two paths are:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Join existing managed unit with code validation.
+  \item Create solo unit and gain super-admin equivalent powers.
+\end{enumerate}
+
+\section{Auth Context as Frontend Domain Hub}
+The auth context encapsulates:
+\begin{itemize}[leftmargin=1.2cm]
+  \item User and token persistence in local storage.
+  \item Login/register methods by role flow.
+  \item Permission request list states.
+  \item House crew management state for admins.
+  \item Socket event handling and toast notifications.
+\end{itemize}
+
+\section{Role-specific Interface Logic}
+\subsection{Agency Dashboard}
+Focuses on cross-unit supervision, analytics, and governance workflows.
+
+\subsection{Admin Dashboard}
+Provides household command center: devices, scenes, permissions, users, and safety controls.
+
+\subsection{Resident Dashboard}
+Limits actions to approved capabilities and assigned-room operations.
+
+\section{UI Component Patterns}
+The frontend uses reusable components for:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Device cards and room sections.
+  \item Notification and permission centers.
+  \item Gas safety banners and emergency overlays.
+  \item Floor-plan and smart-device overlays.
+\end{itemize}
+
+\section{Data Flow and Synchronization}
+\begin{enumerate}[leftmargin=1.2cm]
+  \item User action triggers API request through Axios client.
+  \item Backend persists and emits socket events.
+  \item Frontend listeners update local state stores.
+  \item UI rerenders reflect latest household state.
+\end{enumerate}
+
+\section{Frontend Error Handling and Resilience}
+Key resilience patterns include:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Error boundary component for catastrophic render failures.
+  \item Graceful fallback for unavailable APIs.
+  \item Reconnect behavior in socket clients.
+\end{itemize}
+
+\section{Accessibility and Usability Notes}
+The platform aims for clear role separation and straightforward navigation. Future UX refinement may include stronger keyboard accessibility and more explicit state feedback for asynchronous operations.
+
+\section{Performance Considerations}
+React with Vite yields fast local builds and responsive UI updates. For large-scale growth, optimization opportunities include route-level code splitting, memoization in high-frequency components, and event-throttling for bursty updates.
+
+\section{Design Summary}
+The frontend implementation aligns with the backend domain model and event semantics, ensuring coherent behavior between user interactions and server-side state transitions.

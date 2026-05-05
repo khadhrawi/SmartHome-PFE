@@ -1,0 +1,131 @@
+\documentclass[12pt,a4paper,oneside]{report}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{xurl}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{etoolbox}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc,backgrounds}
+
+\geometry{margin=2.5cm}
+\onehalfspacing
+\setlength{\parskip}{0.35em}
+\setlength{\parindent}{1.2em}
+\setlength{\emergencystretch}{3em}
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\AtBeginEnvironment{longtable}{\small}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!60!black,
+  citecolor=blue!50!black,
+  pdftitle={SmartHome IoT Platform - Detailed PFE Report},
+  pdfauthor={Student Name},
+  pdfsubject={End-of-studies project report},
+  pdfkeywords={IoT, Smart Home, MQTT, Node.js, React, MongoDB, UML}
+}
+
+\lstdefinestyle{codeblock}{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue!60!black},
+  commentstyle=\color{green!40!black},
+  stringstyle=\color{orange!70!black},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  stepnumber=1,
+  numbersep=8pt,
+  frame=single,
+  breaklines=true,
+  breakatwhitespace=false,
+  postbreak=\mbox{\textcolor{gray}{\tiny -> }\space},
+  showstringspaces=false,
+  tabsize=2,
+  columns=fullflexible
+}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+{\Large Ministry of Higher Education and Scientific Research\par}
+\vspace{0.6cm}
+{\Large University Name\par}
+\vspace{0.6cm}
+{\large Faculty of Engineering / Computer Science Department\par}
+\vspace{2.0cm}
+
+{\Huge \textbf{SmartHome IoT Platform}\par}
+\vspace{0.4cm}
+{\LARGE Detailed End-of-Studies Project Report (PFE)\par}
+\vspace{1.8cm}
+
+{\Large Prepared by: Student Name\par}
+\vspace{0.4cm}
+{\Large Supervised by: Supervisor Name\par}
+\vspace{0.4cm}
+{\Large Industrial Mentor: Mentor Name\par}
+\vfill
+
+{\large Academic Year: 2025-2026\par}
+\end{titlepage}
+
+\pagenumbering{roman}
+
+\chapter*{Acknowledgments}
+This report documents the full design and implementation journey of the SmartHome IoT Platform. The work consolidates software engineering, IoT integration, real-time communications, cybersecurity, data engineering, and user experience. I would like to acknowledge the support of my supervisors, colleagues, and family.
+
+\chapter*{Abstract}
+This PFE presents a complete smart home management platform developed as a monorepo with a Node.js backend and a React frontend. The system integrates MQTT for device telemetry and command flows, Socket.IO for user-facing real-time notifications, and MongoDB for persistence. The platform supports multiple roles (agency, house owner/admin, and resident), includes safety-critical gas emergency handling with valve and alarm control, and provides access control through resident permission requests.
+
+The project applies layered architecture, event-driven integration, and secure authentication (JWT + OAuth). It also introduces operational workflows such as owner account requests, unit onboarding, role-based dashboards, and house-level governance. This report includes requirement analysis, UML modeling, architecture diagrams, implementation details, testing strategy, deployment guidelines, security evaluation, risk analysis, and future improvements.
+
+\chapter*{Resume}
+The SmartHome platform centralizes smart device supervision, home safety workflows, and multi-unit management in one extensible software product. It demonstrates how modern web technologies and IoT protocols can be combined to create a scalable and maintainable system suitable for real-world residential operations.
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\clearpage
+\pagenumbering{arabic}
+
+\include{chapters/01_introduction}
+\include{chapters/02_requirements}
+\include{chapters/03_state_of_art_and_tech_stack}
+\include{chapters/04_architecture_and_uml}
+\include{chapters/05_database_and_models}
+\include{chapters/06_backend_design_and_apis}
+\include{chapters/07_frontend_design_and_ux}
+\include{chapters/08_realtime_iot_flows}
+\include{chapters/09_security_testing_and_quality}
+\include{chapters/10_deployment_devops_and_operations}
+\include{chapters/11_project_management_and_risks}
+\include{chapters/12_conclusion_and_future_work}
+\include{chapters/13_appendix_api_reference}
+\include{chapters/14_appendix_uml_sources}
+\include{chapters/15_appendix_installation_and_runbook}
+\include{chapters/16_appendix_test_plan_and_traceability}
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

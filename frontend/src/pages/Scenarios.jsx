@@ -178,10 +178,12 @@ const GlassToggle = ({ isOn, accent = C.gold, onToggle }) => (
    RECIPE MODAL — Sentence Builder
 ══════════════════════════════════════════════════════════════ */
 function RecipeModal({ onClose, onCreate }) {
-  const [trigger, setTrigger] = useState('');
-  const [action,  setAction]  = useState('');
-  const [active,  setActive]  = useState(true);
-  const [title,   setTitle]   = useState('');
+  const [trigger,      setTrigger]      = useState('');
+  const [action,       setAction]       = useState('');
+  const [active,       setActive]       = useState(true);
+  const [title,        setTitle]        = useState('');
+  const [customTime,   setCustomTime]   = useState('');  // HH:MM for custom schedule
+  const [useCustomTime, setUseCustomTime] = useState(false);
 
   /* Smart default: auto-suggest action when trigger changes */
   const handleTriggerChange = (val) => {
@@ -201,24 +203,27 @@ function RecipeModal({ onClose, onCreate }) {
   const triggerOpt   = TRIGGER_OPTIONS.find(o => o.value === trigger);
   const actionOpt    = ACTION_OPTIONS.find(o => o.value === action);
   const accentColor  = triggerOpt?.accent ?? C.gold;
-  const canCreate    = trigger && action;
+  const isTimeTrigger = triggerOpt?.type === 'time' || useCustomTime;
+  const resolvedTime  = useCustomTime && customTime
+    ? customTime
+    : (triggerOpt?.triggerTime ?? null);
+  const canCreate    = trigger && action && (!useCustomTime || customTime);
 
   const handleCreate = () => {
     if (!canCreate) return;
 
-    /* ── Flattened schema: trigger (string), action (string), active (bool) ── */
     const rule = {
       id: `a${Date.now()}`,
       title: title.trim() || `${triggerOpt?.emoji ?? '⚡'} ${triggerOpt?.label ?? 'Rule'}`,
-      description: `${triggerOpt?.label} → ${actionOpt?.label}`,
+      description: `${triggerOpt?.label ?? trigger} → ${actionOpt?.label ?? action}`,
       isEnabled: active,
-      /* Flat trigger/action strings for MongoDB */
       trigger: {
         type: triggerOpt?.type ?? 'time',
         label: triggerOpt?.label ?? trigger,
-        triggerTime: triggerOpt?.triggerTime ?? null,
+        triggerTime: resolvedTime,
         value: trigger,
       },
+      scheduleTime: resolvedTime,  // sent to backend for cron
       condition: { type: 'auto', label: triggerOpt?.label ?? trigger },
       action: {
         type: action.startsWith('mood:') ? 'execute_mood'
@@ -374,6 +379,39 @@ function RecipeModal({ onClose, onCreate }) {
                 accent={actionOpt?.accent ?? accentColor}
               />
             </div>
+
+            {/* Custom schedule time — shown for time triggers or on demand */}
+            {(isTimeTrigger || useCustomTime) && (
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-sm font-black" style={{ color: accentColor, minWidth: 56, letterSpacing: '0.04em' }}>
+                  🕐 At
+                </span>
+                <input
+                  type="time"
+                  value={customTime || resolvedTime || ''}
+                  onChange={e => { setCustomTime(e.target.value); setUseCustomTime(true); }}
+                  className="rounded-2xl px-4 py-2 text-sm font-black"
+                  style={{
+                    background: `${accentColor}14`,
+                    border: `1.5px solid ${accentColor}50`,
+                    color: accentColor,
+                    outline: 'none',
+                  }}
+                />
+                {useCustomTime && (
+                  <button type="button" onClick={() => { setUseCustomTime(false); setCustomTime(''); }}
+                    className="text-[10px] font-bold text-zinc-500 hover:text-zinc-300 transition">
+                    reset
+                  </button>
+                )}
+              </div>
+            )}
+            {!isTimeTrigger && !useCustomTime && trigger && (
+              <button type="button" onClick={() => setUseCustomTime(true)}
+                className="text-[10px] font-bold text-zinc-500 hover:text-amber-400 transition flex items-center gap-1 pl-1">
+                + Set a schedule time
+              </button>
+            )}
 
             {/* Live sentence preview */}
             {trigger && action && (
@@ -551,8 +589,21 @@ const Scenarios = () => {
     setRules(prev => prev.map(r => r.id === id ? { ...r, isEnabled: !r.isEnabled } : r));
   const deleteRule = id =>
     setRules(prev => prev.filter(r => r.id !== id));
-  const createRule = rule =>
+  const createRule = async (rule) => {
     setRules(prev => [rule, ...prev]);
+    try {
+      await axios.post('/api/scenarios', {
+        name: rule.title,
+        description: rule.description,
+        trigger: rule.trigger?.value ?? String(rule.trigger),
+        action: rule.action?.value ?? String(rule.action),
+        active: rule.isEnabled,
+        scheduleTime: rule.scheduleTime || null,
+      }, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    } catch (err) {
+      console.warn('[Scenarios] save failed:', err?.response?.data?.message || err.message);
+    }
+  };
 
   /* ── Filter ── */
   const FILTERS = ['All', 'Active', 'Inactive', 'Time', 'Device', 'Sensor'];

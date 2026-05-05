@@ -1,0 +1,99 @@
+\chapter{Security, Testing, and Quality Assurance}
+
+\section{Security Model Overview}
+Security in the SmartHome platform is implemented as a layered model:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Identity assurance (credential and OAuth authentication).
+  \item Session trust (JWT verification on API and socket channels).
+  \item Authorization constraints (role and scope checks).
+  \item Data protection (password hashing and controlled payload exposure).
+\end{itemize}
+
+\section{Authentication Security Controls}
+\subsection{Password-based Flows}
+Passwords are hashed using bcrypt before persistence. Password strength checks are enforced server-side to prevent weak-secret registration.
+
+\subsection{OAuth Integration}
+Google OAuth allows trusted identity bootstrap and account linking while preserving platform role and onboarding policies.
+
+\subsection{Email Verification and Reset}
+Tokenized email verification and expiring password reset links reduce account takeover risks associated with unverified identities and stale reset tokens.
+
+\section{Authorization and Least Privilege}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Role checks guard admin and agency endpoints.
+  \item House-scoped filtering prevents cross-house data leakage.
+  \item Resident access is constrained and progressively expanded by approval workflow.
+\end{itemize}
+
+\section{Socket Security}
+Socket handshake requires a valid token. User context is resolved and attached to socket instance before room membership assignment, preventing unauthorized event subscriptions.
+
+\section{IoT Safety Security}
+Safety commands are generated server-side from controlled logic paths. This minimizes direct client authority over critical actuator topics such as alarm and valve controls.
+
+\section{Threat Analysis}
+\begin{table}[H]
+\centering
+\caption{Threat matrix and controls}
+\begin{tabular}{p{4cm}p{5cm}p{5cm}}
+\toprule
+Threat & Risk & Existing / Recommended Controls \\
+\midrule
+Credential stuffing & Unauthorized login & Password policy, rate limiting (recommended), anomaly detection \\
+Token theft & Account/session hijack & HTTPS, token expiry, secure storage hardening \\
+Privilege escalation & Unauthorized admin action & Strict role guards and server-side authorization \\
+Event spoofing & Fake realtime updates & Authenticated socket handshake and server-origin events \\
+MQTT misuse & Device command abuse & Broker auth enhancement, ACL topics, signed payloads \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Testing Strategy}
+A multi-layer testing strategy is recommended:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Unit tests for model hooks and utility methods.
+  \item Integration tests for route + DB + realtime interaction.
+  \item End-to-end tests for role-specific user journeys.
+  \item Simulation tests for MQTT telemetry and command loop.
+\end{enumerate}
+
+\section{Representative Test Scenarios}
+\subsection{Auth Scenarios}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Reject login with invalid house code.
+  \item Reject admin login with invalid admin access code.
+  \item Reject resident login if email not verified.
+\end{itemize}
+
+\subsection{Permission Scenarios}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Resident can create a pending request.
+  \item Admin approval updates resident permissions.
+  \item Realtime event reaches both requester and admin channels.
+\end{itemize}
+
+\subsection{Gas Safety Scenarios}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Reading below threshold keeps emergency off.
+  \item Reading above threshold triggers emergency mode and commands.
+  \item Clearing emergency emits reset payload to dashboards.
+\end{itemize}
+
+\section{Quality Metrics}
+Useful quality metrics include:
+\begin{itemize}[leftmargin=1.2cm]
+  \item API success rate and p95 latency.
+  \item Socket reconnect frequency.
+  \item Emergency false-positive/false-negative rate.
+  \item Test coverage by route and critical services.
+\end{itemize}
+
+\section{Code Quality Practices}
+The project uses linting and modular folder organization. Recommended extensions include conventional commits, pre-commit hooks, and CI quality gates.
+
+\section{Compliance and Privacy Notes}
+The platform processes personal identifiers (email, name) and household behavior metadata. Production deployment should include a data retention policy, account deletion policy, and explicit privacy notices.
+
+\section{Quality Assurance Summary}
+Current implementation provides a strong baseline for PFE scope. Formal automation and observability expansion are the next maturity step for production confidence.

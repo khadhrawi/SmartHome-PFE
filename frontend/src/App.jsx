@@ -33,6 +33,11 @@ import RequestOwnerAccount from './pages/RequestOwnerAccount';
 import AgencyDashboard from './pages/AgencyDashboard';
 import AgencyLogin from './pages/AgencyLogin';
 import AgencyRegister from './pages/AgencyRegister';
+import Messages from './pages/Messages';
+import MyRequests from './pages/MyRequests';
+import AuditLog from './pages/AuditLog';
+import ResidentRoom from './pages/ResidentRoom';
+import NotFound from './pages/NotFound';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 /** Returns true if this user still needs to pick Join / Solo */
@@ -167,6 +172,10 @@ const AnimatedRoutes = () => {
         <Route path="/energy"      element={<RoleRoute allow={['admin']}><Energy /></RoleRoute>} />
         <Route path="/permissions" element={<RoleRoute allow={['admin']}><AdminRequests /></RoleRoute>} />
         <Route path="/users"       element={<RoleRoute allow={['admin']}><UserManagement /></RoleRoute>} />
+        <Route path="/messages"    element={<RoleRoute allow={['admin']}><Messages /></RoleRoute>} />
+        <Route path="/my-requests" element={<PrivateRoute><MyRequests /></PrivateRoute>} />
+        <Route path="/my-room"     element={<PrivateRoute><ResidentRoom /></PrivateRoute>} />
+        <Route path="/audit"       element={<RoleRoute allow={['admin']}><AuditLog /></RoleRoute>} />
         <Route path="/profile"     element={<PrivateRoute><Profile /></PrivateRoute>} />
 
         {/* House Owner request (public) */}
@@ -179,7 +188,7 @@ const AnimatedRoutes = () => {
         <Route path="/auth/oauth/callback" element={<OAuthCallback />} />
 
         {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/auth/choose" />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
   );

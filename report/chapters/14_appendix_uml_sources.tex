@@ -1,0 +1,318 @@
+\chapter{Appendix B: UML Source Catalog}
+
+\section{Purpose}
+This appendix provides text-source UML definitions (PlantUML style) so diagrams can be regenerated, versioned, and diffed as code artifacts.
+
+\section{Use Case Diagram Source}
+\begin{lstlisting}[style=codeblock]
+@startuml
+left to right direction
+actor Agency
+actor Admin
+actor Resident
+
+rectangle SmartHomePlatform {
+  usecase "Manage Units" as UC1
+  usecase "Review Owner Requests" as UC2
+  usecase "Register Device" as UC3
+  usecase "Activate Scenario" as UC4
+  usecase "Review Permission Request" as UC5
+  usecase "Request Permission" as UC6
+  usecase "View Dashboard" as UC7
+  usecase "Clear Gas Emergency" as UC8
+}
+
+Agency --> UC1
+Agency --> UC2
+Admin --> UC3
+Admin --> UC4
+Admin --> UC5
+Admin --> UC8
+Resident --> UC6
+Resident --> UC7
+Admin --> UC7
+Agency --> UC7
+@enduml
+\end{lstlisting}
+
+\section{Class Diagram Source (Core Domain)}
+\begin{lstlisting}[style=codeblock]
+@startuml
+class User {
+  +id: ObjectId
+  +name: String
+  +email: String
+  +password: String
+  +role: enum
+  +houseCode: String
+  +linkedAdmin: ObjectId
+  +permissions: String[]
+  +isEmailVerified: Boolean
+}
+
+class Device {
+  +id: ObjectId
+  +name: String
+  +type: String
+  +topic: String
+  +room: String
+  +status: String
+  +state: Object
+  +houseCode: String
+}
+
+class HouseState {
+  +houseCode: String
+  +lightingMode: String
+  +lockdownMode: Boolean
+  +awayMode: Boolean
+  +gasLevel: Number
+  +gasThreshold: Number
+  +emergencyMode: Boolean
+  +gasValveOpen: Boolean
+}
+
+class PermissionRequest {
+  +requester: ObjectId
+  +houseAdmin: ObjectId
+  +houseCode: String
+  +actionKey: String
+  +actionLabel: String
+  +status: enum
+  +reviewer: ObjectId
+}
+
+class Unit {
+  +unitCode: String
+  +ownerID: ObjectId
+  +ownerName: String
+  +status: String
+  +claimed: Boolean
+  +isManaged: Boolean
+}
+
+class HouseOwnerRequest {
+  +name: String
+  +email: String
+  +status: enum
+  +accessCode: String
+  +reviewedBy: ObjectId
+}
+
+User "1" --> "*" Device : owns
+User "1" --> "*" PermissionRequest : requester
+User "1" --> "*" PermissionRequest : reviewer/admin
+Unit "1" --> "1" User : owner
+HouseState "1" --> "*" Device : house scope
+@enduml
+\end{lstlisting}
+
+\section{Sequence Source: Resident Permission Request}
+\begin{lstlisting}[style=codeblock]
+@startuml
+actor ResidentUI
+participant API as PermissionsAPI
+database DB as MongoDB
+participant Socket as SocketServer
+participant AdminUI
+
+ResidentUI -> PermissionsAPI: POST /permissions/request
+PermissionsAPI -> DB: insert PermissionRequest
+DB --> PermissionsAPI: created request
+PermissionsAPI -> Socket: emit requestCreated
+Socket -> AdminUI: requestCreated event
+Socket -> ResidentUI: permissions:created event
+@enduml
+\end{lstlisting}
+
+\section{Sequence Source: Admin Decision}
+\begin{lstlisting}[style=codeblock]
+@startuml
+actor AdminUI
+participant API as PermissionsAPI
+database DB as MongoDB
+participant Socket as SocketServer
+participant ResidentUI
+
+AdminUI -> PermissionsAPI: PATCH /permissions/admin/requests/:id
+PermissionsAPI -> DB: update request status
+alt approved
+  PermissionsAPI -> DB: update resident permissions
+end
+PermissionsAPI -> Socket: emit requestStatusChanged
+Socket -> ResidentUI: requestStatusChanged
+Socket -> AdminUI: permissions:updated
+@enduml
+\end{lstlisting}
+
+\section{Sequence Source: Gas Emergency}
+\begin{lstlisting}[style=codeblock]
+@startuml
+participant Sensor
+participant Broker as Aedes
+participant Monitor as GasMonitor
+database DB as HouseState
+participant Socket
+participant Dashboard
+
+Sensor -> Broker: publish sensors/H1234/gas
+Broker -> Monitor: publish event
+Monitor -> DB: read/update gas state
+alt level > threshold
+  Monitor -> Broker: publish command/autogen/h1234/alarm
+  Monitor -> Broker: publish command/autogen/h1234/gas-valve
+end
+Monitor -> Socket: emit house:gas-emergency
+Socket -> Dashboard: alert payload
+@enduml
+\end{lstlisting}
+
+\section{Activity Source: Onboarding Flow}
+\begin{lstlisting}[style=codeblock]
+@startuml
+start
+:User authenticates;
+if (Has houseCode?) then (yes)
+  :Redirect to /dashboard;
+  stop
+else (no)
+  :Open /onboarding;
+  if (Choose Join Unit?) then (yes)
+    :POST /units/join;
+    :Persist houseCode and isManaged;
+  else (no)
+    :POST /units/solo;
+    :Persist houseCode and isSuperAdmin;
+  endif
+  :Redirect to /dashboard;
+endif
+stop
+@enduml
+\end{lstlisting}
+
+\section{State Source: House Safety State Machine}
+\begin{lstlisting}[style=codeblock]
+@startuml
+[*] --> Normal
+Normal --> EmergencyPending : gasLevel > threshold
+EmergencyPending --> EmergencyActive : trigger alarm + close valve
+EmergencyActive --> Recovery : gasLevel <= threshold OR admin clear
+Recovery --> Normal : emergencyMode=false
+@enduml
+\end{lstlisting}
+
+\section{Component Source}
+\begin{lstlisting}[style=codeblock]
+@startuml
+package Frontend {
+  [React SPA]
+  [AuthContext]
+  [Dashboard Components]
+}
+
+package Backend {
+  [Express API]
+  [Socket.IO Service]
+  [Aedes Broker]
+  [Gas Monitor]
+  [Route Modules]
+  [Auth Middleware]
+}
+
+database MongoDB
+
+[React SPA] --> [Express API] : REST
+[React SPA] --> [Socket.IO Service] : realtime
+[Aedes Broker] --> [Gas Monitor] : publish events
+[Route Modules] --> MongoDB : persistence
+[Gas Monitor] --> MongoDB : house state updates
+[Gas Monitor] --> [Socket.IO Service] : alerts
+@enduml
+\end{lstlisting}
+
+\section{Deployment Source}
+\begin{lstlisting}[style=codeblock]
+@startuml
+node "Client Browser" {
+  component "React SPA"
+}
+
+node "Node Host" {
+  component "Express API"
+  component "Socket.IO"
+  component "Aedes MQTT Broker"
+}
+
+database "MongoDB"
+node "IoT Network" {
+  component "Sensors"
+  component "Actuators"
+}
+cloud "Email Service"
+
+"React SPA" --> "Express API" : HTTP
+"React SPA" --> "Socket.IO" : WS
+"Express API" --> "MongoDB" : Mongoose
+"Sensors" --> "Aedes MQTT Broker" : MQTT publish
+"Express API" --> "Aedes MQTT Broker" : command publish
+"Express API" --> "Email Service" : SMTP/API
+@enduml
+\end{lstlisting}
+
+\section{Sequence Source: Device Command}
+\begin{lstlisting}[style=codeblock]
+@startuml
+actor UserUI
+participant API as DeviceAPI
+participant Broker as Aedes
+participant Device
+
+UserUI -> DeviceAPI: PUT /devices/:id/command
+DeviceAPI -> Broker: publish command/<topic>
+Broker -> Device: command payload
+Device -> Broker: publish devices/<topic>
+Broker -> DeviceAPI: publish event
+@enduml
+\end{lstlisting}
+
+\section{DFD-style Logical Data Flow Source}
+\begin{lstlisting}[style=codeblock]
+@startuml
+actor Resident
+actor Admin
+actor Agency
+
+rectangle "Process P1: Auth and Access" as P1
+rectangle "Process P2: Device and Scenario Control" as P2
+rectangle "Process P3: Permission Governance" as P3
+rectangle "Process P4: Gas Safety Monitor" as P4
+
+database "D1 Users" as D1
+database "D2 Devices" as D2
+database "D3 HouseState" as D3
+database "D4 PermissionRequests" as D4
+
+Resident --> P1
+Admin --> P1
+Agency --> P1
+P1 --> D1
+
+Admin --> P2
+P2 --> D2
+P2 --> D3
+
+Resident --> P3
+Admin --> P3
+P3 --> D4
+P3 --> D1
+
+P4 --> D3
+P4 --> D2
+@enduml
+\end{lstlisting}
+
+\section{Regeneration Instructions}
+To regenerate these diagrams with PlantUML, save each block to a \texttt{.puml} file and run PlantUML locally or in CI. Export PNG or SVG and include in the report for publication versions.
+
+\section{Appendix Summary}
+Keeping UML sources as text enables architecture reviews, version control diffs, and future evolution tracking with minimal overhead.
