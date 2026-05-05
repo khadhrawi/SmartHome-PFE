@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { Camera, ChevronRight, Plus, X, CheckCircle2, ChevronDown, Lock, Send, Flame } from 'lucide-react';
+import { Camera, ChevronRight, Plus, X, CheckCircle2, ChevronDown, Lock, Send, Flame, Link2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import FloorPlan from '../components/FloorPlan';
@@ -7,6 +7,37 @@ import DeviceCard from '../components/DeviceCard';
 import SmartDeviceOverlay from '../components/SmartDeviceOverlay';
 import { useFloorPlanState } from '../hooks/useFloorPlanState';
 import { useGasMonitor } from '../hooks/useGasMonitor';
+import api from '../api/axios';
+
+/* ── Live Stats Bar ───────────────────────────────────────── */
+function LiveStatsBar() {
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    api.get('/stats').then(r => setStats(r.data)).catch(() => {});
+    const id = setInterval(() => api.get('/stats').then(r => setStats(r.data)).catch(() => {}), 30000);
+    return () => clearInterval(id);
+  }, []);
+  const items = [
+    { label: 'Total Devices',   value: stats?.totalDevices  ?? '–', accent: '#60a5fa' },
+    { label: 'Active Now',      value: stats?.activeDevices ?? '–', accent: '#4ade80' },
+    { label: 'Residents',       value: stats?.residents     ?? '–', accent: '#a78bfa' },
+    { label: 'Unread Messages', value: stats?.unreadMessages ?? '–', accent: '#fbbf24' },
+  ];
+  return (
+    <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {items.map(({ label, value, accent }) => (
+        <div
+          key={label}
+          className="rounded-2xl border px-4 py-3 flex flex-col gap-1"
+          style={{ background: `${accent}08`, borderColor: `${accent}22`, backdropFilter: 'blur(12px)' }}
+        >
+          <p className="text-[10px] font-black uppercase tracking-[0.15em]" style={{ color: `${accent}aa` }}>{label}</p>
+          <p className="text-2xl font-black tabular-nums" style={{ color: accent }}>{value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /* ── Gas Sensor PPM Gauge Card ───────────────────────────── */
 function GasSensorCard() {
@@ -718,6 +749,19 @@ const Dashboard = ({ accessMode = 'admin' }) => {
                   🏠 House Code: {user.houseCode} · Copy
                 </button>
               ) : null}
+              {user?.houseCode && isAdmin && (
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/auth/resident/register?house=${user.houseCode}`;
+                    navigator.clipboard.writeText(url).then(() => alert('Invite link copied! Share it with residents.'));
+                  }}
+                  title="Copy resident invite link"
+                  className="state-chip flex items-center gap-1.5 px-3 py-1 font-bold text-emerald-100 cursor-pointer hover:bg-emerald-300/20 transition-colors border-emerald-200/40 bg-emerald-300/15"
+                >
+                  <Link2 size={11} />
+                  Copy Invite Link
+                </button>
+              )}
             </div>
           </div>
 
@@ -732,6 +776,11 @@ const Dashboard = ({ accessMode = 'admin' }) => {
           )}
         </div>
       </div>
+
+      {/* Live Stats Row */}
+      {isAdmin && (
+        <LiveStatsBar />
+      )}
 
       {/* Main Floor Plan */}
       <FloorPlan

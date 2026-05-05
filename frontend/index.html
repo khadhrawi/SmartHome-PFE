@@ -4,11 +4,69 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <meta name="google" content="notranslate" />
+    <title>SmartHome</title>
+    <meta name="theme-color" content="#E3C598" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SmartHome" />
+    <link rel="manifest" href="/manifest.json" />
+    <style>
+      .goog-te-banner-frame { display: none !important; }
+      body { top: 0 !important; }
+      #google_translate_element { display: none !important; }
+    </style>
   </head>
   <body>
     <div class="app-background"></div>
     <div id="root"></div>
+    <div id="google_translate_element"></div>
+    <script>
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement(
+          { pageLanguage: 'en', autoDisplay: false },
+          'google_translate_element'
+        );
+      }
+
+      function setCookie(name, value) {
+        document.cookie = name + '=' + value + '; path=/; domain=' + window.location.hostname;
+        document.cookie = name + '=' + value + '; path=/';
+      }
+
+      window.triggerGoogleTranslate = function(langCode) {
+        setCookie('googtrans', '/en/' + langCode);
+        window.location.reload();
+      };
+
+      window.resetTranslation = function() {
+        setCookie('googtrans', '/en/en');
+        window.location.reload();
+      };
+
+      window.getCurrentTranslateLang = function() {
+        const m = document.cookie.match(/googtrans=\/en\/([^;]+)/);
+        return (m && m[1] !== 'en') ? m[1] : 'en';
+      };
+
+      // Kill the widget bar repeatedly
+      function killBar() {
+        document.body.style.setProperty('top', '0', 'important');
+        const f = document.querySelector('.goog-te-banner-frame');
+        if (f) f.style.setProperty('display', 'none', 'important');
+      }
+      setInterval(killBar, 200);
+      document.addEventListener('DOMContentLoaded', killBar);
+    </script>
+    <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+</script>
     <script type="module" src="/src/main.jsx"></script>
+    <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
   </body>
 </html>

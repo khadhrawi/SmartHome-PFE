@@ -69,6 +69,13 @@ router.get('/google/callback', (req, res, next) => {
       return res.redirect(`${FRONTEND}/auth/choose?oauthError=1`);
     }
 
+    // If 2FA is enabled, send a temp token instead and let the frontend handle verification
+    if (user.twoFactorEnabled) {
+      const tempToken = jwt.sign({ id: user._id, twofa: true }, process.env.JWT_SECRET, { expiresIn: '5m' });
+      const encoded = encodeURIComponent(JSON.stringify({ requiresTwoFactor: true, tempToken }));
+      return res.redirect(`${FRONTEND}/auth/oauth/callback?data=${encoded}`);
+    }
+
     const token = generateToken(user._id);
 
     const payload = {
@@ -83,6 +90,8 @@ router.get('/google/callback', (req, res, next) => {
       permissions: user.permissions || [],
       isManaged: user.isManaged ?? null,
       isSuperAdmin: user.isSuperAdmin ?? false,
+      avatar: user.avatar || null,
+      twoFactorEnabled: user.twoFactorEnabled ?? false,
       token,
     };
 

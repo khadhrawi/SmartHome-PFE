@@ -11,8 +11,11 @@ const AgencyLogin = () => {
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [twoFAStep, setTwoFAStep] = useState(false);
+  const [tempToken, setTempToken] = useState('');
+  const [twoFACode, setTwoFACode] = useState('');
 
-  const { loginAgency } = useContext(AuthContext);
+  const { loginAgency, verifyTwoFactor } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const emailValid = isEmailValid(email);
@@ -31,7 +34,23 @@ const AgencyLogin = () => {
       navigate('/dashboard');
       return;
     }
+    if (res.requiresTwoFactor) {
+      setTempToken(res.tempToken);
+      setTwoFAStep(true);
+      return;
+    }
     setError('Invalid credentials. Please verify your email, password, and agency access code.');
+  };
+
+  const handleTwoFA = async (e) => {
+    e.preventDefault();
+    if (twoFACode.length !== 6 || isLoading) return;
+    setError('');
+    setIsLoading(true);
+    const res = await verifyTwoFactor(twoFACode, tempToken);
+    setIsLoading(false);
+    if (res.success) { navigate('/dashboard'); return; }
+    setError(res.error || 'Invalid code. Try again.');
   };
 
   return (
@@ -106,6 +125,35 @@ const AgencyLogin = () => {
             )}
           </AnimatePresence>
 
+          {twoFAStep ? (
+            <form className="mt-6 space-y-4" onSubmit={handleTwoFA}>
+              <p className="text-center text-sm" style={{ color: 'rgba(196,181,253,0.75)' }}>Enter the 6-digit code from your authenticator app.</p>
+              <div className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: 'rgba(0,0,0,0.28)', border: '1px solid rgba(167,139,250,0.22)' }}>
+                <KeyRound size={17} style={{ color: 'rgba(196,181,253,0.80)' }} />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={twoFACode}
+                  onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, ''))}
+                  className="w-full bg-transparent text-center text-xl font-bold tracking-[0.4em] text-white outline-none placeholder:text-zinc-300/55"
+                  placeholder="000000"
+                  autoFocus
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={twoFACode.length !== 6 || isLoading}
+                className="mt-2 flex w-full items-center justify-center rounded-2xl py-3.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"
+                style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: '#fff' }}
+              >
+                {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Verify & Sign In'}
+              </button>
+              <button type="button" onClick={() => { setTwoFAStep(false); setTwoFACode(''); setError(''); }} className="w-full text-center text-xs" style={{ color: 'rgba(196,181,253,0.55)' }}>
+                ← Back to login
+              </button>
+            </form>
+          ) : (
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             {/* Email */}
             <div
@@ -170,6 +218,8 @@ const AgencyLogin = () => {
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Sign In as Agency'}
             </button>
           </form>
+
+          )}
 
           <div className="mt-6 text-center text-sm" style={{ color: 'rgba(196,181,253,0.65)' }}>
             No agency account yet?{' '}

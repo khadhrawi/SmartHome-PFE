@@ -1,0 +1,328 @@
+\chapter{Appendix A: Complete API Reference}
+
+\newcommand{\route}[1]{\path{#1}}
+
+\section{Usage Notes}
+This appendix serves as a practical API handbook for developers, testers, and maintainers. Routes are grouped by functional domain. All protected routes require the Authorization header:
+\begin{lstlisting}[style=codeblock]
+Authorization: Bearer <JWT_TOKEN>
+\end{lstlisting}
+
+\section{Authentication API}
+
+\subsection{Resident Registration}
+\textbf{Endpoint}: POST /api/auth/resident/register
+
+\textbf{Request payload}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "name": "Resident Name",
+  "email": "resident@example.com",
+  "password": "StrongPass#123",
+  "houseCode": "H1234",
+  "assignedRoom": "bedroom",
+  "roomRequest": "",
+  "inviteCode": "OPTIONAL"
+}
+\end{lstlisting}
+
+\textbf{Success response}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "_id": "...",
+  "name": "Resident Name",
+  "email": "resident@example.com",
+  "role": "resident",
+  "houseCode": "H1234",
+  "permissions": [],
+  "token": "..."
+}
+\end{lstlisting}
+
+\subsection{Resident Login}
+\textbf{Endpoint}: POST /api/auth/resident/login
+
+\textbf{Request payload}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "email": "resident@example.com",
+  "password": "StrongPass#123",
+  "houseCode": "H1234"
+}
+\end{lstlisting}
+
+\subsection{Admin Registration}
+\textbf{Endpoint}: POST /api/auth/admin/register
+
+\textbf{Request payload}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "name": "Owner Name",
+  "email": "owner@example.com",
+  "password": "StrongPass#123",
+  "adminAccessCode": "A1B2C3"
+}
+\end{lstlisting}
+
+\subsection{Admin Login}
+\textbf{Endpoint}: POST /api/auth/admin/login
+
+\textbf{Request payload}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "email": "owner@example.com",
+  "password": "StrongPass#123",
+  "adminAccessCode": "ADMIN123"
+}
+\end{lstlisting}
+
+\subsection{Agency Registration}
+\textbf{Endpoint}: POST /api/auth/agency/register
+
+\subsection{Agency Login}
+\textbf{Endpoint}: POST /api/auth/agency/login
+
+\subsection{Email and Password Lifecycle}
+\begin{longtable}{p{2.2cm}p{5.8cm}p{6.2cm}}
+\toprule
+Method & Route & Description \\
+\midrule
+POST & \route{/api/auth/verify-email} & Verify email token \\
+POST & \route{/api/auth/resend-verification} & Re-send verification link \\
+POST & \route{/api/auth/forgot-password} & Request reset token \\
+POST & \route{/api/auth/reset-password} & Reset password with token \\
+\bottomrule
+\end{longtable}
+
+\section{OAuth API}
+\begin{longtable}{p{2.2cm}p{5.8cm}p{6.2cm}}
+\toprule
+Method & Route & Description \\
+\midrule
+GET & \route{/api/oauth/google} & Start Google OAuth flow \\
+GET & \route{/api/oauth/google/callback} & OAuth callback and frontend redirect \\
+\bottomrule
+\end{longtable}
+
+\section{Units API}
+\begin{longtable}{p{2.2cm}p{5.8cm}p{6.2cm}}
+\toprule
+Method & Route & Description \\
+\midrule
+GET & \route{/api/units/verify/:code} & Validate unit code existence \\
+POST & \route{/api/units/join} & Join managed unit by houseCode \\
+POST & \route{/api/units/solo} & Create solo unmanaged unit \\
+GET & \route{/api/units/my} & Get current user unit details \\
+\bottomrule
+\end{longtable}
+
+\textbf{Join unit request example}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "houseCode": "H1234"
+}
+\end{lstlisting}
+
+\section{Agency API}
+\begin{longtable}{p{2.2cm}p{5.8cm}p{6.2cm}}
+\toprule
+Method & Route & Description \\
+\midrule
+GET & \route{/api/agency/units} & List all units \\
+POST & \route{/api/agency/units/generate} & Generate unclaimed unit \\
+PATCH & \route{/api/agency/units/:id} & Update unit metadata/status \\
+DELETE & \route{/api/agency/units/:id} & Delete unit \\
+GET & \route{/api/agency/house-owners} & List owners and linked residents \\
+DELETE & \route{/api/agency/house-owners/:id} & Remove owner and associated residents \\
+DELETE & \route{/api/agency/residents/:id} & Remove one resident \\
+GET & \route{/api/agency/analytics} & Aggregated unit analytics \\
+\bottomrule
+\end{longtable}
+
+\section{Owner Request API}
+\begin{longtable}{p{2.2cm}p{5.8cm}p{6.2cm}}
+\toprule
+Method & Route & Description \\
+\midrule
+POST & \route{/api/owner-requests} & Submit owner account request \\
+GET & \route{/api/owner-requests} & List requests (agency) \\
+PATCH & \route{/api/owner-requests/:id/approve} & Approve and send access code \\
+PATCH & \route{/api/owner-requests/:id/reject} & Reject with optional note \\
+\bottomrule
+\end{longtable}
+
+\section{Devices API}
+\begin{longtable}{p{2.2cm}p{5.8cm}p{6.2cm}}
+\toprule
+Method & Route & Description \\
+\midrule
+GET & \route{/api/devices} & List devices scoped by house \\
+POST & \route{/api/devices} & Register device (admin) \\
+DELETE & \route{/api/devices/:id} & Delete device (admin) \\
+PUT & \route{/api/devices/:id/command} & Send command to MQTT topic \\
+\bottomrule
+\end{longtable}
+
+\textbf{Register device payload}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "name": "Kitchen Lamp",
+  "type": "lamp",
+  "topic": "kitchen_lamp",
+  "room": "kitchen",
+  "position": { "x": 65, "y": 42 }
+}
+\end{lstlisting}
+
+\textbf{Command payload example}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "command": {
+    "status": "ON",
+    "brightness": 85
+  }
+}
+\end{lstlisting}
+
+\section{Scenarios API}
+\begin{longtable}{p{2.2cm}p{5.8cm}p{6.2cm}}
+\toprule
+Method & Route & Description \\
+\midrule
+POST & \route{/api/scenarios/activate} & Activate scene profile (admin) \\
+GET & \route{/api/scenarios} & List user scenarios \\
+POST & \route{/api/scenarios} & Create scenario \\
+DELETE & \route{/api/scenarios/:id} & Delete scenario \\
+\bottomrule
+\end{longtable}
+
+\textbf{Scene activation payload}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "scene": "Morning"
+}
+\end{lstlisting}
+
+\section{Permissions API}
+\begin{longtable}{p{2.2cm}p{5.8cm}p{6.2cm}}
+\toprule
+Method & Route & Description \\
+\midrule
+POST & \route{/api/permissions/request} & Resident creates request \\
+GET & \route{/api/permissions/mine} & Resident request history \\
+GET & \route{/api/permissions/admin/requests} & Admin request inbox \\
+PATCH & \route{/api/permissions/admin/requests/:id} & Admin decision (approved/denied) \\
+PATCH & \route{/api/permissions/admin/read-all} & Mark all admin notifications read \\
+PATCH & \route{/api/permissions/mine/read-all} & Mark all resident notifications read \\
+PATCH & \route{/api/permissions/:id/read} & Mark one notification read \\
+\bottomrule
+\end{longtable}
+
+\textbf{Create permission request payload}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "actionKey": "global:controls",
+  "actionLabel": "Use Global Device Controls",
+  "room": "living_room",
+  "reason": "Need temporary access for cleaning"
+}
+\end{lstlisting}
+
+\textbf{Review request payload}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "decision": "approved",
+  "reviewNote": "Approved for one week"
+}
+\end{lstlisting}
+
+\section{Gas API}
+\begin{longtable}{p{2.2cm}p{5.8cm}p{6.2cm}}
+\toprule
+Method & Route & Description \\
+\midrule
+GET & \route{/api/gas/state} & Read gas state for authenticated house \\
+POST & \route{/api/gas/reading} & Ingest/simulate gas reading \\
+POST & \route{/api/gas/clear-emergency} & Clear emergency mode (admin) \\
+PATCH & \route{/api/gas/threshold} & Set gas threshold (admin) \\
+POST & \route{/api/gas/valve} & Set valve state (admin) \\
+\bottomrule
+\end{longtable}
+
+\textbf{Gas reading payload}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "gasLevel": 615
+}
+\end{lstlisting}
+
+\textbf{Threshold payload}
+\begin{lstlisting}[style=codeblock,language=JavaScript]
+{
+  "threshold": 420
+}
+\end{lstlisting}
+
+\section{Representative Error Catalog}
+\begin{longtable}{p{4cm}p{2cm}p{8cm}}
+\toprule
+Error Condition & HTTP & Message Pattern \\
+\midrule
+Missing or invalid token & 401 & Not authorized, token failed/no token \\
+Role denied & 403 & Not authorized as an admin/agency account \\
+Resource not found & 404 & Device/Unit/Request not found \\
+Validation failure & 400/422 & Invalid field, weak password, invalid code \\
+Conflict & 409 & Similar pending request already exists \\
+\bottomrule
+\end{longtable}
+
+\section{Realtime Event Reference}
+\begin{longtable}{p{4cm}p{5cm}p{5cm}}
+\toprule
+Event Name & Audience & Payload Notes \\
+\midrule
+requestCreated & Admin and requester channels & New permission request metadata \\
+requestStatusChanged & Admin and requester channels & Updated status and review fields \\
+permissionsUpdated & Requester user room & Effective permissions list \\
+house:gas-emergency & House room and agency global & gasLevel, threshold, emergencyMode \\
+dashboard:state-updated & House room & Scene/device state snapshot \\
+\bottomrule
+\end{longtable}
+
+\section{MQTT Contract Reference}
+\begin{longtable}{p{5cm}p{4cm}p{5cm}}
+\toprule
+Topic Pattern & Direction & Payload \\
+\midrule
+devices/<topic> & Device -> Broker -> Platform & Device state telemetry \\
+command/<topic> & Platform -> Broker -> Device & Requested command/action \\
+sensors/<houseCode>/gas & Sensor -> Platform & Gas value object or numeric string \\
+command/autogen/<house>/alarm & Platform -> Actuator & alarm boolean + timestamp \\
+command/autogen/<house>/gas-valve & Platform -> Actuator & open boolean + timestamp \\
+\bottomrule
+\end{longtable}
+
+\section{Data Dictionary Snapshot}
+\begin{longtable}{p{4cm}p{3cm}p{7cm}}
+\toprule
+Field & Type & Meaning \\
+\midrule
+user.houseCode & String & Household domain identifier \\
+device.topic & String & MQTT routing key for specific device \\
+permission.status & Enum & pending/approved/denied state \\
+houseState.gasLevel & Number & Current gas ppm measurement \\
+houseState.emergencyMode & Boolean & Safety mode latch \\
+unit.isManaged & Boolean & Agency managed vs solo mode \\
+\bottomrule
+\end{longtable}
+
+\section{Versioning and Evolution Recommendations}
+Recommended API governance actions:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Introduce semantic API version prefix once contracts stabilize.
+  \item Add OpenAPI specification for machine-readable contracts.
+  \item Enforce backward compatibility windows for frontend updates.
+\end{itemize}
+
+\section{Appendix Summary}
+This appendix should be used as the primary implementation reference for development continuation, integration testing, and onboarding of new contributors.

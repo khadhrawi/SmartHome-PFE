@@ -232,6 +232,11 @@ const emitGasEmergency = ({ houseCode, gasLevel, threshold, emergencyMode, gasVa
 const EventEmitter = require('events');
 const conciergeEmitter = new EventEmitter();
 
+const emitDeviceUpdated = (device) => {
+  if (!ioInstance || !device?.houseCode) return;
+  ioInstance.to(`house:${device.houseCode}`).emit('device:updated', device);
+};
+
 const emitAgencyUnitUpdated = (unit) => {
   if (!ioInstance) return;
   ioInstance.to('agency:global').emit('agency:unit-updated', unit);
@@ -250,6 +255,7 @@ module.exports = {
   emitDashboardStateUpdated,
   emitGasEmergency,
   emitAgencyUnitUpdated,
+  emitDeviceUpdated,
   conciergeEmitter,
 };
 

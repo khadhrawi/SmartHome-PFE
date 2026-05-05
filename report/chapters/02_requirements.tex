@@ -1,0 +1,128 @@
+\chapter{Requirement Analysis and Specifications}
+
+\section{Stakeholders and Roles}
+The platform serves multiple stakeholders whose responsibilities define the authorization model:
+
+\subsection{Agency}
+Agency users supervise multiple housing units, review owner requests, monitor cross-unit status, and maintain governance controls at the platform level.
+
+\subsection{House Owner / Admin}
+House admins manage one household domain: they register devices, supervise residents, review permission requests, activate scenes, and operate safety controls.
+
+\subsection{Resident}
+Residents are authenticated users linked to a house code. Their capabilities are intentionally constrained and can be expanded via explicit admin approval.
+
+\subsection{System Operator}
+A technical operator (DevOps/maintainer) maintains infrastructure, observability, backups, and updates.
+
+\section{Functional Requirements}
+
+\subsection{Identity and Access}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Registration and login for resident, admin, and agency flows.
+  \item JWT-based API authentication.
+  \item Google OAuth login integration.
+  \item Email verification and password reset lifecycle.
+  \item Route-level and action-level role authorization.
+\end{itemize}
+
+\subsection{House and Unit Lifecycle}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Generation and validation of unit/house codes.
+  \item Join existing managed unit or create solo unmanaged unit.
+  \item Track claimed/unclaimed unit status.
+\end{itemize}
+
+\subsection{Device Management}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Register IoT devices with metadata (topic, type, room, position).
+  \item List and delete devices per house context.
+  \item Send command payloads to devices via MQTT topics.
+  \item Update online/offline state and last-seen timestamps.
+\end{itemize}
+
+\subsection{Permission Workflow}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Resident submits restricted action request.
+  \item Admin reviews and approves/denies.
+  \item Approved permissions are merged into resident capabilities.
+  \item Notification state supports unread/read transitions.
+\end{itemize}
+
+\subsection{Scenarios and Automation}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Activation of named scenarios (Morning, Dinner, Cinematic, Sleep).
+  \item Bulk update of lights and openings according to scene presets.
+  \item Synchronization of dashboard state after scenario changes.
+\end{itemize}
+
+\subsection{Gas Safety}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Ingest gas readings from MQTT sensor topics.
+  \item Compare readings to configurable threshold.
+  \item Trigger emergency mode, alarm command, and valve closure.
+  \item Broadcast emergency state to relevant clients in real time.
+  \item Allow admin clearing and threshold tuning.
+\end{itemize}
+
+\subsection{Realtime Communication}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Socket.IO authenticated channels for user notifications.
+  \item House-room broadcasts for dashboard synchronization.
+  \item Agency-global alerts for emergency escalation.
+\end{itemize}
+
+\section{Non-Functional Requirements}
+
+\subsection{Performance}
+The system should provide low-latency updates for state-changing events, with response times suitable for human-perceived immediacy in dashboard interactions.
+
+\subsection{Scalability}
+Architecture should support horizontal evolution in API and socket layers, and future broker scaling strategies.
+
+\subsection{Security}
+Critical requirements include password hashing, signed tokens, role isolation, transport security readiness, and controlled data exposure.
+
+\subsection{Maintainability}
+Code must be modular, readable, and extensible. Route handlers, models, middlewares, and real-time components should follow clear boundaries.
+
+\subsection{Reliability}
+Failure in one communication channel should not corrupt persistent state; safety-critical transitions should remain deterministic and recoverable.
+
+\section{Use Case Inventory}
+\begin{longtable}{p{3cm}p{4cm}p{7cm}}
+\toprule
+Actor & Use Case & Description \\
+\midrule
+Agency & Review owner requests & Approve/reject account creation requests and issue one-time access code. \\
+Agency & Monitor units & View claimed and unclaimed units, statuses, and analytics indicators. \\
+Admin & Register device & Add a new smart device and map it to room/topic. \\
+Admin & Activate scenario & Apply global scene parameters to eligible devices. \\
+Admin & Review request & Approve or deny resident permission request. \\
+Admin & Clear emergency & Manually clear emergency mode after hazard assessment. \\
+Resident & Request permission & Ask access to restricted actions/rooms. \\
+Resident & Control assigned room & Execute allowed actions within authorization scope. \\
+System & Process gas reading & Persist reading, evaluate threshold, emit events, publish hardware commands. \\
+\bottomrule
+\end{longtable}
+
+\section{Acceptance Criteria}
+Each major capability has measurable criteria:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Authentication endpoints return valid token and role payload on success.
+  \item Device commands are published to expected MQTT topic format.
+  \item Permission approval updates resident permissions and emits real-time update.
+  \item Gas reading above threshold transitions to emergency and emits alert events.
+  \item Role guards prevent unauthorized access to protected endpoints/pages.
+\end{itemize}
+
+\section{Constraints and Assumptions}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Initial development targets local network and localhost orchestration.
+  \item MQTT payload schemas are controlled by platform-owned device firmware simulations.
+  \item Users have internet/email access for verification workflows.
+  \item Hardware-level commands are simulated in development and can map to physical devices in deployment.
+\end{itemize}
+
+\section{Requirement Traceability Overview}
+A traceability matrix is maintained in Appendix chapters, mapping each requirement to API routes, model entities, and frontend pages. This ensures auditable engineering alignment from specification to implementation.

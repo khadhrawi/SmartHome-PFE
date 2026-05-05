@@ -1,5 +1,5 @@
-import { useContext, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useContext, useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Lock, Mail, User, Loader2, BedDouble, KeyRound, AlertTriangle } from 'lucide-react';
 import PublicMotionShell from '../components/PublicMotionShell';
@@ -32,6 +32,13 @@ const ResidentRegister = () => {
 
   const { registerResident } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Auto-fill house code from invite link
+  useEffect(() => {
+    const codeFromUrl = searchParams.get('house');
+    if (codeFromUrl) setHouseCode(formatHouseCodeInput(codeFromUrl));
+  }, [searchParams]);
 
   const emailValid  = isEmailValid(email);
   const passwordOk  = isPasswordStrong(password);

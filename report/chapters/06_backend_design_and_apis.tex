@@ -1,0 +1,101 @@
+\chapter{Backend Design and API Specification}
+
+\section{Backend Runtime Overview}
+The backend process orchestrates three communication surfaces in one Node.js runtime:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Express HTTP API for transactional and business workflows.
+  \item Socket.IO server for authenticated push notifications.
+  \item Aedes MQTT broker for machine telemetry and command channels.
+\end{itemize}
+
+\section{Bootstrapping Pipeline}
+System startup sequence:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Load environment variables.
+  \item Initialize Express middlewares (JSON parser, CORS, passport).
+  \item Register route modules.
+  \item Create HTTP server and bind Socket.IO.
+  \item Bind MQTT-over-WebSocket endpoint.
+  \item Connect MongoDB.
+  \item Start gas monitor listener.
+  \item Listen on HTTP and MQTT TCP ports.
+\end{enumerate}
+
+\section{Middleware Layer}
+\subsection{Authentication}
+JWT middleware extracts Bearer token, verifies signature, loads user context, and attaches it to request object.
+
+\subsection{Authorization}
+Role gates enforce admin-only and agency-only operations, reducing privilege escalation risk.
+
+\subsection{Input Validation}
+Core route handlers validate required fields, normalized codes, and decision enums. Future enhancement should centralize validation schemas.
+
+\section{Route Domains}
+
+\subsection{Authentication and Account Lifecycle}
+Includes resident/admin/agency login/register, email verification, password reset, OAuth callback, and legacy compatibility handlers.
+
+\subsection{Unit and Agency Management}
+Supports unit generation, claim/join workflow, owner oversight, and aggregated agency analytics.
+
+\subsection{Device Management}
+Admin-managed registration, listing scoped by house filter, command emission via MQTT topics, and deletion lifecycle.
+
+\subsection{Scenario Operations}
+Scenario activation endpoint updates house state and device states in bulk and then emits synchronized dashboard update.
+
+\subsection{Permission Governance}
+Resident request submission and admin decision endpoints with notification lifecycle and permission-merge behavior.
+
+\subsection{Gas Safety Endpoints}
+State retrieval, manual threshold updates, valve control, and emergency clearing for admin users.
+
+\section{API Contract Design Principles}
+\begin{itemize}[leftmargin=1.2cm]
+  \item House-scoped filtering by authenticated user context.
+  \item Deterministic JSON payload structure.
+  \item Meaningful status codes for business and authorization outcomes.
+  \item Route naming consistent with domain concepts.
+\end{itemize}
+
+\section{Representative Endpoint Matrix}
+\begin{longtable}{p{2.3cm}p{4.2cm}p{3.2cm}p{5.2cm}}
+\toprule
+Method & Endpoint & Access & Purpose \\
+\midrule
+POST & /api/auth/resident/register & Public & Create resident account and issue token \\
+POST & /api/auth/admin/login & Public & Authenticate admin with access code \\
+POST & /api/units/join & Authenticated & Link user to existing unit code \\
+GET & /api/devices & Authenticated & Retrieve house-scoped devices \\
+POST & /api/devices & Admin & Register new device \\
+PUT & /api/devices/:id/command & Authenticated & Publish command payload to device topic \\
+POST & /api/permissions/request & Resident & Request restricted action approval \\
+PATCH & /api/permissions/admin/requests/:id & Admin & Approve or deny request \\
+GET & /api/gas/state & Authenticated & Read current gas status \\
+PATCH & /api/gas/threshold & Admin & Update emergency threshold \\
+\bottomrule
+\end{longtable}
+
+\section{Error Handling Strategy}
+Error handling currently uses route-level try/catch patterns with JSON error messages. For production hardening, a centralized error middleware is recommended to enforce a uniform error schema and correlation IDs.
+
+\section{Backend Security Controls}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Password hashing via bcrypt.
+  \item Signed JWT for stateless auth.
+  \item Role-based endpoint restrictions.
+  \item Token-verified socket handshake.
+  \item Controlled account lifecycle with email verification and password reset.
+\end{itemize}
+
+\section{Observability Hooks}
+The current implementation provides practical console-level observability for connection events, MQTT publishes, and critical transitions. Recommended next step is structured logging and metrics export.
+
+\section{Backend Evolution Opportunities}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Introduce schema-based validation layer.
+  \item Add rate limiting and request throttling.
+  \item Split broker and API services for independent scaling.
+  \item Add integration test harness for route-event coupling.
+\end{itemize}

@@ -150,13 +150,16 @@ router.post('/', protect, async (req, res) => {
   try {
     const { name, description, trigger, action, active } = req.body;
 
+    const { scheduleTime } = req.body;
     const scenario = new Scenario({
       name,
       description,
       trigger,
       action,
+      scheduleTime: scheduleTime || null,
       active: active !== undefined ? active : true,
       owner: req.user._id,
+      houseCode: String(req.user?.houseCode || '').trim().toUpperCase(),
     });
 
     const createdScenario = await scenario.save();

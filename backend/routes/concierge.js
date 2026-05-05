@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const Message = require('../models/Message');
 const { conciergeEmitter, isHouseAdminOnline } = require('../realtime/notifications');
 
 const CONCIERGE_CODE = process.env.CONCIERGE_CODE || 'concierge2024';
@@ -38,6 +39,54 @@ router.get('/houses', async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
+});
+
+// GET /api/concierge/messages?code=... — all messages across all houses
+router.get('/messages', async (req, res) => {
+  const code = req.query.code || req.headers['x-concierge-code'];
+  if (!validateCode(code)) return res.status(401).json({ message: 'Invalid concierge code' });
+
+  try {
+    const { status } = req.query;
+    const query = {};
+    if (status && ['unread','read','in_progress','resolved'].includes(status)) query.status = status;
+    const messages = await Message.find(query).sort({ createdAt: -1 }).limit(200);
+    res.json(messages);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PATCH /api/concierge/messages/:id/reply
+router.patch('/messages/:id/reply', async (req, res) => {
+  const code = req.query.code || req.headers['x-concierge-code'];
+  if (!validateCode(code)) return res.status(401).json({ message: 'Invalid concierge code' });
+  try {
+    const { reply, status } = req.body;
+    if (!reply?.trim()) return res.status(400).json({ message: 'Reply text is required.' });
+    const VALID = ['unread','read','in_progress','resolved'];
+    const message = await Message.findByIdAndUpdate(
+      req.params.id,
+      { adminReply: reply.trim(), repliedAt: new Date(), repliedByName: 'Concierge', status: VALID.includes(status) ? status : 'read' },
+      { new: true }
+    );
+    if (!message) return res.status(404).json({ message: 'Message not found.' });
+    res.json(message);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// PATCH /api/concierge/messages/:id/status
+router.patch('/messages/:id/status', async (req, res) => {
+  const code = req.query.code || req.headers['x-concierge-code'];
+  if (!validateCode(code)) return res.status(401).json({ message: 'Invalid concierge code' });
+  try {
+    const { status } = req.body;
+    const VALID = ['unread','read','in_progress','resolved'];
+    if (!VALID.includes(status)) return res.status(400).json({ message: 'Invalid status.' });
+    const message = await Message.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    if (!message) return res.status(404).json({ message: 'Message not found.' });
+    res.json(message);
+  } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
 // GET /api/concierge/stream?code=... — SSE stream for real-time updates

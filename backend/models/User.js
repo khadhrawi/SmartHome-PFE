@@ -66,6 +66,14 @@ const UserSchema = new mongoose.Schema({
   /** Password reset */
   passwordResetToken:   { type: String, default: null },
   passwordResetExpires: { type: Date, default: null },
+
+  /** Profile avatar — stored as base64 data URL */
+  avatar: { type: String, default: null },
+
+  /** 2FA / TOTP */
+  twoFactorEnabled:    { type: Boolean, default: false },
+  twoFactorSecret:     { type: String, default: null, select: false },
+  twoFactorTempSecret: { type: String, default: null, select: false },
 });
 
 UserSchema.index(

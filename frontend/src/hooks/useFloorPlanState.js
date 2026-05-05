@@ -104,8 +104,20 @@ export const useFloorPlanState = () => {
 
     socket.on('dashboard:state-updated', handleStateUpdate);
 
+    // Live single-device update from device command
+    const handleDeviceUpdated = (updated) => {
+      setState(prev => ({
+        ...prev,
+        devices: prev.devices.map(d =>
+          d._id === updated._id ? { ...d, ...normalizeDevices([updated])[0] } : d
+        ),
+      }));
+    };
+    socket.on('device:updated', handleDeviceUpdated);
+
     return () => {
       socket.off('dashboard:state-updated', handleStateUpdate);
+      socket.off('device:updated', handleDeviceUpdated);
       disconnectDashboardSocket();
     };
   }, [token]);

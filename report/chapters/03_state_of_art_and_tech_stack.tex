@@ -1,0 +1,82 @@
+\chapter{State of the Art and Technology Stack}
+
+\section{Smart Home Platforms: Current Landscape}
+Smart-home systems generally follow one of three patterns:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Vendor-locked ecosystems focused on proprietary devices.
+  \item Gateway-centric open-source stacks with limited user governance.
+  \item Cloud-native IoT services with strong scaling but high integration overhead.
+\end{enumerate}
+
+The SmartHome platform targets a hybrid engineering path: flexible protocol-level integration (MQTT), application-level governance (REST + role model), and web-native UX (React).
+
+\section{Protocol and Interaction Model}
+\subsection{MQTT for Device Messaging}
+MQTT is lightweight, topic-based, and suitable for constrained devices and low-bandwidth communication. The project uses MQTT for sensor telemetry and device command delivery.
+
+\subsection{HTTP/REST for Business Operations}
+REST endpoints handle account management, CRUD workflows, permissions, and administrative functions where request-response semantics are natural.
+
+\subsection{Socket.IO for User-facing Real-time Events}
+Socket.IO complements REST by delivering asynchronous updates such as approval notifications, gas alerts, and dashboard state changes.
+
+\section{Technology Selection Rationale}
+\subsection{Backend: Node.js + Express}
+Node.js provides asynchronous I/O efficiency for mixed workloads (HTTP, sockets, MQTT events). Express offers low ceremony and direct control over middleware and route composition.
+
+\subsection{Database: MongoDB + Mongoose}
+MongoDB supports document flexibility for evolving IoT payload fields and role-specific user metadata. Mongoose adds schema constraints and lifecycle hooks (e.g., password hashing).
+
+\subsection{MQTT Broker: Aedes}
+Aedes allows embedding broker behavior directly inside backend runtime, reducing integration complexity in prototyping and early production stages.
+
+\subsection{Frontend: React + Vite}
+React enables component-level decomposition and route guards. Vite ensures fast development iteration and efficient modern build tooling.
+
+\subsection{Realtime: Socket.IO}
+Socket.IO handles transport fallback and namespace/room abstractions, simplifying per-house and per-role event fan-out.
+
+\section{Comparative Positioning}
+\begin{table}[H]
+\centering
+\caption{Comparative perspective of architectural choices}
+\begin{tabular}{p{4cm}p{4cm}p{6cm}}
+\toprule
+Dimension & Typical Alternative & Adopted Choice and Advantage \\
+\midrule
+Device Messaging & HTTP polling from devices & MQTT topics: lower overhead, event-native pattern \\
+Realtime UI & Frequent client polling & Socket push model: lower latency and less load \\
+Data Model & Strict relational schema & Flexible documents for IoT and user metadata \\
+Auth Model & Single-role simple auth & Multi-role with permission workflow and onboarding \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Engineering Standards and Principles}
+The project follows practical engineering principles:
+\begin{itemize}[leftmargin=1.2cm]
+  \item Separation of concerns across route, model, middleware, and realtime services.
+  \item Explicit role checks for privileged operations.
+  \item Deterministic state transitions for safety-critical workflows.
+  \item Event-driven synchronization between data persistence and UI state.
+\end{itemize}
+
+\section{Toolchain and Dependencies}
+\subsection{Backend Core Libraries}
+Important dependencies include Express, Mongoose, Aedes, Socket.IO server, JWT, bcrypt, and OAuth strategy packages.
+
+\subsection{Frontend Core Libraries}
+Important dependencies include React, React Router, Axios, Socket.IO client, MQTT client, and chart/animation utilities.
+
+\subsection{Development Tooling}
+Nodemon and Vite support development cycles; ESLint supports code quality baselines.
+
+\section{Known Trade-offs}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Embedded broker simplifies architecture but couples API and broker runtime.
+  \item Flexible schemas ease evolution but require strict validation discipline.
+  \item Socket-heavy UX improves responsiveness but demands robust auth handling and room hygiene.
+\end{itemize}
+
+\section{Chapter Synthesis}
+The selected stack is coherent with project constraints: quick iteration, protocol-level interoperability, and real-time operational responsiveness. Subsequent chapters translate these choices into formal architecture and implementation.
