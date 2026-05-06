@@ -5,55 +5,67 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const FRONTEND = process.env.FRONTEND_URL || 'http://localhost:5173';
+const normalizeBaseUrl = (value, fallback) => (value || fallback).replace(/\/+$/, '');
+
+const FRONTEND = normalizeBaseUrl(process.env.FRONTEND_URL, 'http://localhost:5173');
+const BACKEND = normalizeBaseUrl(process.env.BACKEND_URL, 'http://localhost:5000');
+const isGoogleOAuthConfigured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/oauth/google/callback`,
-    },
-    async (_accessToken, _refreshToken, profile, done) => {
-      try {
-        const email = profile.emails?.[0]?.value;
-        if (!email) return done(new Error('No email from Google'), null);
+if (isGoogleOAuthConfigured) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: `${BACKEND}/api/oauth/google/callback`,
+      },
+      async (_accessToken, _refreshToken, profile, done) => {
+        try {
+          const email = profile.emails?.[0]?.value;
+          if (!email) return done(new Error('No email from Google'), null);
 
-        let user = await User.findOne({ email });
+          let user = await User.findOne({ email });
 
-        if (user) {
-          // Link googleId if not already linked
-          if (!user.googleId) {
-            user.googleId = profile.id;
-            user.isEmailVerified = true;
-            await user.save();
+          if (user) {
+            // Link googleId if not already linked
+            if (!user.googleId) {
+              user.googleId = profile.id;
+              user.isEmailVerified = true;
+              await user.save();
+            }
+            return done(null, user);
           }
+
+          // New user — create as resident, unverified house assignment (goes through onboarding)
+          user = await User.create({
+            name: profile.displayName || email.split('@')[0],
+            email,
+            password: require('crypto').randomBytes(32).toString('hex'), // unusable password
+            role: 'resident',
+            status: 'active',
+            googleId: profile.id,
+            isEmailVerified: true, // Google already verified the email
+          });
+
           return done(null, user);
+        } catch (err) {
+          return done(err, null);
         }
+      },
+    ),
+  );
+}
 
-        // New user — create as resident, unverified house assignment (goes through onboarding)
-        user = await User.create({
-          name: profile.displayName || email.split('@')[0],
-          email,
-          password: require('crypto').randomBytes(32).toString('hex'), // unusable password
-          role: 'resident',
-          status: 'active',
-          googleId: profile.id,
-          isEmailVerified: true, // Google already verified the email
-        });
-
-        return done(null, user);
-      } catch (err) {
-        return done(err, null);
-      }
-    },
-  ),
-);
+const redirectOAuthUnavailable = (res) => res.redirect(`${FRONTEND}/auth/choose?oauthError=1`);
 
 // Kick off Google OAuth — ?role=admin or ?role=resident stored in state
 router.get('/google', (req, res, next) => {
+  if (!isGoogleOAuthConfigured) {
+    return redirectOAuthUnavailable(res);
+  }
+
   const role = ['admin', 'resident'].includes(req.query.role) ? req.query.role : 'resident';
   passport.authenticate('google', {
     scope: ['profile', 'email'],
@@ -64,6 +76,10 @@ router.get('/google', (req, res, next) => {
 
 // Google callback
 router.get('/google/callback', (req, res, next) => {
+  if (!isGoogleOAuthConfigured) {
+    return redirectOAuthUnavailable(res);
+  }
+
   passport.authenticate('google', { session: false, failureRedirect: `${FRONTEND}/auth/choose?oauthError=1` }, (err, user) => {
     if (err || !user) {
       return res.redirect(`${FRONTEND}/auth/choose?oauthError=1`);

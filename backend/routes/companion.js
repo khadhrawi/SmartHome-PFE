@@ -7,7 +7,8 @@ const { protect } = require('../middlewares/auth');
 const { aedes } = require('../broker');
 const { emitDeviceUpdated } = require('../realtime/notifications');
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const isGroqConfigured = Boolean(process.env.GROQ_API_KEY);
+const groq = isGroqConfigured ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 const buildHouseFilter = (user) => {
   const houseCode = String(user?.houseCode || '').trim().toUpperCase();
@@ -90,6 +91,8 @@ User's name: ${req.user.name}.`;
       ...history.map(m => ({ role: m.role, content: m.content })),
       { role: 'user', content: message },
     ];
+
+    if (!groq) return res.status(503).json({ message: 'AI companion not configured.' });
 
     const response = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',

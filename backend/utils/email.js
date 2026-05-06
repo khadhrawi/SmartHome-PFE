@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const FROM = process.env.EMAIL_FROM || `"SmartHome" <${process.env.EMAIL_USER}>`;
-const FRONTEND = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
 const sendVerificationEmail = async (to, token) => {
   const link = `${FRONTEND}/verify-email?token=${token}`;
