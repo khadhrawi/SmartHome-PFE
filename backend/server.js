@@ -34,6 +34,7 @@ const twofaRoutes          = require('./routes/twofa');
 const statsRoutes          = require('./routes/stats');
 const energyRoutes         = require('./routes/energy');
 const profileRoutes        = require('./routes/profile');
+const companionRoutes      = require('./routes/companion');
 
 const app = express();
 
@@ -81,6 +82,7 @@ app.use('/api/2fa',           twofaRoutes);
 app.use('/api/stats',         statsRoutes);
 app.use('/api/energy',        energyRoutes);
 app.use('/api/profile',       profileRoutes);
+app.use('/api/companion',     companionRoutes);
 
 // Create HTTP server for Express and WebSockets
 const httpServer = http.createServer(app);

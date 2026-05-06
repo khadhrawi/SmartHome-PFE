@@ -233,8 +233,12 @@ const EventEmitter = require('events');
 const conciergeEmitter = new EventEmitter();
 
 const emitDeviceUpdated = (device) => {
+  console.log('[emit] emitDeviceUpdated houseCode=', device?.houseCode, 'ioInstance=', !!ioInstance);
   if (!ioInstance || !device?.houseCode) return;
-  ioInstance.to(`house:${device.houseCode}`).emit('device:updated', device);
+  const room = `house:${device.houseCode}`;
+  const sockets = ioInstance.sockets.adapter.rooms.get(room);
+  console.log('[emit] room=', room, 'sockets in room=', sockets ? sockets.size : 0);
+  ioInstance.to(room).emit('device:updated', device);
 };
 
 const emitAgencyUnitUpdated = (unit) => {
