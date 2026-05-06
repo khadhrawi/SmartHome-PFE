@@ -10,7 +10,6 @@ import { isEmailValid } from '../utils/validation';
 const AdminLogin = () => {
   const [email, setEmail]                   = useState('');
   const [password, setPassword]             = useState('');
-  const [adminAccessCode, setAdminAccessCode] = useState('');
   const [error, setError]                   = useState('');
   const [isLoading, setIsLoading]           = useState(false);
   const [twoFAStep, setTwoFAStep]           = useState(false);
@@ -21,7 +20,7 @@ const AdminLogin = () => {
   const navigate = useNavigate();
 
   const emailValid = isEmailValid(email);
-  const canSubmit  = emailValid && password.length > 0 && adminAccessCode.trim().length > 0 && !isLoading;
+  const canSubmit  = emailValid && password.length > 0 && !isLoading;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -29,7 +28,7 @@ const AdminLogin = () => {
     setError('');
     setIsLoading(true);
 
-    const res = await loginAdmin(email, password, adminAccessCode);
+    const res = await loginAdmin(email, password);
     setIsLoading(false);
 
     if (res.success) {
@@ -173,21 +172,6 @@ const AdminLogin = () => {
                 className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
                 placeholder="Password"
                 autoComplete="current-password"
-                required
-              />
-            </div>
-
-            {/* Admin Access Code */}
-            <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/20 px-4 py-3">
-              <Key size={17} className="text-sky-100/80" />
-              <input
-                id="admin-login-access-code"
-                type="password"
-                value={adminAccessCode}
-                onChange={(e) => setAdminAccessCode(e.target.value)}
-                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-300/65"
-                placeholder="Admin Access Code"
-                autoComplete="off"
                 required
               />
             </div>

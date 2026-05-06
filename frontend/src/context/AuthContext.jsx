@@ -118,9 +118,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginAdmin = async (email, password, adminAccessCode) => {
+  const loginAdmin = async (email, password) => {
     try {
-      const { data } = await api.post('/auth/admin/login', { email, password, adminAccessCode });
+      const { data } = await api.post('/auth/admin/login', { email, password });
       if (data.requiresTwoFactor) return { success: false, requiresTwoFactor: true, tempToken: data.tempToken };
       saveAuthState(data);
       return { success: true };

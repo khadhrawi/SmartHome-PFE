@@ -205,12 +205,7 @@ router.post('/resident/login', async (req, res) => {
 // @access  Public
 router.post('/admin/login', async (req, res) => {
   try {
-    const { email, password, adminAccessCode } = req.body;
-    const normalizedAccessCode = normalizeAdminAccessCode(adminAccessCode);
-
-    if (normalizedAccessCode !== ADMIN_ACCESS_CODE) {
-      return res.status(401).json({ message: INVALID_ADMIN_ACCESS_CODE_MESSAGE });
-    }
+    const { email, password } = req.body;
 
     const user = await User.findOne({ email });
     if (!user || user.role !== 'admin') {

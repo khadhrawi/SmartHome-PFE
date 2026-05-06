@@ -106,18 +106,24 @@ export const useFloorPlanState = () => {
 
     // Live single-device update from device command
     const handleDeviceUpdated = (updated) => {
+      const updatedId = String(updated._id);
       setState(prev => ({
         ...prev,
         devices: prev.devices.map(d =>
-          d._id === updated._id ? { ...d, ...normalizeDevices([updated])[0] } : d
+          String(d._id) === updatedId ? { ...d, ...normalizeDevices([updated])[0] } : d
         ),
       }));
     };
     socket.on('device:updated', handleDeviceUpdated);
 
+    // Melo companion triggers this when it controls devices
+    const handleMeloRefresh = () => fetchState();
+    window.addEventListener('melo:refresh-devices', handleMeloRefresh);
+
     return () => {
       socket.off('dashboard:state-updated', handleStateUpdate);
       socket.off('device:updated', handleDeviceUpdated);
+      window.removeEventListener('melo:refresh-devices', handleMeloRefresh);
       disconnectDashboardSocket();
     };
   }, [token]);

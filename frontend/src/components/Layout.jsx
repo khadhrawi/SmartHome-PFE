@@ -8,6 +8,7 @@ import SupportModal from './SupportModal';
 import LanguageSwitcher from './LanguageSwitcher';
 import GasEmergencyOverlay from './GasEmergencyOverlay';
 import GasSafetyBanner from './GasSafetyBanner';
+import AuraCompanion from './AuraCompanion';
 import { useGasMonitor } from '../hooks/useGasMonitor';
 import api from '../api/axios';
 
@@ -556,6 +557,9 @@ const Layout = ({ children }) => {
           onClear={clearEmergency}
         />
       )}
+
+      {/* ✦ Aura AI Companion */}
+      <AuraCompanion />
     </div>
   );
 };
