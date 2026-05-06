@@ -101,6 +101,28 @@ wss.on('connection', function (conn, req) {
 const PORT = process.env.PORT || 5000;
 const MQTT_PORT = process.env.MQTT_PORT || 1883;
 
+const startServers = () => {
+  // Start network listeners independently so the service still binds on Render
+  // even if MongoDB is temporarily unavailable.
+  httpServer.on('error', (err) => {
+    console.error('HTTP server error:', err);
+  });
+
+  httpServer.listen(PORT, () => {
+    console.log(`HTTP Server and MQTT over WS listening on port ${PORT}`);
+  });
+
+  mqttServer.on('error', (err) => {
+    console.error('MQTT TCP server error:', err.message);
+  });
+
+  mqttServer.listen(MQTT_PORT, () => {
+    console.log(`Aedes MQTT TCP Server listening on port ${MQTT_PORT}`);
+  });
+};
+
+startServers();
+
 mongoose
   .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/SmartHome")
   .then(() => {
@@ -111,16 +133,6 @@ mongoose
 
     // Start scenario scheduler (cron jobs for time-based automations)
     require('./scheduler').initScheduler();
-
-    // Start Express API Server + Websockets
-    httpServer.listen(PORT, () => {
-      console.log(`HTTP Server and MQTT over WS listening on port ${PORT}`);
-    });
-
-    // Start TCP MQTT Server
-    mqttServer.listen(MQTT_PORT, () => {
-      console.log(`Aedes MQTT TCP Server listening on port ${MQTT_PORT}`);
-    });
   })
   .catch((err) => {
     console.error('MongoDB connection error:', err);
