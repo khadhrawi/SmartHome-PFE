@@ -7,7 +7,8 @@ const { protect } = require('../middlewares/auth');
 const { aedes } = require('../broker');
 const { emitDeviceUpdated } = require('../realtime/notifications');
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const isGroqConfigured = Boolean(process.env.GROQ_API_KEY);
+const groq = isGroqConfigured ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 const buildHouseFilter = (user) => {
   const houseCode = String(user?.houseCode || '').trim().toUpperCase();
@@ -98,6 +99,13 @@ router.post('/chat', protect, async (req, res) => {
     const gasInfo = gasState
       ? `gasLevel=${gasState.gasLevel} threshold=${gasState.gasThreshold} valve=${gasState.gasValveOpen ? 'open' : 'closed'} emergency=${gasState.emergencyMode}`
       : 'no gas data';
+    const dhtInfo = gasState && gasState.temperature != null
+      ? `temperature=${gasState.temperature}°C humidity=${gasState.humidity}%`
+      : 'no sensor data';
+
+    const accessContext = isAdmin
+      ? 'This user is the house owner with full access to all devices.'
+      : `This user is a resident. Assigned room: "${assignedRoom || 'none'}". They can only control devices where access=allowed.`;
 
     const accessContext = isAdmin
       ? 'This user is the house owner with full access to all devices.'
@@ -111,6 +119,7 @@ HOME DEVICES:
 ${deviceList || 'none'}
 
 GAS SENSOR: ${gasInfo}
+TEMPERATURE/HUMIDITY: ${dhtInfo}
 
 DEVICE TYPES YOU CAN CONTROL:
 - Lights/lamps: commands ON, OFF, or set brightness (number 0-100)
@@ -143,6 +152,8 @@ User's name: ${req.user.name}.`;
       ...history.map(m => ({ role: m.role, content: m.content })),
       { role: 'user', content: message },
     ];
+
+    if (!groq) return res.status(503).json({ message: 'AI companion not configured.' });
 
     const response = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',

@@ -101,11 +101,46 @@ wss.on('connection', function (conn, req) {
 const PORT = process.env.PORT || 5000;
 const MQTT_PORT = process.env.MQTT_PORT || 1883;
 
+const startServers = () => {
+  // Start network listeners independently so the service still binds on Render
+  // even if MongoDB is temporarily unavailable.
+  httpServer.on('error', (err) => {
+    console.error('HTTP server error:', err);
+  });
+
+  httpServer.listen(PORT, () => {
+    console.log(`HTTP Server and MQTT over WS listening on port ${PORT}`);
+  });
+
+  mqttServer.on('error', (err) => {
+    console.error('MQTT TCP server error:', err.message);
+  });
+
+  mqttServer.listen(MQTT_PORT, () => {
+    console.log(`Aedes MQTT TCP Server listening on port ${MQTT_PORT}`);
+  });
+};
+
+startServers();
+
 mongoose
   .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/SmartHome")
   .then(async () => {
     console.log('MongoDB Connected successfully');
 
+    // Auto-verify all admin accounts (admins don't need email verification)
+    try {
+      const User = require('./models/User');
+      const adminFix = await User.updateMany(
+        { role: 'admin', isEmailVerified: false },
+        { $set: { isEmailVerified: true } }
+      );
+      if (adminFix.modifiedCount > 0) {
+        console.log(`[migrate] Auto-verified ${adminFix.modifiedCount} admin account(s)`);
+      }
+    } catch (e) {
+      console.error('[migrate] Admin verify failed:', e.message);
+    }
     // Normalize stale device states (OPEN/CLOSE/LOCK → ON/OFF) and fix window openPct
     try {
       const Device = require('./models/Device');
@@ -129,18 +164,11 @@ mongoose
     // Init gas MQTT listener (needs Mongoose ready)
     require('./gasMonitor').init();
 
+    // Init DHT11 temperature/humidity MQTT listener
+    require('./dhtMonitor').init();
+
     // Start scenario scheduler (cron jobs for time-based automations)
     require('./scheduler').initScheduler();
-
-    // Start Express API Server + Websockets
-    httpServer.listen(PORT, () => {
-      console.log(`HTTP Server and MQTT over WS listening on port ${PORT}`);
-    });
-
-    // Start TCP MQTT Server
-    mqttServer.listen(MQTT_PORT, () => {
-      console.log(`Aedes MQTT TCP Server listening on port ${MQTT_PORT}`);
-    });
   })
   .catch((err) => {
     console.error('MongoDB connection error:', err);

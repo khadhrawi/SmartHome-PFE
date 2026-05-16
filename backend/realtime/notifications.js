@@ -233,6 +233,11 @@ const emitDeviceUpdated = (device) => {
   ioInstance.to(`house:${device.houseCode}`).emit('device:updated', device);
 };
 
+const emitDhtUpdated = ({ houseCode, temperature, humidity }) => {
+  if (!ioInstance || !houseCode) return;
+  ioInstance.to(`house:${houseCode}`).emit('house:dht-update', { houseCode, temperature, humidity, ts: Date.now() });
+};
+
 const emitAgencyUnitUpdated = (unit) => {
   if (!ioInstance) return;
   ioInstance.to('agency:global').emit('agency:unit-updated', unit);
@@ -241,6 +246,7 @@ const emitAgencyUnitUpdated = (unit) => {
 
 // export additional helpers for concierge endpoints
 module.exports = {
+  emitDhtUpdated,
   initNotificationsServer,
   emitPermissionCreated,
   emitPermissionUpdated,
@@ -265,4 +271,3 @@ module.exports.isHouseAdminOnline = (houseCode) => {
     return false;
   }
 };
-

@@ -20,6 +20,9 @@ const HouseStateSchema = new mongoose.Schema({
   gasThreshold:  { type: Number, default: 400 },       // ppm above which alarm fires
   gasValveOpen:  { type: Boolean, default: true },     // physical valve state
   lastGasAlert:  { type: Date,   default: null },
+  temperature:   { type: Number, default: null },   // °C from DHT11
+  humidity:      { type: Number, default: null },   // % from DHT11
+  lastDhtRead:   { type: Date,   default: null },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 }, { timestamps: true });
 
