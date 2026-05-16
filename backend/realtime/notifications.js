@@ -271,4 +271,3 @@ module.exports.isHouseAdminOnline = (houseCode) => {
     return false;
   }
 };
-

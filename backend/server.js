@@ -141,7 +141,6 @@ mongoose
     } catch (e) {
       console.error('[migrate] Admin verify failed:', e.message);
     }
-
     // Normalize stale device states (OPEN/CLOSE/LOCK → ON/OFF) and fix window openPct
     try {
       const Device = require('./models/Device');

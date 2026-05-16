@@ -107,6 +107,10 @@ router.post('/chat', protect, async (req, res) => {
       ? 'This user is the house owner with full access to all devices.'
       : `This user is a resident. Assigned room: "${assignedRoom || 'none'}". They can only control devices where access=allowed.`;
 
+    const accessContext = isAdmin
+      ? 'This user is the house owner with full access to all devices.'
+      : `This user is a resident. Assigned room: "${assignedRoom || 'none'}". They can only control devices where access=allowed.`;
+
     const systemPrompt = `You are Melo, a smart home AI companion. Be warm and concise.
 
 ${accessContext}
