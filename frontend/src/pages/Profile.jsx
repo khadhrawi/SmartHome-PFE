@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   User, Mail, Shield, Bell, Moon, LogOut,
   ChevronRight, X, Lock, Eye, EyeOff,
-  Camera, Settings, Check, AlertTriangle, Copy, KeyRound, ShieldCheck, ShieldOff,
+  Camera, Check, AlertTriangle, Copy, KeyRound, ShieldCheck, ShieldOff,
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -754,7 +754,7 @@ const Profile = () => {
     name:  user?.name  ?? '',
     email: user?.email ?? '',
     phone: user?.phone ?? '',
-    role:  user?.role === 'admin' ? 'Admin' : 'House Resident',
+    role:  user?.role === 'agency' ? 'Platform Admin' : user?.role === 'admin' ? 'House Owner' : 'House Resident',
     houseCode: user?.houseCode ?? '',
   });
   const [houseCodeCopied, setHouseCodeCopied] = useState(false);
@@ -921,7 +921,7 @@ const Profile = () => {
                 </button>
                 {/* Online dot */}
                 <div style={{
-                  position: 'absolute', bottom: 4, right: 4,
+                  position: 'absolute', top: 4, left: 4,
                   width: 14, height: 14, borderRadius: '50%',
                   background: '#4ade80', border: '2px solid #08100D',
                   boxShadow: '0 0 8px #4ade80',
@@ -966,7 +966,7 @@ const Profile = () => {
                 {userProfile.role}
               </span>
 
-              {user?.role === 'admin' && userProfile.houseCode ? (
+              {(user?.role === 'admin' || user?.role === 'agency') && userProfile.houseCode ? (
                 <div style={{
                   marginTop: 14,
                   width: '100%',
@@ -1049,7 +1049,7 @@ const Profile = () => {
               <SettingRow
                 icon={Shield}
                 label="Privacy & Security"
-                subtitle="Password, 2FA, sessions"
+                subtitle="Password, sessions"
                 onClick={() => setModal('privacy')}
               />
             </Section>
@@ -1072,15 +1072,9 @@ const Profile = () => {
                 onClick={() => handlePreferenceChange('darkMode')}
                 rightEl={<GlassToggle isOn={isDarkMode} accent="#a78bfa" onToggle={(e) => { e.stopPropagation(); handlePreferenceChange('darkMode'); }} />}
               />
-              <SettingRow
-                icon={Settings}
-                label="System Preferences"
-                subtitle="Language, timezone, units"
-                onClick={() => pushToast('System preferences coming soon', '#a78bfa')}
-              />
             </Section>
 
-            {user?.role === 'admin' ? (
+            {(user?.role === 'admin' || user?.role === 'agency') ? (
               <Section title="Admin Controls">
                 <SettingRow
                   icon={Shield}
@@ -1100,29 +1094,6 @@ const Profile = () => {
               }}
             />
 
-            {/* Quick stats */}
-            <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12,
-            }}>
-              {[
-                { label: 'Devices',     value: '12', accent: C.gold },
-                { label: 'Automations', value: '5',  accent: '#a78bfa' },
-                { label: 'Rooms',       value: '4',  accent: '#4ade80' },
-              ].map(s => (
-                <div key={s.label} style={{
-                  borderRadius: 18, padding: '16px 18px',
-                  background: `${s.accent}0a`, border: `1px solid ${s.accent}22`,
-                  backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-                }}>
-                  <span style={{ fontSize: 26, fontWeight: 900, color: s.accent, display: 'block' }}>
-                    {s.value}
-                  </span>
-                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: C.dimmed }}>
-                    {s.label}
-                  </span>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </div>
