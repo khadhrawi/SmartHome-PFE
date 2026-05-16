@@ -96,24 +96,36 @@ const handleCommand = async (req, res) => {
       retain: false,
     }, () => {});
 
-    // Apply state changes
+    // Apply state changes — always store ON/OFF so UI stays consistent
+    const OPEN_CMDS  = new Set(['OPEN', 'UNLOCK', 'UNLOCKED', 'OPENED']);
+    const CLOSE_CMDS = new Set(['CLOSE', 'CLOSED', 'LOCK', 'LOCKED']);
+    const cmdToState = (c) => {
+      const u = String(c || '').toUpperCase();
+      if (OPEN_CMDS.has(u))  return 'ON';
+      if (CLOSE_CMDS.has(u)) return 'OFF';
+      return c;
+    };
     if (command === 'toggle') {
       device.state = device.state === 'ON' ? 'OFF' : 'ON';
     } else if (command === 'setBrightness' && value !== undefined) {
       device.brightness = Number(value);
       if (device.brightness > 0) device.state = 'ON';
     } else {
-      device.state = command;
+      device.state = cmdToState(command);
     }
 
+    if (['window', 'blind', 'blinds'].includes(String(device.type || '').toLowerCase())) {
+      device.openPct = device.state === 'ON' ? 100 : 0;
+    }
     if ((device.type === 'light' || device.type === 'lamp') && command !== 'setBrightness') {
       device.brightness = device.state === 'ON' ? (device.brightness > 0 ? device.brightness : 100) : 0;
     }
 
     await device.save();
 
-    // Real-time broadcast to all house members
-    emitDeviceUpdated(device.toObject ? device.toObject() : device);
+    // Re-fetch with full doc (ensures houseCode is present) then broadcast
+    const full = await Device.findById(device._id).lean();
+    emitDeviceUpdated(full || (device.toObject ? device.toObject() : device));
 
     // Audit log
     logAudit({

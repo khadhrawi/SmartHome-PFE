@@ -1,55 +1,104 @@
 import { useContext, useState } from 'react';
-import { Lock, Send } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Lock, Send, CheckCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 
 const ResidentRestricted = ({ title, description, actionKey, actionLabel, room = '' }) => {
   const { hasApprovedPermission, requestPermission } = useContext(AuthContext);
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState('');
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
 
   const approved = hasApprovedPermission(actionKey, room);
 
   const onRequest = async () => {
     setBusy(true);
+    setError('');
     const res = await requestPermission({ actionKey, actionLabel, room });
     setBusy(false);
-    setFeedback(res.success ? 'Permission request sent to admin.' : res.error);
+    if (res.success) setSent(true);
+    else setError(res.error || 'Failed to send request.');
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 pb-12">
-      <section className="rounded-3xl border border-emerald-300/30 bg-emerald-500/10 p-6">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-200">Resident Mode</p>
-        <h1 className="mt-2 text-3xl font-black text-white">{title}</h1>
-        <p className="mt-2 text-sm text-zinc-100">{description}</p>
-      </section>
-
-      <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-        <div className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-zinc-200">
-          <Lock size={12} />
-          Restricted Feature
+    <div className="flex items-center justify-center min-h-[60vh] px-4">
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-md text-center"
+      >
+        {/* Icon */}
+        <div className="mx-auto mb-6 w-20 h-20 rounded-3xl flex items-center justify-center"
+          style={{
+            background: approved
+              ? 'linear-gradient(135deg, rgba(74,222,128,0.15), rgba(74,222,128,0.05))'
+              : 'linear-gradient(135deg, rgba(248,113,113,0.12), rgba(239,68,68,0.05))',
+            border: approved
+              ? '1px solid rgba(74,222,128,0.30)'
+              : '1px solid rgba(248,113,113,0.25)',
+            boxShadow: approved
+              ? '0 0 40px rgba(74,222,128,0.12)'
+              : '0 0 40px rgba(239,68,68,0.08)',
+          }}>
+          {approved
+            ? <ShieldCheck size={34} style={{ color: '#4ade80' }} />
+            : <Lock size={34} style={{ color: '#f87171' }} />
+          }
         </div>
 
-        <p className="mt-4 text-sm text-zinc-300">
-          This action is outside your assigned room scope and requires explicit admin approval.
-        </p>
+        {/* Title */}
+        <h1 className="text-2xl font-black text-white mb-2">{title}</h1>
+        <p className="text-sm text-zinc-400 leading-relaxed mb-8 max-w-xs mx-auto">{description}</p>
 
         {approved ? (
-          <p className="mt-4 text-sm font-semibold text-emerald-200">Access approved by admin. Your controls should update automatically.</p>
-        ) : (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onRequest}
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-300 px-4 py-2 text-sm font-bold text-emerald-950 disabled:opacity-60"
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="rounded-2xl p-5"
+            style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.22)' }}
           >
-            <Send size={14} />
-            {busy ? 'Sending...' : 'Request Access'}
-          </button>
-        )}
+            <CheckCircle size={20} className="mx-auto mb-2" style={{ color: '#4ade80' }} />
+            <p className="text-sm font-bold text-emerald-300">Access Approved</p>
+            <p className="text-xs text-zinc-500 mt-1">Your admin has granted you access. Refresh to see controls.</p>
+          </motion.div>
+        ) : sent ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="rounded-2xl p-5"
+            style={{ background: 'rgba(14,165,233,0.06)', border: '1px solid rgba(14,165,233,0.22)' }}
+          >
+            <CheckCircle size={20} className="mx-auto mb-2" style={{ color: '#38bdf8' }} />
+            <p className="text-sm font-bold text-sky-300">Request Sent</p>
+            <p className="text-xs text-zinc-500 mt-1">Your admin will review it shortly and notify you.</p>
+          </motion.div>
+        ) : (
+          <div className="space-y-3">
+            <button
+              onClick={onRequest}
+              disabled={busy}
+              className="w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black transition-all disabled:opacity-50"
+              style={{
+                background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+                color: '#fff',
+                boxShadow: '0 4px 20px rgba(14,165,233,0.35)',
+              }}
+            >
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} />}
+              {busy ? 'Sending…' : 'Request Access'}
+            </button>
 
-        {feedback ? <p className="mt-4 text-sm text-emerald-200">{feedback}</p> : null}
-      </section>
+            {error && (
+              <p className="text-xs text-red-400 font-semibold">{error}</p>
+            )}
+
+            <p className="text-xs text-zinc-600">
+              Your admin will be notified and can approve or deny your request.
+            </p>
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 };

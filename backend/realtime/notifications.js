@@ -74,7 +74,6 @@ const initNotificationsServer = (httpServer) => {
       socket.join('agency:global');
     }
 
-    console.log(`[socket] connected user=${userId} role=${userRole} house=${houseCode || 'n/a'}`);
     // attach disconnect handler to update concierge listeners
     socket.on('disconnect', () => {
       try {
@@ -138,7 +137,6 @@ const emitPermissionCreated = (requestDoc) => {
   const houseCode = payload.houseCode;
 
   if (houseCode) {
-    console.log('[socket] emit requestCreated', { houseCode, adminId, requesterId, requestId: payload._id });
     ioInstance.to(houseCode).emit('requestCreated', payload);
     ioInstance.to(`house-admin:${houseCode}`).emit('permissions:created', payload);
     ioInstance.to(`house-admin:${houseCode}`).emit('requestCreated', payload);
@@ -162,7 +160,6 @@ const emitPermissionUpdated = (requestDoc) => {
   const houseCode = payload.houseCode;
 
   if (houseCode) {
-    console.log('[socket] emit requestStatusChanged', { houseCode, adminId, requesterId, requestId: payload._id, status: payload.status });
     ioInstance.to(houseCode).emit('requestStatusChanged', payload);
     ioInstance.to(`house-admin:${houseCode}`).emit('permissions:updated', payload);
     ioInstance.to(`house-admin:${houseCode}`).emit('requestStatusChanged', payload);
@@ -180,7 +177,6 @@ const emitPermissionUpdated = (requestDoc) => {
 
 const emitPermissionsUpdated = ({ userId, permissions }) => {
   if (!ioInstance || !userId) return;
-  console.log('[socket] emit permissionsUpdated', { userId: String(userId), permissions });
   ioInstance.to(String(userId)).emit('permissionsUpdated', {
     userId: String(userId),
     permissions: Array.isArray(permissions) ? permissions : [],
@@ -233,12 +229,8 @@ const EventEmitter = require('events');
 const conciergeEmitter = new EventEmitter();
 
 const emitDeviceUpdated = (device) => {
-  console.log('[emit] emitDeviceUpdated houseCode=', device?.houseCode, 'ioInstance=', !!ioInstance);
   if (!ioInstance || !device?.houseCode) return;
-  const room = `house:${device.houseCode}`;
-  const sockets = ioInstance.sockets.adapter.rooms.get(room);
-  console.log('[emit] room=', room, 'sockets in room=', sockets ? sockets.size : 0);
-  ioInstance.to(room).emit('device:updated', device);
+  ioInstance.to(`house:${device.houseCode}`).emit('device:updated', device);
 };
 
 const emitAgencyUnitUpdated = (unit) => {

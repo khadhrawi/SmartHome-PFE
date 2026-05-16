@@ -1,33 +1,9 @@
-import { io } from 'socket.io-client';
+// Re-use the single shared socket instance from permissionsSocket
+// so there is only ONE connection per user for all real-time events.
+import {
+  connectPermissionsSocket,
+  disconnectPermissionsSocket,
+} from './permissionsSocket';
 
-let dashboardSocket = null;
-let activeToken = '';
-
-export const connectDashboardSocket = (token) => {
-  if (!token) return null;
-
-  if (dashboardSocket && activeToken === token) {
-    return dashboardSocket;
-  }
-
-  if (dashboardSocket) {
-    dashboardSocket.disconnect();
-  }
-
-  dashboardSocket = io('http://localhost:5000', {
-    auth: { token },
-    transports: ['websocket', 'polling'],
-    withCredentials: false,
-  });
-
-  activeToken = token;
-  return dashboardSocket;
-};
-
-export const disconnectDashboardSocket = () => {
-  if (dashboardSocket) {
-    dashboardSocket.disconnect();
-    dashboardSocket = null;
-    activeToken = '';
-  }
-};
+export const connectDashboardSocket    = connectPermissionsSocket;
+export const disconnectDashboardSocket = disconnectPermissionsSocket;

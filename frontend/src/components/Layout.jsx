@@ -559,7 +559,7 @@ const Layout = ({ children }) => {
       )}
 
       {/* ✦ Aura AI Companion */}
-      <AuraCompanion />
+      {user?.role !== 'agency' && <AuraCompanion />}
     </div>
   );
 };

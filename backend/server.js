@@ -103,8 +103,28 @@ const MQTT_PORT = process.env.MQTT_PORT || 1883;
 
 mongoose
   .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/SmartHome")
-  .then(() => {
+  .then(async () => {
     console.log('MongoDB Connected successfully');
+
+    // Normalize stale device states (OPEN/CLOSE/LOCK → ON/OFF) and fix window openPct
+    try {
+      const Device = require('./models/Device');
+      const openStates  = ['OPEN', 'UNLOCK', 'UNLOCKED', 'OPENED'];
+      const closeStates = ['CLOSE', 'CLOSED', 'LOCK', 'LOCKED'];
+      const windowTypes = ['window', 'blind', 'blinds'];
+      const [openRes, closeRes, winOnRes, winOffRes] = await Promise.all([
+        Device.updateMany({ state: { $in: openStates }  }, { $set: { state: 'ON'  } }),
+        Device.updateMany({ state: { $in: closeStates } }, { $set: { state: 'OFF' } }),
+        // Fix windows that are ON but openPct is 0
+        Device.updateMany({ type: { $in: windowTypes }, state: 'ON',  openPct: 0 }, { $set: { openPct: 100 } }),
+        // Fix windows that are OFF but openPct is non-zero
+        Device.updateMany({ type: { $in: windowTypes }, state: 'OFF', openPct: { $gt: 0 } }, { $set: { openPct: 0 } }),
+      ]);
+      const total = openRes.modifiedCount + closeRes.modifiedCount + winOnRes.modifiedCount + winOffRes.modifiedCount;
+      if (total > 0) console.log(`[migrate] Fixed ${total} device states/openPct values`);
+    } catch (e) {
+      console.error('[migrate] State normalization failed:', e.message);
+    }
 
     // Init gas MQTT listener (needs Mongoose ready)
     require('./gasMonitor').init();

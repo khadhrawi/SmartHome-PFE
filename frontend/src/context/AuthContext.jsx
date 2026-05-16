@@ -450,7 +450,6 @@ export const AuthProvider = ({ children }) => {
     socket.connect();
 
     const handleCreated = (request) => {
-      console.log('REQUEST RECEIVED:', request);
       if (user.role === 'admin') {
         setAdminPermissionRequests((prev) => upsertPermissionRequest(prev, request));
       }
@@ -468,7 +467,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     const handleUpdated = (request) => {
-      console.log('REQUEST STATUS CHANGED:', request);
       if (user.role === 'admin') {
         setAdminPermissionRequests((prev) => upsertPermissionRequest(prev, request));
       }
@@ -499,7 +497,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     const handlePermissionsUpdated = ({ userId, permissions }) => {
-      console.log('PERMISSIONS UPDATED:', { userId, permissions });
       if (String(userId) !== String(user._id)) return;
       setUserWithLocalSync((prev) => ({
         ...prev,
@@ -523,7 +520,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     const handleSocketConnect = () => {
-      console.log('PERMISSIONS SOCKET CONNECTED:', socket.id);
       if (user.role === 'admin') {
         fetchAdminRequests();
       } else {
@@ -531,9 +527,7 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    const handleSocketError = () => {
-      console.error('PERMISSIONS SOCKET ERROR');
-    };
+    const handleSocketError = () => {};
 
     const handleRequestCreated = (request) => {
       handleCreated(request);
