@@ -128,6 +128,20 @@ mongoose
   .then(async () => {
     console.log('MongoDB Connected successfully');
 
+    // Auto-verify all admin accounts (admins don't need email verification)
+    try {
+      const User = require('./models/User');
+      const adminFix = await User.updateMany(
+        { role: 'admin', isEmailVerified: false },
+        { $set: { isEmailVerified: true } }
+      );
+      if (adminFix.modifiedCount > 0) {
+        console.log(`[migrate] Auto-verified ${adminFix.modifiedCount} admin account(s)`);
+      }
+    } catch (e) {
+      console.error('[migrate] Admin verify failed:', e.message);
+    }
+
     // Normalize stale device states (OPEN/CLOSE/LOCK → ON/OFF) and fix window openPct
     try {
       const Device = require('./models/Device');
