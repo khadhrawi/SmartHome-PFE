@@ -279,6 +279,11 @@ const ConciergeHub = () => {
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)' }}>
               <RefreshCw size={13} /> Refresh
             </button>
+            <button onClick={() => navigate('/about')}
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-zinc-300 transition hover:bg-white/10"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)' }}>
+              ← Back
+            </button>
           </div>
         </div>
 

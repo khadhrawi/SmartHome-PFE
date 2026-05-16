@@ -22,7 +22,7 @@ const { emitGasEmergency } = require('./realtime/notifications');
 
 const GAS_SENSOR_TOPIC_PREFIX = 'sensors/';
 const GAS_SENSOR_SUFFIX       = '/gas';
-const GAS_THRESHOLD_DEFAULT   = 400; // ppm
+const GAS_THRESHOLD_DEFAULT   = 5; // ppm — low for testing (raise to 400 in production)
 
 const VALVE_OPEN_SCENES  = new Set(['Morning', 'Dinner']);
 const VALVE_CLOSE_SCENES = new Set(['Sleep', 'Away']);

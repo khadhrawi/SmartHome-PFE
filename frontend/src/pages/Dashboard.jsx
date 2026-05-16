@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { Camera, ChevronRight, Plus, X, CheckCircle2, ChevronDown, Lock, Send, Flame, Link2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Camera, ChevronRight, Plus, X, CheckCircle2, ChevronDown, Lock, Send, Flame, Link2, Zap, Lightbulb, DoorOpen, AppWindow } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import FloorPlan from '../components/FloorPlan';
@@ -25,15 +26,25 @@ function LiveStatsBar() {
   ];
   return (
     <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {items.map(({ label, value, accent }) => (
-        <div
+      {items.map(({ label, value, accent }, i) => (
+        <motion.div
           key={label}
-          className="rounded-2xl border px-4 py-3 flex flex-col gap-1"
-          style={{ background: `${accent}08`, borderColor: `${accent}22`, backdropFilter: 'blur(12px)' }}
+          className="rounded-[1.5rem] border px-5 py-4 flex flex-col gap-1.5 relative overflow-hidden"
+          style={{
+            background: `${accent}0a`,
+            borderColor: `${accent}28`,
+            backdropFilter: 'blur(20px)',
+            boxShadow: `0 8px 32px ${accent}10`,
+          }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
         >
-          <p className="text-[10px] font-black uppercase tracking-[0.15em]" style={{ color: `${accent}aa` }}>{label}</p>
-          <p className="text-2xl font-black tabular-nums" style={{ color: accent }}>{value}</p>
-        </div>
+          <div className="pointer-events-none absolute -right-4 -bottom-4 h-20 w-20 rounded-full blur-xl" style={{ background: `${accent}18` }} />
+          <p className="text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: `${accent}88` }}>{label}</p>
+          <p className="text-3xl font-black tabular-nums leading-none" style={{ color: accent }}>{value}</p>
+          <div className="h-px w-8 rounded-full mt-1" style={{ background: `${accent}40` }} />
+        </motion.div>
       ))}
     </div>
   );
@@ -205,22 +216,24 @@ const C = {
 };
 
 function AddDeviceModal({ onClose, onAdd, houseCode }) {
-  const [name, setName]       = useState('');
-  const [type, setType]       = useState('');
-  const [room, setRoom]       = useState('living_room');
-  const [typeOpen, setTypeOpen] = useState(false);
-  const [roomOpen, setRoomOpen] = useState(false);
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState('');
-  const [success, setSuccess] = useState(false);
+  const [name, setName]           = useState('');
+  const [type, setType]           = useState('');
+  const [room, setRoom]           = useState('living_room');
+  const [customTopic, setCustomTopic] = useState('');
+  const [typeOpen, setTypeOpen]   = useState(false);
+  const [roomOpen, setRoomOpen]   = useState(false);
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState('');
+  const [success, setSuccess]     = useState(false);
 
   const selectedType = DEVICE_TYPES.find(t => t.value === type);
   const selectedRoom = ROOM_OPTIONS.find(r => r.value === room);
   const accent       = selectedType?.accent ?? C.gold;
   const canSave      = name.trim() && type;
 
-  // Auto-generate MQTT topic from name + house code
-  const topic = `${String(houseCode || 'HOME').toLowerCase()}/${type || 'device'}/${name.trim().toLowerCase().replace(/\s+/g, '-') || 'new'}`;
+  // Auto-generate MQTT topic; user can override via customTopic
+  const autoTopic = `${String(houseCode || 'HOME').toLowerCase()}/${type || 'device'}/${name.trim().toLowerCase().replace(/\s+/g, '-') || 'new'}`;
+  const topic = customTopic.trim() || autoTopic;
 
   const handleSave = async () => {
     if (!canSave || saving) return;
@@ -368,13 +381,34 @@ function AddDeviceModal({ onClose, onAdd, houseCode }) {
             </div>
           </div>
 
-          {/* Topic preview */}
-          {name && type && (
-            <div className="px-3 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <p className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: C.dimmed }}>MQTT Topic</p>
-              <p className="text-[11px] font-mono font-bold" style={{ color: accent }}>{topic}</p>
-            </div>
-          )}
+          {/* Custom MQTT Topic */}
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.dimmed }}>MQTT Topic <span style={{ color: C.muted, textTransform: 'none', fontSize: '9px' }}>(leave blank for auto)</span></p>
+            <input
+              type="text"
+              value={customTopic}
+              onChange={e => setCustomTopic(e.target.value)}
+              placeholder={autoTopic}
+              className="w-full"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: `1px solid ${customTopic ? accent + '45' : 'rgba(255,255,255,0.10)'}`,
+                color: C.text,
+                borderRadius: '1rem',
+                padding: '0.7rem 1rem',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                fontFamily: 'monospace',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+              }}
+            />
+            {name && type && (
+              <p className="text-[10px] mt-1.5 px-1 font-mono font-bold" style={{ color: accent }}>
+                command/{topic}
+              </p>
+            )}
+          </div>
 
           {/* Error */}
           {error && (
@@ -708,9 +742,11 @@ const Dashboard = ({ accessMode = 'admin' }) => {
   };
 
   return (
-    <div className="ui-depth-bg relative min-h-screen w-full overflow-hidden p-4 md:p-6">
-      <div className="pointer-events-none absolute -left-24 top-14 h-64 w-64 rounded-full bg-blue-400/15 blur-3xl" />
-      <div className="pointer-events-none absolute right-0 top-40 h-72 w-72 rounded-full bg-violet-400/12 blur-3xl" />
+    <div className="relative min-h-screen w-full overflow-hidden p-4 md:p-8"
+      style={{ background: 'linear-gradient(155deg, #07080E 0%, #0D1420 48%, #090A13 100%)' }}>
+      <div className="pointer-events-none absolute -left-32 -top-16 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-20 h-[450px] w-[450px] rounded-full bg-violet-600/8 blur-3xl" />
+      <div className="pointer-events-none absolute left-1/2 bottom-40 h-72 w-72 -translate-x-1/2 rounded-full bg-sky-500/5 blur-3xl" />
 
       {showAddDevice && (
         <AddDeviceModal
@@ -730,52 +766,108 @@ const Dashboard = ({ accessMode = 'admin' }) => {
       ) : null}
 
       {/* Greeting Panel */}
-      <div className="premium-panel interactive-lift mb-8 p-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-100/75">Dashboard</p>
-            <h1 className="mt-1 text-3xl font-black text-white md:text-4xl">{greeting()}, {user?.name || 'User'}</h1>
-            <p className="mt-1 text-sm text-zinc-300/75">
-              {isResidentView ? 'Resident access mode' : isSuperAdmin ? '⚡ Super Admin — Full unit control' : 'Admin control mode'}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-              <span className="state-chip px-3 py-1 text-zinc-200">{liveDate}</span>
-              {user?.houseCode ? (
-                <button
-                  onClick={() => navigator.clipboard.writeText(user.houseCode).then(() => alert(`House code "${user.houseCode}" copied! Share it with your residents.`))}
-                  title="Click to copy house code"
-                  className="state-chip light-state-on border-amber-200/45 bg-amber-300/20 px-3 py-1 font-bold text-amber-100 cursor-pointer hover:bg-amber-300/30 transition-colors"
+      <motion.div
+        className="relative mb-8 overflow-hidden rounded-[2rem] p-7"
+        style={{
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.02) 100%)',
+          border: '1px solid rgba(255,255,255,0.09)',
+          backdropFilter: 'blur(30px)',
+          boxShadow: '0 30px 80px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+        }}
+        initial={{ opacity: 0, y: -24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+      >
+        {/* Ambient glow spots */}
+        <div className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-sky-500/8 blur-2xl" />
+        <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-violet-500/7 blur-xl" />
+
+        <div className="relative flex flex-wrap items-center justify-between gap-5">
+          <div className="flex items-center gap-5 min-w-0">
+            {/* Avatar */}
+            <div className="relative shrink-0">
+              <div
+                className="h-16 w-16 rounded-2xl flex items-center justify-center text-2xl font-black select-none"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(96,165,250,0.22) 0%, rgba(167,139,250,0.16) 100%)',
+                  border: '1px solid rgba(255,255,255,0.13)',
+                  boxShadow: '0 0 28px rgba(96,165,250,0.18)',
+                  color: '#fff',
+                }}
+              >
+                {(user?.name || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div
+                className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2"
+                style={{ background: '#4ade80', borderColor: '#07080E', boxShadow: '0 0 10px rgba(74,222,128,0.7)' }}
+              />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: 'rgba(148,163,184,0.65)' }}>
+                {isResidentView ? 'Resident' : isSuperAdmin ? '⚡ Super Admin' : 'Admin'} · Smart Home
+              </p>
+              <h1
+                className="mt-0.5 text-3xl font-black md:text-4xl"
+                style={{
+                  background: 'linear-gradient(135deg, #ffffff 0%, #94a3b8 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                {greeting()}, {(user?.name || 'User').split(' ')[0]}
+              </h1>
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.55)' }}
                 >
-                  🏠 House Code: {user.houseCode} · Copy
-                </button>
-              ) : null}
-              {user?.houseCode && isAdmin && (
-                <button
-                  onClick={() => {
-                    const url = `${window.location.origin}/auth/resident/register?house=${user.houseCode}`;
-                    navigator.clipboard.writeText(url).then(() => alert('Invite link copied! Share it with residents.'));
-                  }}
-                  title="Copy resident invite link"
-                  className="state-chip flex items-center gap-1.5 px-3 py-1 font-bold text-emerald-100 cursor-pointer hover:bg-emerald-300/20 transition-colors border-emerald-200/40 bg-emerald-300/15"
-                >
-                  <Link2 size={11} />
-                  Copy Invite Link
-                </button>
-              )}
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 6px rgba(74,222,128,0.9)' }} />
+                  {liveDate}
+                </span>
+                {user?.houseCode && (
+                  <button
+                    onClick={() => navigator.clipboard.writeText(user.houseCode).then(() => alert(`House code "${user.houseCode}" copied! Share it with your residents.`))}
+                    title="Click to copy house code"
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold transition-all hover:scale-105 cursor-pointer"
+                    style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.32)', color: '#fbbf24' }}
+                  >
+                    🏠 {user.houseCode} · Copy
+                  </button>
+                )}
+                {user?.houseCode && isAdmin && (
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/auth/resident/register?house=${user.houseCode}`;
+                      navigator.clipboard.writeText(url).then(() => alert('Invite link copied! Share it with residents.'));
+                    }}
+                    title="Copy resident invite link"
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold transition-all hover:scale-105 cursor-pointer"
+                    style={{ background: 'rgba(74,222,128,0.10)', border: '1px solid rgba(74,222,128,0.28)', color: '#4ade80' }}
+                  >
+                    <Link2 size={10} /> Invite Link
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           {isAdmin && (
             <button
               onClick={() => setShowAddDevice(true)}
-              className="control-button pressable inline-flex items-center gap-2 bg-sky-300/90 px-4 py-2 font-bold text-slate-900"
+              className="shrink-0 inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: 'linear-gradient(135deg, #38bdf8, #818cf8)',
+                boxShadow: '0 8px 28px rgba(56,189,248,0.28)',
+                color: '#020617',
+              }}
             >
-              <Plus size={18} />
+              <Plus size={17} strokeWidth={3} />
               Add Device
             </button>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Live Stats Row */}
       {isAdmin && (
@@ -799,15 +891,35 @@ const Dashboard = ({ accessMode = 'admin' }) => {
 
       {isResidentView ? (
         <section className="mt-10 space-y-4">
-          <div className="premium-panel interactive-lift p-5">
+          <div
+            className="relative overflow-hidden rounded-[2rem] p-6"
+            style={{
+              background: 'linear-gradient(135deg, rgba(74,222,128,0.07) 0%, rgba(255,255,255,0.02) 100%)',
+              border: '1px solid rgba(74,222,128,0.18)',
+              backdropFilter: 'blur(24px)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            }}
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-200/80">Resident Access</p>
-                <h2 className="mt-1 text-xl font-black text-white">Request Access</h2>
-                <p className="mt-1 text-sm text-zinc-300/80">You can view all rooms and devices in real-time. Locked controls require explicit admin approval.</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'rgba(74,222,128,0.65)' }}>Resident Access</p>
+                <h2
+                  className="mt-0.5 text-xl font-black"
+                  style={{
+                    background: 'linear-gradient(135deg, #ffffff 0%, #94a3b8 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  Request Access
+                </h2>
+                <p className="mt-1 text-sm text-zinc-400">View all rooms in real-time. Locked controls require admin approval.</p>
               </div>
-              <span className="state-chip px-3 py-1 text-xs text-zinc-200">
-                Locked Features: {lockedFeatures.length}
+              <span
+                className="rounded-full px-3 py-1.5 text-xs font-bold"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.6)' }}
+              >
+                Locked: {lockedFeatures.length}
               </span>
             </div>
           </div>
@@ -874,23 +986,56 @@ const Dashboard = ({ accessMode = 'admin' }) => {
         </section>
       ) : null}
 
-      {/* Restored Home Control Panel */}
-      <section className="mt-10 space-y-5">
-        <div className="premium-panel interactive-lift p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Home Control Panel */}
+      <motion.section
+        className="mt-10 space-y-5"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div
+          className="relative overflow-hidden rounded-[2rem] p-6"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
+            border: '1px solid rgba(255,255,255,0.09)',
+            backdropFilter: 'blur(24px)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+          }}
+        >
+          <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-sky-500/6 blur-2xl pointer-events-none" />
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-black text-white">Home Control Panel</h2>
-              <p className="text-sm text-zinc-300/75">Live device controls and home status synchronized with the floor plan overlay.</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'rgba(148,163,184,0.55)' }}>Live Sync</p>
+              <h2
+                className="mt-0.5 text-xl font-black"
+                style={{
+                  background: 'linear-gradient(135deg, #ffffff 0%, #94a3b8 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                Home Control Panel
+              </h2>
+              <p className="mt-1 text-xs text-zinc-400">Device controls synchronized with the floor plan.</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 xl:grid-cols-5">
-              <div className="premium-panel-soft interactive-lift px-3 py-2 text-zinc-100">Devices: {deviceStats.total}</div>
-              <div className="premium-panel-soft interactive-lift state-chip-active px-3 py-2 text-zinc-100">Active: {deviceStats.active}</div>
-              <div className="premium-panel-soft interactive-lift px-3 py-2 text-zinc-100">Lights On: {deviceStats.lightsOn}</div>
-              <div className="premium-panel-soft interactive-lift px-3 py-2 text-zinc-100">Doors Open: {deviceStats.doorsOpen}</div>
-              <div className="premium-panel-soft interactive-lift px-3 py-2 text-sky-200"
-                style={{ borderColor: deviceStats.windowsOpen > 0 ? 'rgba(125,211,252,0.35)' : undefined, background: deviceStats.windowsOpen > 0 ? 'rgba(125,211,252,0.08)' : undefined }}>
-                🪟 Windows: {deviceStats.windowsOpen}
-              </div>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {[
+                { icon: Zap,        label: 'Devices', value: deviceStats.total,       color: '#60a5fa' },
+                { icon: Zap,        label: 'Active',  value: deviceStats.active,      color: '#4ade80' },
+                { icon: Lightbulb,  label: 'Lights',  value: deviceStats.lightsOn,    color: '#fbbf24' },
+                { icon: DoorOpen,   label: 'Doors',   value: deviceStats.doorsOpen,   color: '#f97316' },
+                { icon: AppWindow,  label: 'Windows', value: deviceStats.windowsOpen, color: '#7dd3fc' },
+              ].map(({ icon: Icon, label, value, color }) => (
+                <div
+                  key={label}
+                  className="flex flex-col items-center justify-center rounded-2xl px-3 py-2.5 min-w-[64px]"
+                  style={{ background: `${color}0d`, border: `1px solid ${color}28` }}
+                >
+                  <Icon size={13} style={{ color }} />
+                  <p className="mt-1 text-lg font-black tabular-nums leading-none" style={{ color }}>{value}</p>
+                  <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wide" style={{ color: `${color}99` }}>{label}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -948,45 +1093,91 @@ const Dashboard = ({ accessMode = 'admin' }) => {
             })}
           </div>
         ) : (
-          <div className="premium-panel p-6 text-sm text-zinc-300/80">
+          <div
+            className="rounded-[2rem] p-6 text-sm text-zinc-400"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+          >
             No devices are currently available.
           </div>
         )}
-      </section>
+      </motion.section>
 
-      {/* Away Mode Camera Monitoring Panel (bottom only, collapsible) */}
-      <section className="mt-10">
-        <Link
-          to="/security"
-          className="premium-panel interactive-lift group block p-6"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="premium-panel-soft light-state-on rounded-xl p-2.5 text-zinc-100">
-                <Camera size={18} />
+      {/* Camera Monitoring */}
+      <motion.section
+        className="mt-10 mb-8"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <Link to="/security" className="group block">
+          <div
+            className="relative overflow-hidden rounded-[2rem] p-6 transition-all duration-300 hover:scale-[1.01]"
+            style={{
+              background: 'linear-gradient(135deg, rgba(74,222,128,0.07) 0%, rgba(255,255,255,0.025) 60%)',
+              border: '1px solid rgba(74,222,128,0.18)',
+              backdropFilter: 'blur(24px)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+            }}
+          >
+            {/* Glow */}
+            <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-emerald-400/8 blur-2xl" />
+
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div
+                  className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
+                  style={{ background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.3)', boxShadow: '0 0 24px rgba(74,222,128,0.2)' }}
+                >
+                  <Camera size={22} style={{ color: '#4ade80' }} />
+                  {/* Live pulse dot */}
+                  <span
+                    className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full border-2"
+                    style={{ background: '#4ade80', borderColor: '#07080E', boxShadow: '0 0 8px rgba(74,222,128,0.9)', animation: 'warm-pulse 1.5s ease-in-out infinite' }}
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'rgba(74,222,128,0.65)' }}>Live Feed</p>
+                  <h2
+                    className="mt-0.5 text-xl font-black"
+                    style={{
+                      background: 'linear-gradient(135deg, #ffffff 0%, #94a3b8 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                    }}
+                  >
+                    Camera Monitoring
+                  </h2>
+                  <p className="mt-0.5 text-xs text-zinc-400">Open live camera feeds, alerts, and detailed monitoring.</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-black text-white">Camera Monitoring</h2>
-                <p className="text-sm text-zinc-300/75">
-                  Open the live camera dashboard with feeds, alerts, and detailed monitoring.
-                </p>
+              <div
+                className="shrink-0 flex items-center gap-1.5 rounded-2xl px-4 py-2.5 text-sm font-black transition-all duration-300 group-hover:translate-x-1"
+                style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80' }}
+              >
+                Open <ChevronRight size={15} />
               </div>
             </div>
 
-            <div className="inline-flex items-center gap-1 text-sm font-bold text-zinc-100 transition-all duration-300 group-hover:translate-x-1 group-hover:text-sky-200">
-              Open
-              <ChevronRight size={16} />
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                { label: 'Cameras',  value: cameraDevices.length || 4, color: '#4ade80' },
+                { label: 'Mode',     value: floorPlanState.lockdownMode ? 'LOCKDOWN' : floorPlanState.awayMode ? 'AWAY' : 'NORMAL', color: floorPlanState.lockdownMode ? '#f87171' : floorPlanState.awayMode ? '#fbbf24' : '#94a3b8' },
+                { label: 'Sync',     value: 'LIVE',  color: '#4ade80' },
+                { label: 'Status',   value: 'READY', color: '#60a5fa' },
+              ].map(({ label, value, color }) => (
+                <div
+                  key={label}
+                  className="rounded-xl px-3 py-2 text-center"
+                  style={{ background: `${color}0d`, border: `1px solid ${color}25` }}
+                >
+                  <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: `${color}88` }}>{label}</p>
+                  <p className="mt-0.5 text-xs font-black" style={{ color }}>{value}</p>
+                </div>
+              ))}
             </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-            <div className="premium-panel-soft interactive-lift px-3 py-2 text-zinc-100">Cameras: {cameraDevices.length || 4}</div>
-            <div className="premium-panel-soft interactive-lift px-3 py-2 text-zinc-100">Mode: {!!floorPlanState.lockdownMode ? 'LOCKDOWN' : !!floorPlanState.awayMode ? 'AWAY' : 'NORMAL'}</div>
-            <div className="premium-panel-soft interactive-lift state-chip-active px-3 py-2 text-zinc-100">Sync: LIVE</div>
-            <div className="premium-panel-soft interactive-lift px-3 py-2 text-zinc-100">Status: READY</div>
           </div>
         </Link>
-      </section>
+      </motion.section>
       </div>
     </div>
   );

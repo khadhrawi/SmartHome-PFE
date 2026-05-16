@@ -33,7 +33,7 @@
 //  ⚙️  USER CONFIG
 // ════════════════════════════════════════════════════════════════
 
-#define WIFI_SSID        "H House 5G"
+#define WIFI_SSID        "H House"
 #define WIFI_PASSWORD    "HHOUSE2025"
 #define MQTT_SERVER      "192.168.100.54"
 #define MQTT_PORT        1883
@@ -76,19 +76,19 @@
 //
 //  If your RGB LED is COMMON ANODE set COMMON_ANODE to true below
 
-#define COMMON_ANODE     false   // true = common anode, false = common cathode
+#define COMMON_ANODE     true    // true = common anode, false = common cathode
 
-// RGB LED 1
+// RGB LED 1 — Living Room
 #define LED1_R  2
 #define LED1_G  4
 #define LED1_B  5
 
-// RGB LED 2
-#define LED2_R  16
-#define LED2_G  17
-#define LED2_B  21
+// RGB LED 2 — Bedroom
+#define LED2_R  21
+#define LED2_G  22
+#define LED2_B  32
 
-// RGB LED 3
+// RGB LED 3 — Kitchen
 #define LED3_R  25
 #define LED3_G  26
 #define LED3_B  27
@@ -106,24 +106,24 @@
 // ════════════════════════════════════════════════════════════════
 
 #define COLOR_LIVING_R  255
-#define COLOR_LIVING_G  200
-#define COLOR_LIVING_B  80    // warm white / yellow
+#define COLOR_LIVING_G  0
+#define COLOR_LIVING_B  0     // pure RED — easy to confirm R pin works
 
-#define COLOR_BEDROOM_R 100
-#define COLOR_BEDROOM_G 80
-#define COLOR_BEDROOM_B 255   // cool blue / relax
+#define COLOR_BEDROOM_R 0
+#define COLOR_BEDROOM_G 255
+#define COLOR_BEDROOM_B 0     // pure GREEN — easy to confirm G pin works
 
-#define COLOR_KITCHEN_R 255
-#define COLOR_KITCHEN_G 255
-#define COLOR_KITCHEN_B 200   // bright white
+#define COLOR_KITCHEN_R 0
+#define COLOR_KITCHEN_G 0
+#define COLOR_KITCHEN_B 255   // pure BLUE — easy to confirm B pin works
 
 // ════════════════════════════════════════════════════════════════
 //  🔧 SERVO ANGLES
 // ════════════════════════════════════════════════════════════════
 
-#define DOOR_OPEN_DEG    90
+#define DOOR_OPEN_DEG    180
 #define DOOR_CLOSED_DEG  0
-#define WIN_OPEN_DEG     90
+#define WIN_OPEN_DEG     180
 #define WIN_CLOSED_DEG   0
 
 // ════════════════════════════════════════════════════════════════
@@ -137,8 +137,9 @@
 //  MQ6 CALIBRATION
 // ════════════════════════════════════════════════════════════════
 
-#define MQ6_RL   10.0f
-#define MQ6_RO   9.83f
+#define MQ6_RL            10.0f
+#define MQ6_RO            9.83f
+#define GAS_RAW_THRESHOLD 800   // raw ADC value (0-4095) — buzzer triggers above this
 
 // ════════════════════════════════════════════════════════════════
 //  GLOBALS
@@ -163,9 +164,9 @@ char topicGas[80], topicDHT[80];
 
 void writeRGB(int rPin, int gPin, int bPin, int r, int g, int b) {
   if (COMMON_ANODE) { r = 255-r; g = 255-g; b = 255-b; }
-  analogWrite(rPin, r);
-  analogWrite(gPin, g);
-  analogWrite(bPin, b);
+  ledcWrite(rPin, r);
+  ledcWrite(gPin, g);
+  ledcWrite(bPin, b);
 }
 
 // brightness: 0-100
@@ -335,33 +336,37 @@ void setup() {
   snprintf(topicLed3,   sizeof(topicLed3),   "command/%s",               TOPIC_LED3);
   snprintf(topicDoor,   sizeof(topicDoor),   "command/%s",               TOPIC_DOOR);
   snprintf(topicWindow, sizeof(topicWindow), "command/%s",               TOPIC_WINDOW);
-  snprintf(topicAlarm,  sizeof(topicAlarm),  "command/autogen/%s/alarm", HOUSE_CODE);
+  // Backend lowercases houseCode when publishing alarm — must match exactly
+  String hcLower = String(HOUSE_CODE); hcLower.toLowerCase();
+  snprintf(topicAlarm, sizeof(topicAlarm), "command/autogen/%s/alarm", hcLower.c_str());
   snprintf(topicGas,    sizeof(topicGas),    "sensors/%s/gas",           HOUSE_CODE);
   snprintf(topicDHT,    sizeof(topicDHT),    "sensors/%s/dht",           HOUSE_CODE);
 
-  // RGB LED pins
+  // Servos FIRST — must claim LEDC channels before ledcAttach for LEDs
+  // SG90: 50Hz, 544-2400µs pulse range
+  servoDoor.attach(SERVO_DOOR_PIN, 544, 2400);
+  servoWindow.attach(SERVO_WIN_PIN, 544, 2400);
+  setDoor(false);
+  setWindow(false);
+  delay(500); // let servos settle
+
+  // RGB LED pins — attach AFTER servos so channels don't conflict
   int rgbPins[] = {LED1_R, LED1_G, LED1_B,
                    LED2_R, LED2_G, LED2_B,
                    LED3_R, LED3_G, LED3_B};
-  for (int pin : rgbPins) pinMode(pin, OUTPUT);
+  for (int pin : rgbPins) ledcAttach(pin, 1000, 8);
 
   // Start all LEDs off
   writeRGB(LED1_R, LED1_G, LED1_B, 0, 0, 0);
   writeRGB(LED2_R, LED2_G, LED2_B, 0, 0, 0);
   writeRGB(LED3_R, LED3_G, LED3_B, 0, 0, 0);
 
-  // Buzzer
+  // Buzzer — boot beep confirms wiring
   pinMode(BUZZER_PIN, OUTPUT);
-  setBuzzer(false);
+  tone(BUZZER_PIN, 1000); delay(300); noTone(BUZZER_PIN);
 
   // Gas sensor
   pinMode(GAS_PIN, INPUT);
-
-  // Servos
-  servoDoor.attach(SERVO_DOOR_PIN);
-  servoWindow.attach(SERVO_WIN_PIN);
-  setDoor(false);
-  setWindow(false);
 
   // DHT11
   dht.begin();
@@ -389,14 +394,22 @@ void loop() {
 
   unsigned long now = millis();
 
-  // Publish gas every 3s
+  // Publish gas every 3s + local buzzer trigger
   if (now - lastGasMs >= GAS_INTERVAL) {
     lastGasMs = now;
+    int   raw = analogRead(GAS_PIN);
     float ppm = readGasPPM();
     char payload[48];
     snprintf(payload, sizeof(payload), "{\"level\":%.1f}", ppm);
     mqtt.publish(topicGas, payload, false);
-    Serial.printf("[GAS] %.1f ppm\n", ppm);
+    Serial.printf("[GAS] raw=%d  %.1f ppm\n", raw, ppm);
+    // Local safety: trigger buzzer directly if raw ADC exceeds threshold
+    if (raw > GAS_RAW_THRESHOLD) {
+      setBuzzer(true);
+      Serial.printf("[BUZZER] LOCAL ALARM raw=%d\n", raw);
+    } else {
+      setBuzzer(false);
+    }
   }
 
   // Publish DHT11 every 10s

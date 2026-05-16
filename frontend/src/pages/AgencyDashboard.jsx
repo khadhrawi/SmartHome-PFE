@@ -275,44 +275,99 @@ const AgencyDashboard = () => {
   ];
 
   return (
-    <div className="relative min-h-screen w-full p-4 md:p-6" style={{ background: 'linear-gradient(155deg,#07080E 0%,#101624 48%,#090A13 100%)' }}>
-      <div className="pointer-events-none absolute -left-24 top-14 h-72 w-72 rounded-full bg-amber-400/8 blur-3xl"/>
-      <div className="pointer-events-none absolute right-0 top-40 h-80 w-80 rounded-full bg-blue-500/6 blur-3xl"/>
+    <div className="relative min-h-screen w-full p-4 md:p-8" style={{ background: 'linear-gradient(155deg, #07080E 0%, #0D1420 48%, #090A13 100%)' }}>
+      <div className="pointer-events-none absolute -left-32 -top-16 h-[500px] w-[500px] rounded-full bg-amber-500/8 blur-3xl"/>
+      <div className="pointer-events-none absolute right-0 top-20 h-[450px] w-[450px] rounded-full bg-blue-600/6 blur-3xl"/>
+      <div className="pointer-events-none absolute left-1/2 bottom-40 h-72 w-72 -translate-x-1/2 rounded-full bg-violet-500/5 blur-3xl"/>
 
       {confirm && <ConfirmModal message={confirm.message} onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)}/>}
 
       <div className="relative z-10 mx-auto max-w-5xl space-y-6">
 
         {/* Header */}
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-400">Platform Admin</p>
-            <h1 className="text-3xl font-black text-white">Admin Dashboard</h1>
-            <p className="mt-1 text-sm text-zinc-400">Full control over house owners, residents, and access requests.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => { loadRequests(); loadOwners(); }}
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-zinc-300 hover:bg-white/10">
+        <motion.div
+          className="relative overflow-hidden rounded-[2rem] p-7"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.02) 100%)',
+            border: '1px solid rgba(255,255,255,0.09)',
+            backdropFilter: 'blur(30px)',
+            boxShadow: '0 30px 80px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+          }}
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-amber-500/8 blur-2xl" />
+          <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-violet-500/6 blur-xl" />
+
+          <div className="relative flex flex-wrap items-center justify-between gap-5">
+            <div className="flex items-center gap-5">
+              <div
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(251,191,36,0.22) 0%, rgba(167,139,250,0.16) 100%)',
+                  border: '1px solid rgba(255,255,255,0.13)',
+                  boxShadow: '0 0 28px rgba(251,191,36,0.18)',
+                }}
+              >
+                <Shield size={26} style={{ color: '#fbbf24' }} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: 'rgba(251,191,36,0.65)' }}>Platform Admin</p>
+                <h1
+                  className="mt-0.5 text-3xl font-black"
+                  style={{
+                    background: 'linear-gradient(135deg, #ffffff 0%, #94a3b8 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  Agency Dashboard
+                </h1>
+                <p className="mt-1 text-xs text-zinc-400">Full control over house owners, residents, and access requests.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { loadRequests(); loadOwners(); }}
+              className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold transition-all hover:scale-105"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.65)' }}
+            >
               <RefreshCw size={13}/> Refresh
             </button>
           </div>
-        </div>
+        </motion.div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { label: 'House Owners', value: owners.length,   icon: Home,    color: '#4ade80' },
-            { label: 'Total Residents', value: totalResidents, icon: Users,  color: '#60a5fa' },
-            { label: 'Pending Requests', value: pendingCount, icon: Clock,  color: '#fbbf24' },
-            { label: 'Active Houses', value: owners.filter(o => o.houseCode).length, icon: Building2, color: '#a78bfa' },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="rounded-2xl border border-white/8 bg-white/4 p-4 backdrop-blur-xl">
-              <div className="mb-2 flex items-center gap-2">
-                <Icon size={14} style={{ color }}/>
-                <span className="text-xs font-semibold text-zinc-400">{label}</span>
+            { label: 'House Owners',    value: owners.length,                              icon: Home,     color: '#4ade80' },
+            { label: 'Total Residents', value: totalResidents,                             icon: Users,    color: '#60a5fa' },
+            { label: 'Pending',         value: pendingCount,                               icon: Clock,    color: '#fbbf24' },
+            { label: 'Active Houses',   value: owners.filter(o => o.houseCode).length,     icon: Building2, color: '#a78bfa' },
+          ].map(({ label, value, icon: Icon, color }, i) => (
+            <motion.div
+              key={label}
+              className="relative overflow-hidden rounded-[1.5rem] p-5"
+              style={{
+                background: `${color}0a`,
+                border: `1px solid ${color}28`,
+                backdropFilter: 'blur(20px)',
+                boxShadow: `0 8px 32px ${color}10`,
+              }}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="pointer-events-none absolute -right-4 -bottom-4 h-24 w-24 rounded-full blur-xl" style={{ background: `${color}18` }} />
+              <div
+                className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl"
+                style={{ background: `${color}18`, border: `1px solid ${color}30`, boxShadow: `0 0 16px ${color}20` }}
+              >
+                <Icon size={15} style={{ color }} />
               </div>
-              <p className="text-2xl font-black text-white">{value}</p>
-            </div>
+              <p className="text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: `${color}88` }}>{label}</p>
+              <p className="mt-1 text-3xl font-black tabular-nums leading-none" style={{ color }}>{value}</p>
+            </motion.div>
           ))}
         </div>
 
@@ -328,13 +383,33 @@ const AgencyDashboard = () => {
         </AnimatePresence>
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-white/8 pb-px">
+        <div
+          className="flex gap-1 rounded-2xl p-1"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+        >
           {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 rounded-t-xl px-4 py-2.5 text-sm font-bold transition ${tab === t.id ? 'border-b-2 border-amber-400 text-amber-300' : 'text-zinc-400 hover:text-white'}`}>
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className="relative flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200"
+              style={{
+                background: tab === t.id ? 'rgba(251,191,36,0.12)' : 'transparent',
+                border: tab === t.id ? '1px solid rgba(251,191,36,0.28)' : '1px solid transparent',
+                color: tab === t.id ? '#fbbf24' : 'rgba(255,255,255,0.4)',
+                boxShadow: tab === t.id ? '0 4px 16px rgba(251,191,36,0.12)' : 'none',
+              }}
+            >
               {t.label}
               {t.badge > 0 && (
-                <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-zinc-900">{t.badge}</span>
+                <span
+                  className="rounded-full px-1.5 py-0.5 text-[9px] font-black"
+                  style={{
+                    background: tab === t.id ? '#fbbf24' : 'rgba(255,255,255,0.1)',
+                    color: tab === t.id ? '#0a0a0a' : 'rgba(255,255,255,0.5)',
+                  }}
+                >
+                  {t.badge}
+                </span>
               )}
             </button>
           ))}
@@ -342,13 +417,30 @@ const AgencyDashboard = () => {
 
         {/* Tab: Owner Requests */}
         {tab === 'requests' && (
-          <div className="rounded-3xl border border-white/8 bg-white/4 p-5 backdrop-blur-xl">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-black text-white">House Owner Requests</h2>
-              <div className="flex gap-1">
+          <motion.div
+            className="rounded-[2rem] p-6"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          >
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <h2
+                className="text-lg font-black"
+                style={{
+                  background: 'linear-gradient(135deg, #ffffff 0%, #94a3b8 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                House Owner Requests
+              </h2>
+              <div className="flex gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 {['pending','approved','rejected','consumed'].map(s => (
                   <button key={s} onClick={() => setReqFilter(s)}
-                    className={`rounded-xl px-3 py-1 text-xs font-bold capitalize transition ${reqFilter === s ? 'bg-amber-400 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}>
+                    className="rounded-lg px-3 py-1 text-xs font-bold capitalize transition-all"
+                    style={{
+                      background: reqFilter === s ? '#fbbf24' : 'transparent',
+                      color: reqFilter === s ? '#0a0a0a' : 'rgba(255,255,255,0.4)',
+                    }}>
                     {s === 'consumed' ? 'Registered' : s}
                   </button>
                 ))}
@@ -365,15 +457,28 @@ const AgencyDashboard = () => {
                 ))}
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
         {/* Tab: Houses & Users */}
         {tab === 'users' && (
-          <div className="rounded-3xl border border-white/8 bg-white/4 p-5 backdrop-blur-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-black text-white">Houses & Users</h2>
-              <p className="text-xs text-zinc-500">{owners.length} house owner{owners.length !== 1 ? 's' : ''} · {totalResidents} resident{totalResidents !== 1 ? 's' : ''}</p>
+          <motion.div
+            className="rounded-[2rem] p-6"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <h2
+                className="text-lg font-black"
+                style={{
+                  background: 'linear-gradient(135deg, #ffffff 0%, #94a3b8 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                Houses &amp; Users
+              </h2>
+              <p className="text-xs text-zinc-500">{owners.length} owner{owners.length !== 1 ? 's' : ''} · {totalResidents} resident{totalResidents !== 1 ? 's' : ''}</p>
             </div>
             {loadingOwners ? (
               <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-zinc-500"/></div>
@@ -386,20 +491,34 @@ const AgencyDashboard = () => {
                 ))}
               </div>
             )}
-          </div>
+          </motion.div>
         )}
         {/* Tab: Manage Houses */}
         {tab === 'houses' && (
-          <div className="rounded-3xl border border-white/8 bg-white/4 p-5 backdrop-blur-xl">
-            <div className="mb-4 flex items-center justify-between">
+          <motion.div
+            className="rounded-[2rem] p-6"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          >
+            <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-black text-white">Manage Houses</h2>
+                <h2
+                  className="text-lg font-black"
+                  style={{
+                    background: 'linear-gradient(135deg, #ffffff 0%, #94a3b8 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  Manage Houses
+                </h2>
                 <p className="text-xs text-zinc-500 mt-0.5">{houses.length} total · {houses.filter(h => h.claimed).length} claimed · {houses.filter(h => !h.claimed).length} unclaimed</p>
               </div>
               <button
                 onClick={handleAddHouse}
                 disabled={addingHouse}
-                className="flex items-center gap-2 rounded-2xl bg-amber-400 px-4 py-2 text-sm font-black text-zinc-900 hover:bg-amber-300 disabled:opacity-60 transition"
+                className="flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-black transition-all hover:scale-105 disabled:opacity-60"
+                style={{ background: '#fbbf24', color: '#0a0a0a', boxShadow: '0 6px 20px rgba(251,191,36,0.3)' }}
               >
                 {addingHouse ? <Loader2 size={15} className="animate-spin"/> : <Plus size={15}/>}
                 {addingHouse ? 'Generating…' : 'Add House'}
@@ -444,7 +563,7 @@ const AgencyDashboard = () => {
                 ))}
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
       </div>
