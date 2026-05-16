@@ -151,6 +151,9 @@ mongoose
     // Init gas MQTT listener (needs Mongoose ready)
     require('./gasMonitor').init();
 
+    // Init DHT11 temperature/humidity MQTT listener
+    require('./dhtMonitor').init();
+
     // Start scenario scheduler (cron jobs for time-based automations)
     require('./scheduler').initScheduler();
   })
