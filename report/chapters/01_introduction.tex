@@ -1,71 +1,169 @@
-\chapter{General Introduction}
+%=============================================================================
+%  Chapitre 1 — Introduction Générale
+%=============================================================================
+\chapter{Introduction Générale}
 
-\section{Background and Motivation}
-Smart homes have moved from isolated gadget ecosystems to interconnected cyber-physical systems where sensing, actuation, analytics, and user interaction are tightly coupled. In many residential contexts, however, available solutions remain fragmented: one mobile app for cameras, another for lights, and separate tools for safety devices. This fragmentation creates operational inefficiency, weakens security posture, and introduces user friction.
+\section{Contexte et Motivation}
 
-The SmartHome IoT Platform was conceived as a unified solution that addresses this gap. Instead of providing only a visual dashboard, it implements a full operational backbone: role-based account management, real-time command and telemetry channels, household governance, emergency safety workflows, and extensible domain logic for automation scenarios.
+Les maisons connectées ont évolué d'écosystèmes de gadgets isolés vers des systèmes
+cyber-physiques intégrés où la captation, l'actionnement, l'analyse et l'interaction
+utilisateur sont étroitement couplés. Selon Statista (2024), le nombre de dispositifs
+de maison intelligente en service dans le monde a dépassé 1,3 milliard d'unités, et le
+marché mondial de la maison intelligente est projeté à 622 milliards de dollars d'ici 2026.
 
-\section{Project Context}
-The project is developed as an end-of-studies engineering project with both academic and practical goals. Academically, it demonstrates mastery of software architecture, distributed systems, web engineering, and IoT integration. Practically, it provides a deployable product architecture that can support agency-managed and owner-managed homes.
+Malgré cette croissance, la plupart des solutions disponibles restent fragmentées : une
+application mobile pour les caméras, une autre pour l'éclairage, et des outils distincts
+pour les dispositifs de sécurité. Cette fragmentation crée des inefficacités opérationnelles,
+affaiblit la posture de sécurité et génère des frictions pour les utilisateurs quotidiens.
 
-The repository is organized as a monorepo with two major applications:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Backend service written in Node.js/Express with MongoDB persistence and integrated MQTT broker.
-  \item Frontend client written in React/Vite with role-aware routing, real-time state synchronization, and domain-oriented user interfaces.
+La \textbf{Plateforme IoT Maison Intelligente} répond à cette lacune avec une solution
+unifiée : une plateforme unique de qualité production qui intègre la gestion des appareils,
+les canaux de commande et de télémétrie en temps réel, la gouvernance du foyer, les flux
+d'urgence sécuritaire, un assistant IA, et des scénarios d'automatisation extensibles ---
+le tout accessible depuis une interface web responsive.
+
+\section{Cadre du Projet}
+
+Ce projet a été développé en tant que Projet de Fin d'Études (PFE) à
+\textbf{ISET Siliana --- Institut Supérieur des Etudes Technologiques de Siliana}, année
+académique 2025--2026, en vue de l'obtention de la Licence Appliquée en Informatique.
+
+Le projet est organisé comme un \textbf{monorepo} contenant trois artefacts déployables :
+
+\begin{itemize}[leftmargin=1.5cm,itemsep=6pt]
+  \item \textbf{Service backend} --- API REST Node.js/Express, courtier MQTT Aedes intégré,
+        passerelle Socket.IO, et couche de persistance MongoDB.
+  \item \textbf{Client frontend} --- Application monopage React~19/Vite avec routage
+        conscient des rôles, synchronisation d'état en temps réel, plan d'étage 3D
+        isométrique, et interface de chat IA.
+  \item \textbf{Firmware ESP32} --- Sketch Arduino sur microcontrôleur ESP32-D intégrant
+        la détection de température/humidité (DHT11), la détection de gaz (MQ6), le
+        contrôle de LEDs RGB, et l'actionnement de servomoteurs.
 \end{itemize}
 
-\section{Problem Statement}
-The central engineering problem addressed by this project is the design and implementation of a scalable smart-home platform that simultaneously satisfies:
-\begin{enumerate}[leftmargin=1.2cm]
-  \item Real-time responsiveness for user-facing events and IoT telemetry.
-  \item Clear role separation across agency, house owner/admin, and resident accounts.
-  \item Safety-critical behavior for gas incidents with deterministic emergency transitions.
-  \item Maintainable architecture that supports progressive feature extension.
+\section{Problématique}
+
+Le problème d'ingénierie central traité par ce projet est la conception et la mise en
+œuvre d'une \textbf{plateforme multi-locataires de maison intelligente scalable} qui
+satisfait simultanément les contraintes suivantes :
+
+\begin{enumerate}[leftmargin=1.5cm,itemsep=6pt]
+  \item \textbf{Réactivité temps réel} pour les événements utilisateur et la télémétrie
+        IoT avec une latence bout en bout inférieure à 500~ms.
+  \item \textbf{Séparation claire des rôles} entre les comptes Agence, Administrateur
+        de maison, Résident et SuperAdmin avec une gestion granulaire des permissions.
+  \item \textbf{Comportement critique de sécurité} pour les incidents gazeux avec des
+        transitions d'état d'urgence déterministes, une actuation matérielle et une
+        notification multi-canal.
+  \item \textbf{Architecture maintenable} supportant l'extension progressive des
+        fonctionnalités sans rompre les contrats existants.
+  \item \textbf{Intégration IA accessible} permettant le contrôle des appareils en
+        langage naturel via une API de modèle de langage à faible latence.
 \end{enumerate}
 
-Traditional monolithic smart-home apps often fail in one or more of these dimensions due to limited event modeling, weak authorization boundaries, and ad-hoc data handling. This project intentionally applies layered architecture and event-driven communication to handle these constraints.
+\section{Objectifs du Projet}
 
-\section{Objectives}
-The project objectives were defined as follows:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Build a complete role-based authentication and onboarding system.
-  \item Enable CRUD and command workflows for connected devices.
-  \item Integrate MQTT for machine-to-machine messaging and Socket.IO for human-facing notifications.
-  \item Implement gas emergency monitoring, thresholding, and hardware command propagation.
-  \item Provide resident permission-request workflows reviewed by house admins.
-  \item Deliver maintainable code organization with clear module boundaries.
-  \item Prepare documentation suitable for industrial continuation.
+Les objectifs du projet, mappés à des livrables mesurables, sont les suivants :
+
+\begin{center}
+\begin{longtable}{p{0.08\textwidth} p{0.48\textwidth} p{0.34\textwidth}}
+\caption{Objectifs et Livrables du Projet}\label{tab:objectifs}\\
+\toprule
+\textbf{ID} & \textbf{Objectif} & \textbf{Livrable} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Objectif} & \textbf{Livrable} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+O1  & Construire un système d'authentification multi-rôles complet et sécurisé & API Auth, middleware JWT, OAuth, 2FA \\
+O2  & Activer les flux CRUD et de commande pour les appareils connectés & API Appareils, pipeline de publication MQTT \\
+O3  & Intégrer un courtier MQTT pour la messagerie IoT & Courtier Aedes, routage de topics, client ESP32 \\
+O4  & Livrer la synchronisation d'état en temps réel aux clients web & Passerelle Socket.IO, catalogue d'événements \\
+O5  & Implémenter la surveillance d'urgence gaz avec réponse matérielle & Service Gas Monitor, workflow d'urgence \\
+O6  & Fournir un flux de demande de permission pour les résidents & API Permissions, système de notification \\
+O7  & Construire un plan d'étage 3D avec contrôle interactif des appareils & Composant FloorPlan, overlay SVG \\
+O8  & Développer un assistant IA (Melo) avec contrôle en langage naturel & API Companion, interface chat Melo \\
+O9  & Implémenter l'automatisation par scénarios temporels & API Scénarios, planificateur node-cron \\
+O10 & Créer un tableau de bord de surveillance de la consommation énergétique & API Énergie, visualisation recharts \\
+O11 & Déployer le système complet avec runbook opérationnel documenté & Config déploiement, annexe runbook \\
+\end{longtable}
+\end{center}
+
+\section{Approche Méthodologique --- Scrum}
+
+La mise en œuvre a suivi le cadre agile \textbf{Scrum}, choisi pour ses cycles de livraison
+itératifs, l'intégration continue du feedback et la gestion transparente du backlog.
+Les rôles Scrum ont été mappés au contexte académique :
+
+\begin{itemize}[leftmargin=1.5cm,itemsep=6pt]
+  \item \textbf{Product Owner} --- Encadrant académique (validation des exigences fonctionnelles).
+  \item \textbf{Scrum Master} --- Auteur (facilitation des cérémonies, suivi de la vélocité).
+  \item \textbf{Équipe de développement} --- Auteur (développement full-stack et firmware).
 \end{itemize}
 
-\section{Methodological Approach}
-The implementation followed an iterative approach:
-\begin{enumerate}[leftmargin=1.2cm]
-  \item Requirement capture and user-flow mapping.
-  \item Domain modeling and architectural decomposition.
-  \item Progressive implementation of backend modules and APIs.
-  \item Frontend development with role-specific route guards.
-  \item Real-time and IoT integration.
-  \item Security hardening, quality validation, and deployment readiness.
-\end{enumerate}
+\noindent Le projet a été livré en \textbf{six sprints} de deux semaines chacun, comme
+résumé dans le Tableau~\ref{tab:sprint_resume}.
 
-Each iteration included feedback from integration tests and runtime behavior. Particular attention was given to synchronization points between database state, MQTT events, and Socket.IO events.
+\begin{center}
+\begin{longtable}{c p{0.26\textwidth} p{0.38\textwidth} c}
+\caption{Résumé des Sprints}\label{tab:sprint_resume}\\
+\toprule
+\textbf{Sprint} & \textbf{Thème} & \textbf{Livrables Principaux} & \textbf{SP} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Sprint} & \textbf{Thème} & \textbf{Livrables Principaux} & \textbf{SP} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+1 & Authentification et Gestion des Utilisateurs & Flux d'inscription, JWT, OAuth, 2FA, vérification email & 34 \\
+2 & Gestion des Appareils et MQTT              & CRUD Appareils, courtier MQTT, firmware ESP32           & 39 \\
+3 & Plan d'Étage et Synchronisation TR         & Plan 3D, scènes/ambiances, passerelle Socket.IO         & 37 \\
+4 & Systèmes de Sécurité                       & Moniteur gaz, DHT11, workflow d'urgence, vanne          & 36 \\
+5 & Assistant IA et Automatisation             & Melo IA, scénarios, surveillance énergétique            & 34 \\
+6 & Portail Agence et Audit                    & Hub conciergerie, journaux d'audit, permissions         & 37 \\
+\midrule
+  & \textbf{Total}                             &                                                          & \textbf{217} \\
+\bottomrule
+\end{longtable}
+\end{center}
 
-\section{Scientific and Engineering Contributions}
-This report contributes in several dimensions:
-\begin{itemize}[leftmargin=1.2cm]
-  \item A practical architecture for combining REST APIs, MQTT brokering, and web sockets in one coherent backend.
-  \item A concrete role-governance model adaptable to residential operations.
-  \item A safety-control loop linking telemetry thresholds to machine commands and user notifications.
-  \item A detailed blueprint for extending smart-home platforms with modular domain services.
+\section{Contributions Scientifiques et Techniques}
+
+Ce projet contribue au domaine de l'IoT et du génie logiciel web en plusieurs dimensions :
+
+\begin{itemize}[leftmargin=1.5cm,itemsep=6pt]
+  \item Une \textbf{architecture pratique} combinant APIs REST, courtage MQTT et WebSockets
+        dans un service Node.js cohérent.
+  \item Un \textbf{modèle de gouvernance des rôles} adaptable aux contextes résidentiels
+        et de gestion de propriétés multi-unités.
+  \item Une \textbf{boucle de contrôle sécuritaire} liant les seuils de télémétrie PPM
+        aux commandes matérielles et aux notifications multi-canal.
+  \item Une \textbf{interface en langage naturel} alimentée par LLM, contrainte par le
+        contrôle d'accès basé sur les rôles.
+  \item Un \textbf{plan d'artefacts Scrum} applicable aux projets IoT similaires en
+        contexte académique.
 \end{itemize}
 
-\section{Report Organization}
-The report is structured from analysis to operation:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Chapters 1 to 3: context, requirements, and technology foundations.
-  \item Chapters 4 to 8: architecture, UML modeling, backend/frontend design, and real-time IoT flows.
-  \item Chapters 9 to 11: security, testing, deployment, project management, and risk governance.
-  \item Chapters 12 to 15: conclusion, complete technical appendices, and runbook-level documentation.
-\end{itemize}
+\section{Organisation du Rapport}
 
-This structure ensures that both evaluators and future maintainers can traverse from conceptual intent to implementation and operational details.
+Ce rapport est structuré pour guider le lecteur des aspects conceptuels aux détails
+d'implémentation et opérationnels :
+
+\begin{description}[leftmargin=1.5cm,itemsep=6pt]
+  \item[Chapitres 1--3 :] Contexte du projet, analyse des besoins, état de l'art et
+        évaluation technologique.
+  \item[Chapitre 4 :] Architecture système et modélisation UML (déploiement, composants,
+        cas d'utilisation, classes et diagrammes de séquence).
+  \item[Chapitres 5--8 :] Implémentation sprint par sprint couvrant la base de données,
+        les APIs backend, l'interface frontend et l'intégration IoT.
+  \item[Chapitres 9--11 :] Évaluation sécuritaire, stratégie de test, pipeline de
+        déploiement et gestion de projet.
+  \item[Chapitre 12 :] Conclusion, rétrospective et feuille de route future.
+  \item[Annexes (13--16) :] Référence API complète, inventaire frontend, runbook
+        d'installation et matrice de traçabilité.
+\end{description}

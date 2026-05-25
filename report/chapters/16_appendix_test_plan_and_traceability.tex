@@ -1,221 +1,143 @@
-\chapter{Appendix D: Detailed Test Plan and Requirement Traceability}
+%=============================================================================
+%  Annexe D — Matrice de Traçabilité des Exigences
+%=============================================================================
+\chapter{Annexe D : Matrice de Traçabilité des Exigences}
 
-\section{Objective}
-This appendix formalizes validation strategy by mapping requirements to concrete test cases and acceptance criteria.
+\section{Objectif}
 
-\section{Test Strategy Layers}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Unit tests: isolated domain behavior and utilities.
-  \item Integration tests: route + DB + realtime interactions.
-  \item End-to-end tests: user journey validation by role.
-  \item IoT simulation tests: MQTT telemetry and command loop.
-\end{itemize}
+Cette annexe fournit une matrice de traçabilité complète reliant chaque exigence
+fonctionnelle (du Chapitre~2) à la User Story qui l'implémente, au Sprint dans lequel
+elle a été livrée, et au cas de test qui la valide.
 
-\section{Environment Matrix}
-\begin{longtable}{p{3.2cm}p{3.2cm}p{3cm}p{5.5cm}}
+\section{Matrice de Traçabilité}
+
+\begin{center}
+\begin{longtable}{p{0.08\textwidth} p{0.28\textwidth} p{0.09\textwidth} p{0.10\textwidth} p{0.08\textwidth} p{0.20\textwidth}}
+\caption{Matrice de Traçabilité des Exigences}\label{tab:rtm}\\
 \toprule
-Environment & Purpose & Data Type & Notes \\
+\textbf{EF-ID} & \textbf{Résumé de l'Exigence} & \textbf{US-ID} & \textbf{Sprint} & \textbf{CT-ID} & \textbf{Validation} \\
 \midrule
-Local Dev & Feature development & Seed/demo & Fast iteration, debug logs \\
-Integration & Contract validation & Synthetic realistic & Automated route-event tests \\
-Staging & Pre-production checks & Sanitized close-to-prod & Deployment and performance smoke \\
-Production & Live service & Real user/device data & Strict monitoring and controls \\
-\bottomrule
-\end{longtable}
-
-\section{Requirement-to-Test Traceability Matrix}
-\begin{longtable}{p{1.8cm}p{4cm}p{2.8cm}p{6.4cm}}
+\endfirsthead
 \toprule
-Req ID & Requirement & Test ID & Validation Scope \\
+\textbf{EF-ID} & \textbf{Résumé de l'Exigence} & \textbf{US-ID} & \textbf{Sprint} & \textbf{CT-ID} & \textbf{Validation} \\
 \midrule
-R-01 & Resident registration/login & T-AUTH-01..05 & Input validation, token issuance, role mapping \\
-R-02 & Admin login with access code & T-AUTH-06..08 & Access code guard and role enforcement \\
-R-03 & Unit join/solo onboarding & T-UNIT-01..06 & House assignment and capability flags \\
-R-04 & Device registration and command & T-DEV-01..10 & CRUD scope and MQTT command publish \\
-R-05 & Permission request workflow & T-PERM-01..12 & Lifecycle and realtime synchronization \\
-R-06 & Gas emergency lifecycle & T-GAS-01..12 & Threshold transitions and actuator commands \\
-R-07 & Agency unit governance & T-AGY-01..09 & Unit generation, update, analytics \\
-R-08 & OAuth and account lifecycle & T-OAUTH-01..05 & Callback payload and auth consistency \\
+\endhead
 \bottomrule
+\endfoot
+EF-A1  & Inscription multi-rôles         & US-01,02 & 1 & CT-01 & Postman : inscrire tous les rôles \\
+EF-A2  & Génération code maison unique   & US-01    & 1 & CT-01 & Vérifier unicité en BD \\
+EF-A3  & Rejoindre maison avec code résident & US-02 & 1 & CT-01 & Résident inscrit avec code valide \\
+EF-A4  & Code secret agence              & --       & 6 & --    & Postman : inscription agence \\
+EF-A5  & Token JWT 30 jours              & US-03    & 1 & CT-02 & Décoder expiration JWT \\
+EF-A6  & Hachage mot de passe bcrypt     & US-03    & 1 & CT-02 & Vérifier BD : pas de texte clair \\
+EF-A7  & Google OAuth 2.0                & US-04    & 1 & Manuel& Redirection callback OAuth \\
+EF-A8  & TOTP 2FA                        & US-07    & 1 & Manuel& Vérification Google Authenticator \\
+EF-A9  & Vérification email              & US-05    & 1 & Manuel& Clic lien email \\
+EF-A10 & Réinitialisation mot de passe   & US-06    & 1 & Manuel& Flux token email \\
+EF-D1  & CRUD Appareils                  & US-09    & 2 & CT-05 & Postman : cycle CRUD complet \\
+EF-D2  & Topic MQTT unique               & US-09    & 2 & CT-05 & Topic dupliqué $\to$ 400 \\
+EF-D3  & 20+ types d'appareils           & US-09    & 2 & Manuel& Validation enum type appareil \\
+EF-D5  & Publication commande MQTT       & US-11    & 2 & CT-06 & MQTT Explorer + LED physique \\
+EF-D6  & Diffusion état Socket.IO        & US-17    & 3 & Manuel& Mise à jour second onglet \\
+EF-D7  & Restriction appareil résident   & US-10    & 2 & CT-04 & Résident $\to$ 403 mauvaise pièce \\
+EF-F1  & Plan d'étage isométrique 3D     & US-14    & 3 & Manuel& Vérification visuelle navigateur \\
+EF-F4  & Préréglages de scènes           & US-16    & 3 & CT-07 & Scène Matin + servo \\
+EF-F5  & Scène règle luminosité+fenêtre  & US-16    & 3 & CT-07 & Toutes LEDs + servo vérifiés \\
+EF-S1  & ESP32 publication gaz 3s        & US-12    & 2 & Manuel& Flux topic MQTT Explorer \\
+EF-S2  & Comparaison seuil gaz           & US-22    & 4 & CT-08 & Test PPM au-dessus du seuil \\
+EF-S3  & Activation mode urgence         & US-19    & 4 & CT-08 & emergencyMode = true en BD \\
+EF-S4  & Buzzer + vanne + événement Socket & US-19  & 4 & CT-09 & Matériel + alerte navigateur \\
+EF-S5  & Levée manuelle admin            & US-20    & 4 & CT-09 & Endpoint clear, buzzer éteint \\
+EF-S6  & DHT11 publication 10s           & US-13    & 2 & Manuel& MQTT Explorer + vérif BD \\
+EF-IA1 & Compagnon IA Groq               & US-23    & 5 & CT-10 & Réponse commande chat \\
+EF-IA3 & IA respecte les permissions     & US-23    & 5 & CT-10 & Résident refusé mauvaise pièce \\
+EF-SC1 & Scénarios temporels             & US-24    & 5 & CT-15 & Scénario créé via API \\
+EF-SC2 & Exécution cron                  & US-24    & 5 & CT-15 & Scène déclenchée à HH:MM \\
+EF-EN1 & Calcul énergie                  & US-25    & 5 & Manuel& Graphique montre kWh non nul \\
+EF-PM1 & Demande permission résident     & US-29    & 6 & CT-11 & Demande créée en BD \\
+EF-PM2 & Approbation admin               & US-30    & 6 & CT-12 & Statut = approuvé, permission ajoutée \\
+EF-PM3 & Notification temps réel         & US-30    & 6 & CT-12 & Événement Socket reçu \\
+EF-AU1 & Journalisation d'audit          & --       & Tous & Manuel & Documents AuditLog vérifiés \\
+EF-AU2 & Vue journal admin               & US-28    & 6 & Manuel & Journal filtré rendu \\
+ENF-P2 & Limitation débit 200/15min      & --       & 1  & CT-13  & 429 à la 21ème requête auth \\
+ENF-S1 & Stockage bcrypt                 & US-03    & 1  & CT-02  & Inspection BD \\
+ENF-U1 & Interface responsive            & --       & Tous & Manuel & Testé à 768px et plus \\
 \end{longtable}
+\end{center}
 
-\section{Authentication Test Cases}
-\subsection{T-AUTH-01 Resident Register Success}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Preconditions: valid house code exists and invite policy satisfied.
-  \item Steps: submit registration payload.
-  \item Expected: HTTP 201, token present, role resident, houseCode persisted.
-\end{itemize}
+\section{Données de Burndown des Sprints}
 
-\subsection{T-AUTH-02 Resident Register Invalid House Code}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: HTTP 400 with invalid house code message.
-\end{itemize}
-
-\subsection{T-AUTH-03 Resident Login Unverified Email}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: HTTP 403 with EMAIL\_NOT\_VERIFIED code.
-\end{itemize}
-
-\subsection{T-AUTH-04 Admin Login Wrong Access Code}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: HTTP 401 and explicit invalid access code response.
-\end{itemize}
-
-\subsection{T-AUTH-05 Agency Login Wrong Role}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: HTTP 403 for non-agency account.
-\end{itemize}
-
-\section{Unit and Onboarding Test Cases}
-\subsection{T-UNIT-01 Join Existing Unit Success}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Verify user houseCode set to existing unitCode.
-  \item Verify linked admin is assigned.
-\end{itemize}
-
-\subsection{T-UNIT-02 Join Unknown Unit}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: HTTP 404 no residence found.
-\end{itemize}
-
-\subsection{T-UNIT-03 Create Solo Unit}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: unique code generated, isManaged false, isSuperAdmin true.
-\end{itemize}
-
-\section{Device Test Cases}
-\subsection{T-DEV-01 Register Device as Admin}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: device created with house-scoped ownership.
-\end{itemize}
-
-\subsection{T-DEV-02 Register Device Duplicate Topic}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: HTTP 400 duplicate topic message.
-\end{itemize}
-
-\subsection{T-DEV-03 Send Device Command}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: MQTT publish to command/<topic>, DB state update.
-\end{itemize}
-
-\subsection{T-DEV-04 Delete Device Unauthorized}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: role guard blocks deletion.
-\end{itemize}
-
-\section{Permission Workflow Test Cases}
-\subsection{T-PERM-01 Resident Creates Request}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: pending request created, admin notification emitted.
-\end{itemize}
-
-\subsection{T-PERM-02 Prevent Duplicate Pending Request}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: HTTP 409 conflict.
-\end{itemize}
-
-\subsection{T-PERM-03 Admin Approves Request}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: status approved, reviewer fields set, resident permissions merged.
-\end{itemize}
-
-\subsection{T-PERM-04 Admin Denies Request}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: status denied, no permission merge.
-\end{itemize}
-
-\subsection{T-PERM-05 Read-status Synchronization}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: read timestamps update for relevant actor side.
-\end{itemize}
-
-\section{Gas Safety Test Cases}
-\subsection{T-GAS-01 Reading Below Threshold}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: emergency false, state updated with latest gasLevel.
-\end{itemize}
-
-\subsection{T-GAS-02 Reading Above Threshold}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: emergency true, alarm publish, valve close publish.
-\end{itemize}
-
-\subsection{T-GAS-03 Emergency Clear by Admin}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: emergency false and reset event broadcast.
-\end{itemize}
-
-\subsection{T-GAS-04 Threshold Update Bounds}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: threshold clamped to allowed range and persisted.
-\end{itemize}
-
-\section{Agency and Owner-request Test Cases}
-\subsection{T-AGY-01 Generate Unit}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: unique unclaimed unit record created.
-\end{itemize}
-
-\subsection{T-AGY-02 Approve Owner Request}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: status approved, access code generated, email dispatch invoked.
-\end{itemize}
-
-\subsection{T-AGY-03 Reject Owner Request}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Expected: status rejected with optional note.
-\end{itemize}
-
-\section{Socket Event Validation Cases}
-\begin{longtable}{p{3cm}p{4cm}p{7cm}}
+\begin{center}
+\begin{longtable}{ccccccc}
+\caption{Points de Story Restants par Burndown Sprint}\label{tab:burndown}\\
 \toprule
-Test ID & Event & Expected Result \\
+\textbf{Jour} & \textbf{S1} & \textbf{S2} & \textbf{S3} & \textbf{S4} & \textbf{S5} & \textbf{S6} \\
 \midrule
-T-SOCK-01 & requestCreated & Delivered to house-admin room and admin user room \\
-T-SOCK-02 & requestStatusChanged & Delivered to requester and reviewing admin \\
-T-SOCK-03 & permissionsUpdated & Delivered to requester user room with new permissions \\
-T-SOCK-04 & house:gas-emergency & Delivered to house room and agency global in emergency \\
-T-SOCK-05 & dashboard:state-updated & Delivered to house room after scene activation \\
-\bottomrule
-\end{longtable}
-
-\section{Performance and Load Test Ideas}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Simulate N concurrent socket clients per house.
-  \item Burst MQTT telemetry and observe update latency.
-  \item Run API endpoint load profile for auth and permissions.
-\end{itemize}
-
-\section{Quality Gates for CI}
-\begin{enumerate}[leftmargin=1.2cm]
-  \item Lint success in backend and frontend.
-  \item Unit tests pass threshold.
-  \item Integration smoke suite green.
-  \item Security static checks with zero critical findings.
-\end{enumerate}
-
-\section{Defect Lifecycle Template}
-\begin{longtable}{p{2.5cm}p{3cm}p{3cm}p{5.5cm}}
+\endfirsthead
 \toprule
-Field & Example & Owner & Notes \\
+\textbf{Jour} & \textbf{S1} & \textbf{S2} & \textbf{S3} & \textbf{S4} & \textbf{S5} & \textbf{S6} \\
 \midrule
-Defect ID & BUG-047 & QA Engineer & Unique tracking identifier \\
-Severity & High & Tech Lead & Impact to safety/auth/business \\
-Status & In Progress & Developer & Open, In Progress, Ready, Closed \\
-Root Cause & Missing role guard & Backend Engineer & Include preventive action \\
+\endhead
 \bottomrule
+\endfoot
+0  & 34 & 39 & 37 & 36 & 34 & 37 \\
+2  & 28 & 31 & 29 & 28 & 26 & 29 \\
+4  & 20 & 23 & 21 & 20 & 18 & 21 \\
+6  & 14 & 16 & 14 & 13 & 12 & 14 \\
+8  & 8  & 10 & 8  & 7  & 7  & 8  \\
+10 & 3  & 4  & 3  & 3  & 3  & 3  \\
+14 & 0  & 0  & 0  & 0  & 0  & 0  \\
 \end{longtable}
+\end{center}
 
-\section{Exit Criteria for Release}
-Release candidate can be accepted when:
-\begin{itemize}[leftmargin=1.2cm]
-  \item no blocker defects remain,
-  \item all critical test cases pass,
-  \item security checks pass baseline,
-  \item smoke tests succeed in staging.
-\end{itemize}
+\section{Verrouillage des Versions Technologiques}
 
-\section{Appendix Summary}
-This appendix turns requirements into measurable validation assets, enabling reproducible quality governance over future project iterations.
+\begin{center}
+\begin{longtable}{lll}
+\caption{Versions Exactes des Technologies Utilisées}\label{tab:versions}\\
+\toprule
+\textbf{Paquet} & \textbf{Version} & \textbf{Environnement} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Paquet} & \textbf{Version} & \textbf{Environnement} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+express              & 4.19.2  & Backend \\
+mongoose             & 8.3.4   & Backend \\
+aedes                & 0.51.2  & Backend \\
+socket.io            & 4.8.3   & Backend \\
+jsonwebtoken         & 9.0.2   & Backend \\
+bcryptjs             & 2.4.3   & Backend \\
+passport             & 0.7.x   & Backend \\
+passport-google-oauth20 & 2.x  & Backend \\
+speakeasy            & 2.0.0   & Backend \\
+qrcode               & 1.5.4   & Backend \\
+groq-sdk             & 1.1.2   & Backend \\
+node-cron            & 4.2.1   & Backend \\
+nodemailer           & 8.0.7   & Backend \\
+helmet               & 8.1.0   & Backend \\
+express-rate-limit   & 7.x     & Backend \\
+express-validator    & 7.3.2   & Backend \\
+react                & 19.2.4  & Frontend \\
+react-router-dom     & 7.13.2  & Frontend \\
+vite                 & 8.0.1   & Frontend \\
+tailwindcss          & 4.2.2   & Frontend \\
+framer-motion        & 12.38.0 & Frontend \\
+three                & 0.184.0 & Frontend \\
+recharts             & 3.8.1   & Frontend \\
+socket.io-client     & 4.8.3   & Frontend \\
+mqtt.js              & 5.15.1  & Frontend \\
+axios                & 1.14.0  & Frontend \\
+jspdf                & 4.2.1   & Frontend \\
+lucide-react         & 1.7.0   & Frontend \\
+Node.js              & 18+ LTS & Runtime \\
+MongoDB              & 6.x     & Base de données \\
+Arduino IDE          & 2.x     & Firmware \\
+SDK ESP32            & 2.x     & Firmware \\
+PubSubClient         & 2.8.0   & Firmware \\
+ArduinoJson          & 6.x     & Firmware \\
+\end{longtable}
+\end{center}

@@ -1,101 +1,220 @@
-\chapter{Backend Design and API Specification}
+%=============================================================================
+%  Chapitre 6 — Sprint 3 : Plan d'Étage, Scènes et Synchronisation Temps Réel
+%=============================================================================
+\chapter{Sprint 3 --- Visualisation du Plan d'Étage, Contrôle de Scènes et Synchronisation Temps Réel}
 
-\section{Backend Runtime Overview}
-The backend process orchestrates three communication surfaces in one Node.js runtime:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Express HTTP API for transactional and business workflows.
-  \item Socket.IO server for authenticated push notifications.
-  \item Aedes MQTT broker for machine telemetry and command channels.
-\end{itemize}
+\begin{tcolorbox}[sprintbox,title={Sprint 3 --- Plan d'Étage et Synchronisation Temps Réel}]
+\textbf{Durée :} 2 semaines \quad
+\textbf{Points de Story :} 37 \quad
+\textbf{Objectif :} Livrer un plan d'étage 3D isométrique interactif avec contrôle
+des appareils par pièce, quatre préréglages de scènes d'éclairage, et la synchronisation
+d'état en temps réel via Socket.IO.
+\end{tcolorbox}
 
-\section{Bootstrapping Pipeline}
-System startup sequence:
-\begin{enumerate}[leftmargin=1.2cm]
-  \item Load environment variables.
-  \item Initialize Express middlewares (JSON parser, CORS, passport).
-  \item Register route modules.
-  \item Create HTTP server and bind Socket.IO.
-  \item Bind MQTT-over-WebSocket endpoint.
-  \item Connect MongoDB.
-  \item Start gas monitor listener.
-  \item Listen on HTTP and MQTT TCP ports.
-\end{enumerate}
+\section{Modèle État Maison (HouseState)}
 
-\section{Middleware Layer}
-\subsection{Authentication}
-JWT middleware extracts Bearer token, verifies signature, loads user context, and attaches it to request object.
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Sch\'ema HouseState (backend/models/HouseState.js)}]
+const houseStateSchema = new mongoose.Schema({
+  houseCode:    { type: String, required: true, unique: true },
+  lightingMode: { type: String,
+                  enum: ['Cinematic','Dinner','Morning','Sleep'],
+                  default: 'Morning' },
+  isLocked:     { type: Boolean, default: false },
+  awayMode:     { type: Boolean, default: false },
+  emergencyMode:{ type: Boolean, default: false },
+  gas: {
+    level:     { type: Number,  default: 0 },
+    threshold: { type: Number,  default: 400 },
+    valveOpen: { type: Boolean, default: true },
+    lastAlert: { type: Date }
+  },
+  temperature:  { type: Number, default: null },
+  humidity:     { type: Number, default: null },
+  updatedBy:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+}, { timestamps: true });
+\end{lstlisting}
 
-\subsection{Authorization}
-Role gates enforce admin-only and agency-only operations, reducing privilege escalation risk.
+\section{Routes API du Plan d'Étage}
 
-\subsection{Input Validation}
-Core route handlers validate required fields, normalized codes, and decision enums. Future enhancement should centralize validation schemas.
-
-\section{Route Domains}
-
-\subsection{Authentication and Account Lifecycle}
-Includes resident/admin/agency login/register, email verification, password reset, OAuth callback, and legacy compatibility handlers.
-
-\subsection{Unit and Agency Management}
-Supports unit generation, claim/join workflow, owner oversight, and aggregated agency analytics.
-
-\subsection{Device Management}
-Admin-managed registration, listing scoped by house filter, command emission via MQTT topics, and deletion lifecycle.
-
-\subsection{Scenario Operations}
-Scenario activation endpoint updates house state and device states in bulk and then emits synchronized dashboard update.
-
-\subsection{Permission Governance}
-Resident request submission and admin decision endpoints with notification lifecycle and permission-merge behavior.
-
-\subsection{Gas Safety Endpoints}
-State retrieval, manual threshold updates, valve control, and emergency clearing for admin users.
-
-\section{API Contract Design Principles}
-\begin{itemize}[leftmargin=1.2cm]
-  \item House-scoped filtering by authenticated user context.
-  \item Deterministic JSON payload structure.
-  \item Meaningful status codes for business and authorization outcomes.
-  \item Route naming consistent with domain concepts.
-\end{itemize}
-
-\section{Representative Endpoint Matrix}
-\begin{longtable}{p{2.3cm}p{4.2cm}p{3.2cm}p{5.2cm}}
+\begin{center}
+\begin{longtable}{p{0.09\textwidth} p{0.28\textwidth} p{0.51\textwidth}}
+\caption{Routes API du Plan d'Étage}\label{tab:floorplan_api}\\
 \toprule
-Method & Endpoint & Access & Purpose \\
+\textbf{Méthode} & \textbf{Endpoint} & \textbf{Description} \\
 \midrule
-POST & /api/auth/resident/register & Public & Create resident account and issue token \\
-POST & /api/auth/admin/login & Public & Authenticate admin with access code \\
-POST & /api/units/join & Authenticated & Link user to existing unit code \\
-GET & /api/devices & Authenticated & Retrieve house-scoped devices \\
-POST & /api/devices & Admin & Register new device \\
-PUT & /api/devices/:id/command & Authenticated & Publish command payload to device topic \\
-POST & /api/permissions/request & Resident & Request restricted action approval \\
-PATCH & /api/permissions/admin/requests/:id & Admin & Approve or deny request \\
-GET & /api/gas/state & Authenticated & Read current gas status \\
-PATCH & /api/gas/threshold & Admin & Update emergency threshold \\
+\endfirsthead
+\toprule
+\textbf{Méthode} & \textbf{Endpoint} & \textbf{Description} \\
+\midrule
+\endhead
 \bottomrule
+\endfoot
+GET  & /api/floorplan/state       & Retourner tous les appareils groupés par pièce + HouseState \\
+POST & /api/floorplan/command     & Exécuter une commande (publier MQTT + mettre à jour BD) \\
+POST & /api/floorplan/scene       & Activer un préréglage de scène d'éclairage \\
+GET  & /api/floorplan/house-state & Retourner le document HouseState courant \\
+POST & /api/floorplan/sync-defaults & Réinitialiser les positions des appareils aux valeurs par défaut \\
 \end{longtable}
+\end{center}
 
-\section{Error Handling Strategy}
-Error handling currently uses route-level try/catch patterns with JSON error messages. For production hardening, a centralized error middleware is recommended to enforce a uniform error schema and correlation IDs.
+\section{Implémentation des Scènes d'Éclairage}
 
-\section{Backend Security Controls}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Password hashing via bcrypt.
-  \item Signed JWT for stateless auth.
-  \item Role-based endpoint restrictions.
-  \item Token-verified socket handshake.
-  \item Controlled account lifecycle with email verification and password reset.
+Chaque préréglage de scène définit des valeurs de luminosité par pièce, l'état des
+fenêtres et l'état de la vanne gaz.
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Logique d'Activation de Sc\`{e}ne (backend/routes/floorplan.js)}]
+const SCENES = {
+  Morning:   { brightness: { 'Living Room':100,'Kitchen':100,'Bedroom':100,
+                              'Bathroom':100,'Utility':100,'Garage':80 },
+               windowsOpen: true,  valveOpen: true },
+  Dinner:    { brightness: { 'Living Room':75,'Kitchen':75,'Bedroom':35,
+                              'Bathroom':50,'Utility':30,'Garage':40 },
+               windowsOpen: false, valveOpen: true },
+  Cinematic: { brightness: { 'Living Room':8,'Kitchen':12,'Bedroom':10,
+                              'Bathroom':15,'Utility':18,'Garage':20 },
+               windowsOpen: false, valveOpen: false },
+  Sleep:     { brightness: { 'Living Room':15,'Kitchen':10,'Bedroom':3,
+                              'Bathroom':25,'Utility':10,'Garage':5 },
+               windowsOpen: false, valveOpen: false }
+};
+
+router.post('/scene', protect, async (req, res) => {
+  const { scene } = req.body;
+  const config = SCENES[scene];
+  if (!config) return res.status(400).json({ message: 'Scene inconnue' });
+
+  const devices = await Device.find({ houseCode: req.user.houseCode });
+  const updates = [];
+
+  for (const device of devices) {
+    if (['light','lamp','rgb-light'].includes(device.type)) {
+      const bri = config.brightness[device.room] ?? 50;
+      device.state = bri > 0;
+      device.brightness = bri;
+      updates.push(device.save());
+      mqttClient.publish(`command/${device.mqttTopic}`,
+        JSON.stringify({ state: bri > 0 ? 'ON':'OFF', brightness: bri }));
+    }
+    if (['window','blind'].includes(device.type)) {
+      device.state = config.windowsOpen;
+      updates.push(device.save());
+      mqttClient.publish(`command/${device.mqttTopic}`,
+        config.windowsOpen ? 'OPEN' : 'CLOSE');
+    }
+    if (device.type === 'valve') {
+      device.state = config.valveOpen;
+      updates.push(device.save());
+      mqttClient.publish(`command/${device.mqttTopic}`,
+        config.valveOpen ? 'OPEN' : 'CLOSE');
+    }
+  }
+
+  await Promise.all(updates);
+  await HouseState.findOneAndUpdate(
+    { houseCode: req.user.houseCode },
+    { lightingMode: scene },
+    { upsert: true }
+  );
+
+  io.to(req.user.houseCode).emit('dashboard:state-updated', { scene });
+  await logAudit(req.user, `Scene activee : ${scene}`, 'device', req.ip);
+  res.json({ success: true, scene });
+});
+\end{lstlisting}
+
+\section{Passerelle Socket.IO Temps Réel}
+
+\subsection{Authentification et Adhésion aux Chambres}
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Authentification Socket.IO (backend/server.js)}]
+io.use(async (socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) return next(new Error('Aucun token d\'authentification'));
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = await User.findById(decoded.id).lean();
+    next();
+  } catch {
+    next(new Error('Token invalide'));
+  }
+});
+
+io.on('connection', (socket) => {
+  const { houseCode, role, _id } = socket.user;
+  if (houseCode) socket.join(houseCode);        // Chambre scopee a la maison
+  socket.join(`role:${role}`);                  // Chambre de role
+  socket.join(`user:${_id}`);                   // Chambre personnelle
+  if (role === 'admin')  socket.join('house:admin');
+  if (role === 'agency') socket.join('agency:global');
+});
+\end{lstlisting}
+
+\subsection{Catalogue des Événements Socket.IO}
+
+\begin{center}
+\begin{longtable}{p{0.32\textwidth} p{0.16\textwidth} p{0.40\textwidth}}
+\caption{Référence des Événements Socket.IO}\label{tab:socket_events}\\
+\toprule
+\textbf{Nom de l'Événement} & \textbf{Direction} & \textbf{Description du Payload} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Nom de l'Événement} & \textbf{Direction} & \textbf{Description du Payload} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\texttt{device:updated}          & Serveur $\to$ Client & Document appareil mis à jour \\
+\texttt{dashboard:state-updated} & Serveur $\to$ Client & Synchronisation d'état en masse (scène, tous appareils) \\
+\texttt{house:gas-emergency}     & Serveur $\to$ Client & \{ppm, seuil, codeMaison\} \\
+\texttt{house:gas-clear}         & Serveur $\to$ Client & \{codeMaison\} \\
+\texttt{house:dht-update}        & Serveur $\to$ Client & \{température, humidité\} \\
+\texttt{permission:created}      & Serveur $\to$ Client & Nouvelle demande de permission \\
+\texttt{permission:updated}      & Serveur $\to$ Client & Demande de permission mise à jour \\
+\texttt{admin:connected}         & Serveur $\to$ Agence & Admin passé en ligne \\
+\texttt{admin:disconnected}      & Serveur $\to$ Agence & Admin passé hors ligne \\
+\end{longtable}
+\end{center}
+
+\section{Plan d'Étage 3D Isométrique}
+
+Le plan d'étage est rendu comme une projection isométrique SVG avec des overlays interactifs.
+Six pièces sont définies avec des coordonnées de mise en page fixes :
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Pièce} & \textbf{Position Grille} & \textbf{Appareils Hébergés} \\
+\midrule
+Salon     & (0,0) & Lumières, TV, AC, Caméra \\
+Cuisine   & (1,0) & Lumières, Prises, Capteur Gaz, Vanne \\
+Chambre   & (0,1) & Lumières, AC, Fenêtre \\
+Salle de Bain & (1,1) & Lumières, Ventilateur \\
+Utilitaire   & (2,0) & Lave-linge, Prises \\
+Garage    & (2,1) & Porte, Caméra, Lumières \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Chaque tuile de pièce est un polygone parallélogramme rendu à un angle
+isométrique. La couleur de la pièce passe dynamiquement du gris foncé (lumières éteintes)
+au jaune chaud (lumières à pleine luminosité) en interpolant la couleur hexadécimale
+selon la luminosité moyenne des lumières actives dans cette pièce.
+
+\section{Revue et Rétrospective Sprint 3}
+
+\begin{tcolorbox}[goalbox,title={Revue Sprint 3}]
+\textbf{Complété :} 4 user stories sur 4 (37 PS). Plan d'étage interactif démontré. \\
+\textbf{Points forts :} L'activation de la scène ``Cinéma'' a atténué toutes les lumières
+à 8--18\% et le changement s'est reflété en temps réel dans un second onglet navigateur
+en 150~ms. \\
+\textbf{Rétrospective :}
+\begin{itemize}[leftmargin=1cm,itemsep=2pt]
+  \item \textbf{Ce qui a bien fonctionné :} Le scopage des chambres Socket.IO par code
+        maison a élégamment géré l'isolation multi-locataire.
+  \item \textbf{Défi :} La projection isométrique SVG a nécessité des calculs mathématiques
+        importants pour les coordonnées de parallélogramme et le positionnement des overlays.
+  \item \textbf{Amélioration :} Ajout de mises à jour UI optimistes pour éliminer la
+        latence perçue sur les réseaux locaux lents.
 \end{itemize}
-
-\section{Observability Hooks}
-The current implementation provides practical console-level observability for connection events, MQTT publishes, and critical transitions. Recommended next step is structured logging and metrics export.
-
-\section{Backend Evolution Opportunities}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Introduce schema-based validation layer.
-  \item Add rate limiting and request throttling.
-  \item Split broker and API services for independent scaling.
-  \item Add integration test harness for route-event coupling.
-\end{itemize}
+\end{tcolorbox}

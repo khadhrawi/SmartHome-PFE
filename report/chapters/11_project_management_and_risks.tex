@@ -1,75 +1,180 @@
-\chapter{Project Management, Planning, and Risk Governance}
+%=============================================================================
+%  Chapitre 11 — Gestion de Projet, Planification et Gouvernance des Risques
+%=============================================================================
+\chapter{Gestion de Projet, Planification et Gouvernance des Risques}
 
-\section{Project Planning Approach}
-The project followed iterative delivery with milestone-based checkpoints:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Requirement analysis and actor mapping.
-  \item Architectural baseline and domain modeling.
-  \item Backend feature slices with route and model implementation.
-  \item Frontend role flows and dashboard composition.
-  \item Realtime integration and safety workflows.
-  \item Validation, documentation, and reporting.
-\end{itemize}
+\section{Mise en Œuvre du Cadre Scrum}
 
-\section{Work Breakdown Structure}
-\begin{longtable}{p{2cm}p{5cm}p{7cm}}
+\subsection{Rôles et Cérémonies}
+
+Le cadre Scrum a été adapté au contexte académique à développeur unique comme suit :
+
+\begin{center}
+\begin{longtable}{p{0.22\textwidth} p{0.22\textwidth} p{0.44\textwidth}}
+\caption{Correspondance des Rôles Scrum}\label{tab:scrum_roles}\\
 \toprule
-Phase & Work Package & Deliverables \\
+\textbf{Rôle Scrum} & \textbf{Personne} & \textbf{Responsabilités dans ce Projet} \\
 \midrule
-P1 & Analysis and specification & Requirements document, use cases, acceptance criteria \\
-P2 & Architecture and UML & Context/component/deployment diagrams, sequence models \\
-P3 & Backend core implementation & Auth, users, units, devices, permissions, gas APIs \\
-P4 & Frontend implementation & Routing guards, dashboards, contexts, pages \\
-P5 & Realtime and IoT integration & Socket room model, MQTT broker flow, emergency loop \\
-P6 & Validation and deployment prep & Tests, hardening checklist, deployment notes \\
-P7 & Report finalization & Full PFE manuscript and appendices \\
+\endfirsthead
+\toprule
+\textbf{Rôle Scrum} & \textbf{Personne} & \textbf{Responsabilités} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+Product Owner & Encadrant Académique & Valide les exigences, priorise le backlog, fournit le feedback lors des revues de sprint \\
+Scrum Master  & Houssem E. Abdelal  & Facilite les cérémonies, lève les impediments, suit la vélocité \\
+Équipe Dev    & Houssem E. Abdelal  & Développement full-stack, firmware, tests, documentation \\
+\end{longtable}
+\end{center}
+
+\subsection{Cérémonies de Sprint}
+
+Chaque sprint de 2 semaines comprend les cérémonies suivantes :
+
+\begin{description}[leftmargin=1.5cm,itemsep=6pt]
+  \item[Planification de Sprint (Jour 1, 1h) :] Revue du backlog produit, sélection des
+        user stories, décomposition en tâches d'implémentation, estimation en heures.
+  \item[Stand-up Quotidien (Chaque jour, 15 min) :] Revue de la progression de la veille,
+        plan du jour et impediments (adapté en format journal auto-géré).
+  \item[Revue de Sprint (Jour 14, 30 min) :] Démonstration des fonctionnalités complètes
+        à l'encadrant, collecte des retours, mise à jour du backlog.
+  \item[Rétrospective de Sprint (Jour 14, 15 min) :] Identifier ce qui a bien fonctionné,
+        ce qui peut être amélioré, et les actions pour le sprint suivant.
+\end{description}
+
+\section{Chronogramme du Projet}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  every node/.style={font=\normalsize},
+  task/.style={fill=sprintblue!75, minimum height=0.6cm, rounded corners=3pt},
+  rev/.style={fill=espritgold, minimum size=0.5cm, rotate=45}
+]
+
+% Axe des semaines
+\foreach \w in {1,...,12}
+  \draw[gray!40, thin] (\w*1.15, -0.4) -- (\w*1.15, 8.2);
+\foreach \w in {1,...,12}
+  \node[font=\small, gray] at (\w*1.15, -0.7) {S\w};
+
+% Étiquettes de lignes
+\foreach \y/\lbl in {
+    7.5/{Sprint 1 : Auth \& Utilisateurs},
+    6.3/{Sprint 2 : Appareils \& MQTT},
+    5.1/{Sprint 3 : Plan d'Étage \& TR},
+    3.9/{Sprint 4 : Sécurité Gaz \& DHT},
+    2.7/{Sprint 5 : IA Melo \& Scénarios},
+    1.5/{Sprint 6 : Agence \& Audit},
+    0.4/{Rédaction du Rapport}}
+  \node[left, font=\small, align=right, text width=4.5cm] at (0, \y) {\lbl};
+
+% Barres de sprint (2 semaines par sprint)
+\node[task, minimum width=2.2cm] at (1.73, 7.5) {};
+\node[task, minimum width=2.2cm] at (4.02, 6.3) {};
+\node[task, minimum width=2.2cm] at (6.32, 5.1) {};
+\node[task, minimum width=2.2cm] at (7.47, 3.9) {};
+\node[task, minimum width=2.2cm] at (8.62, 2.7) {};
+\node[task, minimum width=2.2cm] at (9.77, 1.5) {};
+\node[fill=purple!55, minimum width=3.45cm, minimum height=0.6cm,
+      rounded corners=3pt] at (10.93, 0.4) {};
+
+% Losanges de revue
+\foreach \w/\y in {2.3/7.5, 4.6/6.3, 6.9/5.1, 8.05/3.9, 9.2/2.7, 10.35/1.5}
+  \node[rev, fill=espritgold] at (\w*1.15, \y) {};
+
+% Légende
+\node[task, minimum width=1.2cm, minimum height=0.5cm] at (3.5,-1.4) {};
+\node[right, font=\small] at (4.2,-1.4) {Sprint};
+\node[rev, fill=espritgold] at (6.5,-1.4) {};
+\node[right, font=\small] at (7.0,-1.4) {Revue de Sprint};
+\node[fill=purple!55, minimum width=1.2cm, minimum height=0.5cm,
+      rounded corners=3pt] at (10.0,-1.4) {};
+\node[right, font=\small] at (10.7,-1.4) {Rapport};
+
+\draw[->] (0,-0.4) -- (14.5,-0.4)
+  node[right, font=\normalsize] {Semaines};
+
+\end{tikzpicture}
+\caption{Diagramme de Gantt du Projet (12 Semaines)}
+\label{fig:gantt}
+\end{figure}
+
+\section{Vélocité des Sprints}
+
+\begin{center}
+\begin{longtable}{cccc}
+\caption{Suivi de la Vélocité par Sprint}\label{tab:velocity}\\
+\toprule
+\textbf{Sprint} & \textbf{PS Prévus} & \textbf{PS Réalisés} & \textbf{Vélocité} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Sprint} & \textbf{PS Prévus} & \textbf{PS Réalisés} & \textbf{Vélocité} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+1 & 34 & 34 & 100\% \\
+2 & 39 & 39 & 100\% \\
+3 & 37 & 37 & 100\% \\
+4 & 36 & 36 & 100\% \\
+5 & 34 & 34 & 100\% \\
+6 & 37 & 37 & 100\% \\
+\midrule
+\textbf{Total} & \textbf{217} & \textbf{217} & \textbf{100\%} \\
 \bottomrule
 \end{longtable}
+\end{center}
 
-\section{Timeline (Illustrative)}
-\begin{table}[H]
-\centering
-\caption{Milestone timeline}
-\begin{tabular}{p{5cm}p{4cm}p{5cm}}
+\section{Registre des Risques}
+
+\begin{center}
+\begin{longtable}{p{0.04\textwidth} p{0.28\textwidth} p{0.11\textwidth} p{0.10\textwidth} p{0.37\textwidth}}
+\caption{Registre des Risques du Projet}\label{tab:risks}\\
 \toprule
-Milestone & Period & Outcome \\
+\textbf{ID} & \textbf{Risque} & \textbf{Probabilité} & \textbf{Impact} & \textbf{Stratégie de Mitigation} \\
 \midrule
-M1: Scope freeze & Week 1-2 & Functional perimeter approved \\
-M2: Architecture freeze & Week 3-4 & Core technical decisions validated \\
-M3: Backend MVP & Week 5-8 & Essential APIs and models delivered \\
-M4: Frontend MVP & Week 9-11 & Role-based UI and route guards delivered \\
-M5: Realtime and safety & Week 12-14 & MQTT + Socket workflows operational \\
-M6: Validation and report & Week 15-18 & Testing, optimization, and full report \\
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Risque} & \textbf{Probabilité} & \textbf{Impact} & \textbf{Stratégie de Mitigation} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+R1 & Déconnexion Wi-Fi ESP32 causant une perte de commandes & Haute & Haute & MQTT QoS~1 + reconnexion automatique firmware avec backoff 5~s \\
+R2 & Limites du plan gratuit MongoDB Atlas & Moyenne & Moyenne & MongoDB local en secours ; chaîne de connexion dans .env \\
+R3 & Expiration ou limite de débit de l'API Groq & Faible & Moyenne & Message d'erreur gracieux dans Melo ; limite 10~req/min par utilisateur \\
+R4 & Capteur DHT11 retournant NaN lors des lectures à froid & Haute & Faible & Guard \texttt{isnan()} avant publication MQTT ; ignorer les lectures erronées \\
+R5 & WebSocket bloqué par certains réseaux & Faible & Moyenne & Fallback automatique Socket.IO vers HTTP long-polling \\
+R6 & Exposition du secret JWT dans un dépôt public & Faible & Critique & \texttt{.env} dans \texttt{.gitignore} ; \texttt{.env.example} committé à la place \\
+R7 & Extension non planifiée du périmètre & Moyenne & Moyenne & Backlog produit strict ; approbation de l'encadrant pour tout changement \\
+R8 & Faux positifs du capteur MQ6 lors de la cuisine & Moyenne & Moyenne & Seuil configurable (défaut 400~PPM) ; acquittement manuel admin \\
+R9 & Décalage de fuseau horaire dans les scénarios cron & Faible & Moyenne & Heure système synchronisée NTP ; toutes les dates en UTC dans MongoDB \\
+R10& Développeur unique --- point de défaillance unique & Haute & Moyenne & Documentation complète et runbook pour la continuation du projet \\
+\end{longtable}
+\end{center}
+
+\section{Métriques Récapitulatives du Projet}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Métrique} & \textbf{Valeur} \\
+\midrule
+Durée totale du projet             & 12 semaines \\
+Nombre de sprints                  & 6 (2 semaines chacun) \\
+Points de story livrés             & 217 PS \\
+Vélocité moyenne                   & 36 PS / sprint \\
+Fichiers de routes backend         & 19 \\
+Collections de base de données     & 9 \\
+Composants de pages frontend       & 34 \\
+Composants réutilisables frontend  & 25+ \\
+Lignes de code firmware ESP32      & $\approx$430 \\
+Endpoints API                      & $\approx$75 \\
+Cas de test Postman documentés     & 15 \\
+Risques OWASP Top 10 mitigés       & 8/10 entièrement, 2/10 partiellement \\
 \bottomrule
 \end{tabular}
-\end{table}
-
-\section{Risk Register}
-\begin{longtable}{p{4cm}p{2cm}p{2cm}p{6cm}}
-\toprule
-Risk & Probability & Impact & Mitigation \\
-\midrule
-Missing critical dependency in runtime & Medium & High & Lock dependency list, perform clean install checks \\
-Auth misconfiguration between frontend and backend & Medium & High & Contract tests and environment templates \\
-MQTT payload inconsistency & Medium & Medium & Introduce schema validation and topic contract docs \\
-Role leakage in endpoints & Low & High & Strict middleware and security test cases \\
-Realtime event drift & Medium & Medium & Event naming registry and client compatibility tests \\
-\bottomrule
-\end{longtable}
-
-\section{Communication and Governance}
-Weekly status reviews and integration demos reduce delivery risk by exposing mismatches early between UI assumptions and backend behavior.
-
-\section{Cost and Resource Perspective}
-The chosen open-source stack minimizes licensing cost and is suitable for academic projects and small teams. Main investment remains engineering time and operational discipline.
-
-\section{Lessons Learned}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Event contracts must be documented as first-class artifacts.
-  \item Role governance must be tested as rigorously as business logic.
-  \item Safety workflows demand deterministic transitions and explicit edge handling.
-  \item Monorepo improves cohesion but requires dependency hygiene.
-\end{itemize}
-
-\section{Management Summary}
-Project management outcomes show successful alignment between planning and technical delivery, while highlighting concrete maturity actions for production-level governance.
+\end{center}

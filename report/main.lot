@@ -1,0 +1,58 @@
+\babel@toc {french}{}\relax 
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {1.1}{\ignorespaces Objectifs et Livrables du Projet}}{3}{table.1.1}%
+\contentsline {table}{\numberline {1.2}{\ignorespaces Résumé des Sprints}}{4}{table.1.2}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {2.1}{\ignorespaces Acteurs Système et Responsabilités}}{6}{table.2.1}%
+\contentsline {table}{\numberline {2.2}{\ignorespaces Besoins Fonctionnels --- Authentification}}{7}{table.2.2}%
+\contentsline {table}{\numberline {2.3}{\ignorespaces Besoins Fonctionnels --- Gestion des Appareils}}{7}{table.2.3}%
+\contentsline {table}{\numberline {2.4}{\ignorespaces Besoins Fonctionnels --- Plan d'Étage}}{8}{table.2.4}%
+\contentsline {table}{\numberline {2.5}{\ignorespaces Besoins Fonctionnels --- Sécurité}}{8}{table.2.5}%
+\contentsline {table}{\numberline {2.6}{\ignorespaces Besoins Fonctionnels --- IA, Scénarios et Énergie}}{9}{table.2.6}%
+\contentsline {table}{\numberline {2.7}{\ignorespaces Besoins Non Fonctionnels}}{10}{table.2.7}%
+\contentsline {table}{\numberline {2.8}{\ignorespaces Backlog Produit Complet}}{10}{table.2.8}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Comparaison des Solutions de Maison Intelligente}}{15}{table.3.1}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces Caractéristiques Clés de MQTT}}{15}{table.3.2}%
+\contentsline {table}{\numberline {3.3}{\ignorespaces Bibliothèques Frontend Utilisées}}{17}{table.3.3}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Décomposition des User Stories --- Sprint 1}}{27}{table.5.1}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Types d'Appareils et Consommation Estimée}}{33}{table.5.2}%
+\contentsline {table}{\numberline {5.3}{\ignorespaces Affectation des Broches GPIO ESP32}}{34}{table.5.3}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {6.1}{\ignorespaces Routes API du Plan d'Étage}}{37}{table.6.1}%
+\contentsline {table}{\numberline {6.2}{\ignorespaces Référence des Événements Socket.IO}}{39}{table.6.2}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {8.1}{\ignorespaces Décomposition des User Stories Sprint 5}}{47}{table.8.1}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {9.1}{\ignorespaces Catégories et Événements du Journal d'Audit}}{59}{table.9.1}%
+\contentsline {table}{\numberline {9.2}{\ignorespaces Définition des Modes de Sécurité}}{59}{table.9.2}%
+\contentsline {table}{\numberline {9.3}{\ignorespaces Toutes les Routes Backend API}}{60}{table.9.3}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {10.1}{\ignorespaces Conformité OWASP Top 10 (2021)}}{63}{table.10.1}%
+\contentsline {table}{\numberline {10.2}{\ignorespaces Stratégie de Tests par Niveau}}{63}{table.10.2}%
+\contentsline {table}{\numberline {10.3}{\ignorespaces Cas de Test d'Intégration Sélectionnés}}{64}{table.10.3}%
+\contentsline {table}{\numberline {10.4}{\ignorespaces Limitations Connues et Mitigations}}{65}{table.10.4}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {11.1}{\ignorespaces Correspondance des Rôles Scrum}}{66}{table.11.1}%
+\contentsline {table}{\numberline {11.2}{\ignorespaces Suivi de la Vélocité par Sprint}}{68}{table.11.2}%
+\contentsline {table}{\numberline {11.3}{\ignorespaces Registre des Risques du Projet}}{68}{table.11.3}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {13.1}{\ignorespaces API Authentification}}{74}{table.13.1}%
+\contentsline {table}{\numberline {13.2}{\ignorespaces API Appareils}}{75}{table.13.2}%
+\contentsline {table}{\numberline {13.3}{\ignorespaces API Plan d'Étage}}{75}{table.13.3}%
+\contentsline {table}{\numberline {13.4}{\ignorespaces API Gaz}}{76}{table.13.4}%
+\contentsline {table}{\numberline {13.5}{\ignorespaces API Compagnon}}{76}{table.13.5}%
+\contentsline {table}{\numberline {13.6}{\ignorespaces API Scénarios}}{77}{table.13.6}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {14.1}{\ignorespaces Composants de Pages Frontend}}{79}{table.14.1}%
+\contentsline {table}{\numberline {14.2}{\ignorespaces Composants Réutilisables Clés}}{81}{table.14.2}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {16.1}{\ignorespaces Matrice de Traçabilité des Exigences}}{89}{table.16.1}%
+\contentsline {table}{\numberline {16.2}{\ignorespaces Points de Story Restants par Burndown Sprint}}{92}{table.16.2}%
+\contentsline {table}{\numberline {16.3}{\ignorespaces Versions Exactes des Technologies Utilisées}}{92}{table.16.3}%
+\contentsfinish 

@@ -1,128 +1,297 @@
-\chapter{Requirement Analysis and Specifications}
+%=============================================================================
+%  Chapitre 2 — Analyse des Besoins et Backlog Produit
+%=============================================================================
+\chapter{Analyse des Besoins et Backlog Produit}
 
-\section{Stakeholders and Roles}
-The platform serves multiple stakeholders whose responsibilities define the authorization model:
+\section{Parties Prenantes et Acteurs}
 
-\subsection{Agency}
-Agency users supervise multiple housing units, review owner requests, monitor cross-unit status, and maintain governance controls at the platform level.
+La plateforme SmartHome sert quatre rôles utilisateur distincts, chacun avec des
+responsabilités uniques et des interactions système spécifiques.
 
-\subsection{House Owner / Admin}
-House admins manage one household domain: they register devices, supervise residents, review permission requests, activate scenes, and operate safety controls.
-
-\subsection{Resident}
-Residents are authenticated users linked to a house code. Their capabilities are intentionally constrained and can be expanded via explicit admin approval.
-
-\subsection{System Operator}
-A technical operator (DevOps/maintainer) maintains infrastructure, observability, backups, and updates.
-
-\section{Functional Requirements}
-
-\subsection{Identity and Access}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Registration and login for resident, admin, and agency flows.
-  \item JWT-based API authentication.
-  \item Google OAuth login integration.
-  \item Email verification and password reset lifecycle.
-  \item Route-level and action-level role authorization.
-\end{itemize}
-
-\subsection{House and Unit Lifecycle}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Generation and validation of unit/house codes.
-  \item Join existing managed unit or create solo unmanaged unit.
-  \item Track claimed/unclaimed unit status.
-\end{itemize}
-
-\subsection{Device Management}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Register IoT devices with metadata (topic, type, room, position).
-  \item List and delete devices per house context.
-  \item Send command payloads to devices via MQTT topics.
-  \item Update online/offline state and last-seen timestamps.
-\end{itemize}
-
-\subsection{Permission Workflow}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Resident submits restricted action request.
-  \item Admin reviews and approves/denies.
-  \item Approved permissions are merged into resident capabilities.
-  \item Notification state supports unread/read transitions.
-\end{itemize}
-
-\subsection{Scenarios and Automation}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Activation of named scenarios (Morning, Dinner, Cinematic, Sleep).
-  \item Bulk update of lights and openings according to scene presets.
-  \item Synchronization of dashboard state after scenario changes.
-\end{itemize}
-
-\subsection{Gas Safety}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Ingest gas readings from MQTT sensor topics.
-  \item Compare readings to configurable threshold.
-  \item Trigger emergency mode, alarm command, and valve closure.
-  \item Broadcast emergency state to relevant clients in real time.
-  \item Allow admin clearing and threshold tuning.
-\end{itemize}
-
-\subsection{Realtime Communication}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Socket.IO authenticated channels for user notifications.
-  \item House-room broadcasts for dashboard synchronization.
-  \item Agency-global alerts for emergency escalation.
-\end{itemize}
-
-\section{Non-Functional Requirements}
-
-\subsection{Performance}
-The system should provide low-latency updates for state-changing events, with response times suitable for human-perceived immediacy in dashboard interactions.
-
-\subsection{Scalability}
-Architecture should support horizontal evolution in API and socket layers, and future broker scaling strategies.
-
-\subsection{Security}
-Critical requirements include password hashing, signed tokens, role isolation, transport security readiness, and controlled data exposure.
-
-\subsection{Maintainability}
-Code must be modular, readable, and extensible. Route handlers, models, middlewares, and real-time components should follow clear boundaries.
-
-\subsection{Reliability}
-Failure in one communication channel should not corrupt persistent state; safety-critical transitions should remain deterministic and recoverable.
-
-\section{Use Case Inventory}
-\begin{longtable}{p{3cm}p{4cm}p{7cm}}
+\begin{center}
+\begin{longtable}{p{0.16\textwidth} p{0.18\textwidth} p{0.54\textwidth}}
+\caption{Acteurs Système et Responsabilités}\label{tab:acteurs}\\
 \toprule
-Actor & Use Case & Description \\
+\textbf{Acteur} & \textbf{Rôle Système} & \textbf{Responsabilités} \\
 \midrule
-Agency & Review owner requests & Approve/reject account creation requests and issue one-time access code. \\
-Agency & Monitor units & View claimed and unclaimed units, statuses, and analytics indicators. \\
-Admin & Register device & Add a new smart device and map it to room/topic. \\
-Admin & Activate scenario & Apply global scene parameters to eligible devices. \\
-Admin & Review request & Approve or deny resident permission request. \\
-Admin & Clear emergency & Manually clear emergency mode after hazard assessment. \\
-Resident & Request permission & Ask access to restricted actions/rooms. \\
-Resident & Control assigned room & Execute allowed actions within authorization scope. \\
-System & Process gas reading & Persist reading, evaluate threshold, emit events, publish hardware commands. \\
+\endfirsthead
+\toprule
+\textbf{Acteur} & \textbf{Rôle Système} & \textbf{Responsabilités} \\
+\midrule
+\endhead
 \bottomrule
+\endfoot
+Agence          & \role{agency}     & Gère plusieurs maisons ; accède au hub conciergerie ; visualise les messages inter-propriétés ; surveille le statut en ligne des admins via SSE. \\
+Admin Maison    & \role{admin}      & Possède une maison (code unique) ; gère tous les appareils, utilisateurs, scénarios et seuils de sécurité ; approuve les demandes de permission. \\
+Résident        & \role{resident}   & Vit dans une maison ; contrôle les appareils de sa chambre assignée ; soumet des demandes de permission ; utilise l'assistant IA dans les limites accordées. \\
+SuperAdmin      & \role{superadmin} & Propriétaire solo avec privilèges combinés admin+résident ; gère sa maison sans compte admin séparé. \\
+Nœud ESP32      & Matériel IoT      & Publie la télémétrie des capteurs (gaz, DHT) et s'abonne aux topics de commande via MQTT. \\
+\end{longtable}
+\end{center}
+
+\section{Besoins Fonctionnels}
+
+\subsection{Authentification et Gestion des Utilisateurs}
+
+\begin{longtable}{p{0.08\textwidth} p{0.62\textwidth} p{0.18\textwidth}}
+\caption{Besoins Fonctionnels --- Authentification}\label{tab:bf_auth}\\
+\toprule
+\textbf{ID} & \textbf{Besoin} & \textbf{Priorité} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Besoin} & \textbf{Priorité} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+BF-A1  & Le système doit supporter l'inscription email/mot de passe pour les rôles Admin, Résident et Agence. & Indispensable \\
+BF-A2  & L'inscription Admin doit générer un code maison unique (1 lettre + 4 chiffres). & Indispensable \\
+BF-A3  & L'inscription Résident doit exiger un code maison valide pour rejoindre un foyer. & Indispensable \\
+BF-A4  & L'inscription Agence doit exiger un code d'accès secret. & Indispensable \\
+BF-A5  & Le système doit émettre des tokens JWT (expiration 30 jours) lors d'une connexion réussie. & Indispensable \\
+BF-A6  & Les mots de passe doivent être hachés avec bcryptjs (10 rounds de sel) avant stockage. & Indispensable \\
+BF-A7  & Le système doit supporter la connexion Google OAuth 2.0 via Passport.js. & Souhaitable \\
+BF-A8  & Le système doit supporter l'authentification à deux facteurs TOTP (speakeasy). & Souhaitable \\
+BF-A9  & Les nouveaux comptes doivent vérifier leur adresse email avant l'accès complet. & Indispensable \\
+BF-A10 & Le système doit supporter la réinitialisation de mot de passe par token email limité dans le temps. & Indispensable \\
 \end{longtable}
 
-\section{Acceptance Criteria}
-Each major capability has measurable criteria:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Authentication endpoints return valid token and role payload on success.
-  \item Device commands are published to expected MQTT topic format.
-  \item Permission approval updates resident permissions and emits real-time update.
-  \item Gas reading above threshold transitions to emergency and emits alert events.
-  \item Role guards prevent unauthorized access to protected endpoints/pages.
-\end{itemize}
+\subsection{Gestion des Appareils}
 
-\section{Constraints and Assumptions}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Initial development targets local network and localhost orchestration.
-  \item MQTT payload schemas are controlled by platform-owned device firmware simulations.
-  \item Users have internet/email access for verification workflows.
-  \item Hardware-level commands are simulated in development and can map to physical devices in deployment.
-\end{itemize}
+\begin{longtable}{p{0.08\textwidth} p{0.62\textwidth} p{0.18\textwidth}}
+\caption{Besoins Fonctionnels --- Gestion des Appareils}\label{tab:bf_device}\\
+\toprule
+\textbf{ID} & \textbf{Besoin} & \textbf{Priorité} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Besoin} & \textbf{Priorité} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+BF-D1 & Les admins doivent créer, lire, mettre à jour et supprimer des appareils intelligents. & Indispensable \\
+BF-D2 & Chaque appareil doit avoir un topic MQTT unique pour le routage des commandes. & Indispensable \\
+BF-D3 & Le système doit supporter au moins 20 types d'appareils (lumières, portes, fenêtres, etc.). & Indispensable \\
+BF-D4 & Les appareils stockent luminosité (0--100), ouverturePct (0--100), couleur et pièce. & Indispensable \\
+BF-D5 & Les commandes d'appareils sont publiées au courtier MQTT et routées vers l'ESP32. & Indispensable \\
+BF-D6 & Les changements d'état des appareils sont diffusés à tous les clients web via Socket.IO. & Indispensable \\
+BF-D7 & Les résidents contrôlent uniquement les appareils de leur pièce assignée ou ceux explicitement autorisés. & Indispensable \\
+\end{longtable}
 
-\section{Requirement Traceability Overview}
-A traceability matrix is maintained in Appendix chapters, mapping each requirement to API routes, model entities, and frontend pages. This ensures auditable engineering alignment from specification to implementation.
+\subsection{Plan d'Étage et Visualisation}
+
+\begin{longtable}{p{0.08\textwidth} p{0.62\textwidth} p{0.18\textwidth}}
+\caption{Besoins Fonctionnels --- Plan d'Étage}\label{tab:bf_fp}\\
+\toprule
+\textbf{ID} & \textbf{Besoin} & \textbf{Priorité} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Besoin} & \textbf{Priorité} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+BF-F1 & L'interface doit afficher un plan 3D isométrique interactif avec 6 pièces nommées. & Indispensable \\
+BF-F2 & Cliquer sur une pièce ou un appareil ouvre un panneau de contrôle en ligne. & Indispensable \\
+BF-F3 & Les couleurs des pièces changent dynamiquement selon l'état d'éclairage. & Souhaitable \\
+BF-F4 & Le système doit supporter 4 préréglages de scènes : Matin, Dîner, Cinéma, Sommeil. & Indispensable \\
+BF-F5 & L'activation d'une scène règle la luminosité par pièce et contrôle les fenêtres/vanne gaz. & Indispensable \\
+\end{longtable}
+
+\subsection{Systèmes de Sécurité}
+
+\begin{longtable}{p{0.08\textwidth} p{0.62\textwidth} p{0.18\textwidth}}
+\caption{Besoins Fonctionnels --- Sécurité}\label{tab:bf_safety}\\
+\toprule
+\textbf{ID} & \textbf{Besoin} & \textbf{Priorité} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Besoin} & \textbf{Priorité} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+BF-S1 & L'ESP32 publie les lectures du capteur MQ6 toutes les 3 secondes via MQTT. & Indispensable \\
+BF-S2 & Le backend compare le PPM gaz à un seuil configurable (défaut : 400 PPM). & Indispensable \\
+BF-S3 & Le dépassement du seuil active le mode urgence dans le système. & Indispensable \\
+BF-S4 & Le mode urgence déclenche : buzzer matériel, fermeture vanne gaz, alerte Socket.IO. & Indispensable \\
+BF-S5 & Les admins peuvent manuellement lever l'état d'urgence une fois le danger résolu. & Indispensable \\
+BF-S6 & L'ESP32 publie les lectures DHT11 de température et humidité toutes les 10 secondes. & Indispensable \\
+BF-S7 & Un overlay plein écran s'affiche dans l'interface pendant une urgence gaz. & Indispensable \\
+\end{longtable}
+
+\subsection{Assistant IA, Scénarios et Énergie}
+
+\begin{longtable}{p{0.08\textwidth} p{0.62\textwidth} p{0.18\textwidth}}
+\caption{Besoins Fonctionnels --- IA, Scénarios et Énergie}\label{tab:bf_ai}\\
+\toprule
+\textbf{ID} & \textbf{Besoin} & \textbf{Priorité} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Besoin} & \textbf{Priorité} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+BF-IA1 & Le système expose un assistant IA (Melo) alimenté par l'API Groq LLM. & Souhaitable \\
+BF-IA2 & Melo analyse les commandes en langage naturel et les traduit en actions sur les appareils. & Souhaitable \\
+BF-IA3 & Melo respecte le rôle et les permissions de l'utilisateur lors de l'exécution des commandes. & Indispensable \\
+BF-SC1 & Les admins définissent des scénarios d'automatisation temporels avec des heures de déclenchement HH:MM. & Souhaitable \\
+BF-SC2 & Un planificateur de fond exécute les scénarios à l'heure configurée (node-cron). & Souhaitable \\
+BF-EN1 & Le système estime la consommation énergétique horaire des appareils à partir des journaux d'audit. & Optionnel \\
+\end{longtable}
+
+\section{Besoins Non Fonctionnels}
+
+\begin{longtable}{p{0.08\textwidth} p{0.20\textwidth} p{0.60\textwidth}}
+\caption{Besoins Non Fonctionnels}\label{tab:bnf}\\
+\toprule
+\textbf{ID} & \textbf{Catégorie} & \textbf{Besoin} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Catégorie} & \textbf{Besoin} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+BNF-P1  & Performance     & Le cycle commande (API $\to$ MQTT $\to$ ESP32 $\to$ maj état) doit s'effectuer en moins de 500~ms sur réseau local. \\
+BNF-P2  & Performance     & L'API REST supporte 200 requêtes/15~min par IP sans dégradation. \\
+BNF-S1  & Sécurité        & Les mots de passe sont stockés sous forme de hachages bcrypt ; le stockage en clair est interdit. \\
+BNF-S2  & Sécurité        & Les routes protégées rejettent les requêtes non authentifiées avec HTTP 401. \\
+BNF-S3  & Sécurité        & Helmet configure les en-têtes de sécurité (CSP, X-Frame-Options, HSTS). \\
+BNF-S4  & Sécurité        & Les endpoints d'auth sont limités à 20 requêtes/15~min par IP. \\
+BNF-R1  & Fiabilité       & Les moniteurs de capteurs de fond survivent aux erreurs d'analyse de messages MQTT individuels. \\
+BNF-U1  & Utilisabilité   & L'interface est entièrement responsive sur écrans $\geq$768~px. \\
+BNF-U2  & Utilisabilité   & Les thèmes sombre et clair sont disponibles et persistés dans localStorage. \\
+BNF-SC1 & Scalabilité     & Le système supporte au moins 10 codes maison simultanés sans modification architecturale. \\
+\end{longtable}
+
+\section{Backlog Produit}
+
+Le Backlog Produit est la liste priorisée de tous les éléments de travail. Les points
+de story ont été estimés en utilisant la séquence Fibonacci (1, 2, 3, 5, 8, 13).
+
+\begin{center}
+\begin{longtable}{p{0.07\textwidth} p{0.48\textwidth} p{0.10\textwidth} p{0.07\textwidth} p{0.10\textwidth}}
+\caption{Backlog Produit Complet}\label{tab:backlog}\\
+\toprule
+\textbf{ID} & \textbf{User Story} & \textbf{Priorité} & \textbf{PS} & \textbf{Sprint} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{User Story} & \textbf{Priorité} & \textbf{PS} & \textbf{Sprint} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+US-01 & En tant qu'Admin, je veux m'inscrire avec email/mot de passe pour gérer ma maison. & Haute & 5 & 1 \\
+US-02 & En tant que Résident, je veux m'inscrire avec un code maison pour rejoindre un foyer. & Haute & 3 & 1 \\
+US-03 & En tant qu'utilisateur, je veux me connecter et recevoir un token JWT. & Haute & 3 & 1 \\
+US-04 & En tant qu'utilisateur, je veux me connecter avec Google OAuth pour un accès rapide. & Moyenne & 5 & 1 \\
+US-05 & En tant qu'utilisateur, je veux vérifier mon email avant d'utiliser la plateforme. & Haute & 5 & 1 \\
+US-06 & En tant qu'utilisateur, je veux réinitialiser mon mot de passe via un lien email sécurisé. & Haute & 5 & 1 \\
+US-07 & En tant qu'utilisateur, je veux activer la 2FA via une application d'authentification. & Moyenne & 8 & 1 \\
+US-08 & En tant qu'Admin, je veux voir et gérer tous les résidents de ma maison. & Haute & 5 & 1 \\
+US-09 & En tant qu'Admin, je veux ajouter, modifier et supprimer des appareils intelligents. & Haute & 8 & 2 \\
+US-10 & En tant qu'Admin, je veux contrôler les appareils (on/off/luminosité) depuis le tableau de bord. & Haute & 8 & 2 \\
+US-11 & En tant qu'utilisateur, je veux que les commandes d'appareils soient envoyées à l'ESP32 via MQTT. & Haute & 8 & 2 \\
+US-12 & En tant qu'utilisateur, je veux que l'ESP32 publie les lectures du capteur gaz toutes les 3 secondes. & Haute & 5 & 2 \\
+US-13 & En tant qu'utilisateur, je veux que l'ESP32 publie la température/humidité toutes les 10 secondes. & Haute & 5 & 2 \\
+US-14 & En tant qu'utilisateur, je veux voir un plan d'étage 3D isométrique interactif. & Haute & 13 & 3 \\
+US-15 & En tant qu'utilisateur, je veux cliquer sur une pièce pour contrôler ses appareils. & Haute & 8 & 3 \\
+US-16 & En tant qu'utilisateur, je veux activer des scènes d'éclairage (Matin/Dîner/Cinéma/Sommeil). & Haute & 8 & 3 \\
+US-17 & En tant qu'utilisateur, je veux que les changements d'état se reflètent en temps réel. & Haute & 8 & 3 \\
+US-18 & En tant qu'Admin, je veux une alerte plein écran lors de la détection d'une fuite gaz. & Haute & 8 & 4 \\
+US-19 & En tant que système, je veux fermer automatiquement la vanne et activer le buzzer. & Haute & 8 & 4 \\
+US-20 & En tant qu'Admin, je veux lever manuellement l'état d'urgence. & Haute & 5 & 4 \\
+US-21 & En tant qu'utilisateur, je veux voir la température et l'humidité en temps réel. & Moyenne & 5 & 4 \\
+US-22 & En tant qu'Admin, je veux configurer le seuil de détection gaz. & Moyenne & 5 & 4 \\
+US-23 & En tant qu'utilisateur, je veux un assistant IA (Melo) pour contrôler les appareils en langage naturel. & Moyenne & 13 & 5 \\
+US-24 & En tant qu'Admin, je veux créer des scénarios d'automatisation temporels. & Moyenne & 8 & 5 \\
+US-25 & En tant qu'Admin, je veux voir les graphiques de consommation énergétique horaire. & Moyenne & 8 & 5 \\
+US-26 & En tant qu'utilisateur, je veux voir l'historique de mes demandes de permission. & Moyenne & 5 & 5 \\
+US-27 & En tant qu'Agence, je veux un hub conciergerie avec le statut en direct des maisons. & Faible & 8 & 6 \\
+US-28 & En tant qu'Admin, je veux un journal d'audit filtrable de toutes les actions. & Moyenne & 8 & 6 \\
+US-29 & En tant que Résident, je veux soumettre des demandes de permission à l'admin. & Moyenne & 5 & 6 \\
+US-30 & En tant qu'Admin, je veux approuver ou refuser les demandes avec des notes. & Moyenne & 5 & 6 \\
+US-31 & En tant qu'Agence, je veux répondre aux messages des résidents sur toutes les maisons. & Faible & 5 & 6 \\
+US-32 & En tant qu'Admin, je veux configurer les modes de sécurité (Absence, Verrouillage). & Moyenne & 5 & 6 \\
+US-33 & En tant qu'utilisateur, je veux mettre à jour ma photo de profil et mes informations personnelles. & Faible & 3 & 6 \\
+US-34 & En tant qu'Admin, je veux exporter le journal d'audit en PDF. & Faible & 3 & 6 \\
+\end{longtable}
+\end{center}
+
+\vspace{0.3cm}
+\noindent\textbf{Total points de story :} 217 sur 6 sprints. Vélocité moyenne : \textbf{36 PS/sprint}.
+
+\section{Diagramme de Cas d'Utilisation Global}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  every node/.style={font=\normalsize},
+  actor/.style={
+    text width=2cm, align=center
+  },
+  uc/.style={
+    draw, ellipse, thick,
+    minimum width=5.5cm, minimum height=1.0cm,
+    align=center, fill=blue!8
+  },
+  sys/.style={
+    draw, rectangle, rounded corners=8pt,
+    minimum width=12cm, minimum height=17cm,
+    fill=blue!3, dashed, thick
+  },
+  arr/.style={thick}
+]
+
+%--- Boîte système ---
+\node[sys, label={[font=\bfseries\large, color=espritblue]above:\textbf{Système SmartHome}}]
+  (sys) at (7, 0) {};
+
+%--- Acteurs (gauche) ---
+\node[actor] (admin)  at (-1.5,  6.5) {\textbf{Admin}\\Maison};
+\node[actor] (res)    at (-1.5,  1.5) {\textbf{Résident}};
+\node[actor] (agency) at (-1.5, -3.5) {\textbf{Agence}};
+\node[actor] (esp)    at (-1.5, -6.5) {\textbf{ESP32}};
+
+%--- Cas d'utilisation ---
+\node[uc] (login)    at (7,  7.5) {Connexion / Inscription / 2FA};
+\node[uc] (devices)  at (7,  5.8) {Gérer et Contrôler les Appareils};
+\node[uc] (floorplan)at (7,  4.1) {Visualiser Plan d'Étage / Scènes};
+\node[uc] (realtime) at (7,  2.4) {Synchronisation Temps Réel (Socket.IO)};
+\node[uc] (gas)      at (7,  0.7) {Surveillance Urgence Gaz};
+\node[uc] (dht)      at (7, -1.0) {Température / Humidité};
+\node[uc] (ai)       at (7, -2.7) {Assistant IA --- Melo};
+\node[uc] (scenarios)at (7, -4.2) {Scénarios / Automatisation};
+\node[uc] (perms)    at (7, -5.7) {Demandes de Permission};
+\node[uc] (audit)    at (7, -7.2) {Journal Audit / Hub Conciergerie};
+
+%--- Connexions Admin ---
+\foreach \u in {login,devices,floorplan,realtime,gas,ai,scenarios,perms,audit}
+  \draw[arr] (admin) -- (\u);
+
+%--- Connexions Résident ---
+\foreach \u in {login,floorplan,realtime,ai,perms}
+  \draw[arr] (res) -- (\u);
+
+%--- Connexions Agence ---
+\draw[arr] (agency) -- (login);
+\draw[arr] (agency) -- (audit);
+
+%--- Connexions ESP32 ---
+\draw[arr] (esp) -- (gas);
+\draw[arr] (esp) -- (dht);
+\draw[arr] (esp) -- (devices);
+
+\end{tikzpicture}
+\caption{Diagramme de Cas d'Utilisation Global de la Plateforme SmartHome}
+\label{fig:usecase_global}
+\end{figure}

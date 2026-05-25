@@ -1,92 +1,141 @@
-\chapter{Deployment, DevOps, and Operations}
+%=============================================================================
+%  Chapitre 10 — Sécurité, Tests et Assurance Qualité
+%=============================================================================
+\chapter{Sécurité, Tests et Assurance Qualité}
 
-\section{Environment Topology}
-A practical environment model includes:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Development: local monorepo with backend and frontend concurrently.
-  \item Staging: cloud VM or container stack with test data.
-  \item Production: hardened setup with managed database and observability stack.
-\end{itemize}
+\section{Architecture de Sécurité}
 
-\section{Configuration Management}
-Environment variables control ports, database URI, JWT secret, OAuth credentials, frontend origin, and access codes. Secret values must never be committed to source control.
+La Plateforme SmartHome implémente une stratégie de sécurité en \textbf{défense en
+profondeur} couvrant la sécurité du transport, l'authentification, l'autorisation,
+la validation des entrées et la journalisation d'audit.
 
-\section{Build and Run Pipeline}
-\subsection{Root Orchestration}
-The monorepo root starts backend and frontend together for integrated development testing.
-
-\subsection{Backend Runtime}
-Backend service starts HTTP server, websocket endpoint, MQTT broker, and DB connection in one process.
-
-\subsection{Frontend Runtime}
-Vite serves SPA with hot-module reload in development and optimized static build in production.
-
-\section{Containerization Strategy (Recommended)}
-A production-ready containerization path:
-\begin{enumerate}[leftmargin=1.2cm]
-  \item Backend image with Node runtime, non-root user, healthcheck endpoint.
-  \item Frontend static build served by Nginx or edge hosting.
-  \item Externalized MongoDB as managed database service.
-\end{enumerate}
-
-\section{CI/CD Blueprint}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Trigger on pull request and main branch merge.
-  \item Install dependencies and run lint checks.
-  \item Run automated test suites.
-  \item Build artifacts and publish deploy package.
-  \item Deploy to staging, then production with approval gate.
-\end{itemize}
-
-\section{Observability Architecture}
-\subsection{Logs}
-Adopt structured logs with request IDs and event correlation IDs.
-
-\subsection{Metrics}
-Capture HTTP latency, broker throughput, socket connection counts, and emergency incidents.
-
-\subsection{Alerts}
-Configure alerting for service downtime, DB connectivity issues, and abnormal emergency burst patterns.
-
-\section{Backup and Recovery}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Daily MongoDB backups with retention policy.
-  \item Configuration backup for environment templates.
-  \item Recovery drill procedure tested periodically.
-\end{itemize}
-
-\section{Operational Runbook Essentials}
-Operational teams should maintain runbooks for:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Incident triage and escalation.
-  \item Broker connection troubleshooting.
-  \item Emergency false alert investigation.
-  \item User account recovery and access revocation.
-\end{itemize}
-
-\section{Scalability Roadmap}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Separate broker and API services.
-  \item Introduce Redis adapter for horizontal socket scaling.
-  \item Add telemetry queueing for burst management.
-  \item Partition data and house-level workloads.
-\end{itemize}
-
-\section{Operational KPIs}
-\begin{table}[H]
+\begin{figure}[H]
 \centering
-\caption{Sample operational service-level indicators}
-\begin{tabular}{p{5cm}p{3cm}p{6cm}}
-\toprule
-Indicator & Target & Notes \\
-\midrule
-API Availability & > 99.5\% & Monthly rolling target \\
-p95 API Latency & < 350 ms & Authenticated business routes \\
-Socket Delivery Success & > 99\% & Event emission to intended rooms \\
-Emergency Processing Delay & < 2 s & Sensor receipt to user alert \\
-\bottomrule
-\end{tabular}
-\end{table}
+\begin{tikzpicture}[
+  every node/.style={font=\normalsize},
+  layer/.style={
+    draw, rectangle, thick,
+    minimum width=13cm, minimum height=0.95cm,
+    align=center, rounded corners=4pt
+  }
+]
+\node[layer, fill=red!15]    (L1) at (0, 6.0)  {\textbf{Couche 1 :} Sécurité Transport --- HTTPS, En-têtes Helmet, CSP, HSTS};
+\node[layer, fill=orange!25] (L2) at (0, 4.8)  {\textbf{Couche 2 :} Authentification --- JWT, bcrypt, Google OAuth, TOTP 2FA};
+\node[layer, fill=yellow!40] (L3) at (0, 3.6)  {\textbf{Couche 3 :} Limitation de Débit --- 200~req/15~min global, 20~req/15~min auth};
+\node[layer, fill=green!20]  (L4) at (0, 2.4)  {\textbf{Couche 4 :} Autorisation --- Middlewares protect / admin / resident / agency};
+\node[layer, fill=blue!15]   (L5) at (0, 1.2)  {\textbf{Couche 5 :} Validation --- express-validator, Validation schéma Mongoose};
+\node[layer, fill=purple!15] (L6) at (0, 0.0)  {\textbf{Couche 6 :} Journalisation Audit --- Toutes actions avec acteur, IP, catégorie};
 
-\section{Operations Summary}
-The project is deployment-ready for educational and pilot usage. With incremental hardening in CI/CD, observability, and scaling controls, it can evolve into production-grade service operations.
+\foreach \a/\b in {L1/L2, L2/L3, L3/L4, L4/L5, L5/L6}
+  \draw[-{Stealth[length=7pt]}, thick, gray] (\a) -- (\b);
+\end{tikzpicture}
+\caption{Couches de Sécurité en Défense en Profondeur}
+\label{fig:security_layers}
+\end{figure}
+
+\section{Conformité OWASP Top 10}
+
+\begin{center}
+\begin{longtable}{p{0.05\textwidth} p{0.28\textwidth} p{0.14\textwidth} p{0.41\textwidth}}
+\caption{Conformité OWASP Top 10 (2021)}\label{tab:owasp}\\
+\toprule
+\textbf{ID} & \textbf{Risque} & \textbf{Statut} & \textbf{Mitigation} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Risque} & \textbf{Statut} & \textbf{Mitigation} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+A01 & Contrôle d'Accès Défaillant    & Mitigé   & Middleware de rôle, scopage codeMaison sur toutes les requêtes \\
+A02 & Défaillances Cryptographiques   & Mitigé   & bcrypt pour mdp, JWT HS256, HTTPS en production \\
+A03 & Injection                       & Mitigé   & Requêtes paramétrées Mongoose, express-validator sur toutes les entrées \\
+A04 & Conception Non Sécurisée        & Mitigé   & Couches de défense en profondeur, déclencheur de sécurité local ESP32 \\
+A05 & Mauvaise Configuration Sécurité & Mitigé   & En-têtes Helmet, liste blanche CORS, secrets dans .env \\
+A06 & Composants Vulnérables          & Partiel  & Dépendances maintenues ; pas de scanner CVE automatisé en CI \\
+A07 & Échecs Authn et Session         & Mitigé   & Expiration JWT, limitation de débit, support 2FA, bcrypt \\
+A08 & Intégrité Logicielle            & Partiel  & Pas de validation supply-chain en CI ; package-lock.json épinglé \\
+A09 & Échecs de Journalisation        & Mitigé   & Collection AuditLog pour toutes les actions, filtrage par catégorie \\
+A10 & SSRF                            & Mitigé   & Aucune récupération d'URL contrôlée par l'utilisateur dans le backend \\
+\end{longtable}
+\end{center}
+
+\section{Stratégie de Tests}
+
+\begin{center}
+\begin{longtable}{p{0.20\textwidth} p{0.18\textwidth} p{0.50\textwidth}}
+\caption{Stratégie de Tests par Niveau}\label{tab:test_levels}\\
+\toprule
+\textbf{Niveau} & \textbf{Outils} & \textbf{Couverture} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Niveau} & \textbf{Outils} & \textbf{Couverture} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+Tests Unitaires    & Jest / manuel    & Fonctions utilitaires (génération code, formule PPM, utils JWT) \\
+Tests d'Intégration & Postman         & 19 groupes de routes API ; cas nominal + cas d'erreur \\
+Tests de Bout en Bout & Manuel (navigateur) & Flux complets : inscription $\to$ connexion $\to$ contrôle $\to$ urgence gaz $\to$ IA \\
+Tests Matériels    & MQTT Explorer    & Timing servo ESP32, PWM LED, routage topics MQTT, lectures ADC capteur \\
+\end{longtable}
+\end{center}
+
+\subsection{Cas de Test Principaux}
+
+\begin{center}
+\begin{longtable}{p{0.07\textwidth} p{0.40\textwidth} p{0.18\textwidth} p{0.22\textwidth}}
+\caption{Cas de Test d'Intégration Sélectionnés}\label{tab:test_cases}\\
+\toprule
+\textbf{CT-ID} & \textbf{Cas de Test} & \textbf{Résultat Attendu} & \textbf{Résultat} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{CT-ID} & \textbf{Cas de Test} & \textbf{Résultat Attendu} & \textbf{Résultat} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+CT-01 & Inscription Admin sans caractère spécial dans le mdp & HTTP 400 + erreur validation & \done Réussi \\
+CT-02 & Connexion avec identifiants valides & HTTP 200 + token JWT & \done Réussi \\
+CT-03 & Accès route protégée sans token & HTTP 401 & \done Réussi \\
+CT-04 & Accès route admin en tant que résident & HTTP 403 & \done Réussi \\
+CT-05 & Créer appareil avec topic MQTT dupliqué & HTTP 400 + erreur unicité & \done Réussi \\
+CT-06 & Publier commande appareil et vérifier livraison MQTT à l'ESP32 & LED physique s'allume & \done Réussi \\
+CT-07 & Activer scène Matin et vérifier ouverture servo fenêtre & Servo à 180° & \done Réussi \\
+CT-08 & Publier PPM gaz au-dessus du seuil via MQTT & Mode urgence activé & \done Réussi \\
+CT-09 & Admin lève urgence ; vérifier buzzer OFF et vanne OUVERTE & Commandes publiées & \done Réussi \\
+CT-10 & Melo IA : commande ``Éteins la lumière cuisine'' & État lumière = OFF, MQTT publié & \done Réussi \\
+CT-11 & Résident demande permission pour room:cuisine & Statut: en attente, admin notifié & \done Réussi \\
+CT-12 & Admin approuve demande ; résident reçoit notification TR & Événement Socket émis & \done Réussi \\
+CT-13 & Limite de débit : 21ème requête auth en 15 min & HTTP 429 & \done Réussi \\
+CT-14 & Upload image avatar de 16 Mo & HTTP 400 (limite taille) & \done Réussi \\
+CT-15 & Scénario déclenché à l'heure HH:MM correcte & Appareils mis à jour, entrée audit & \done Réussi \\
+\end{longtable}
+\end{center}
+
+\section{Limitations Connues}
+
+\begin{center}
+\begin{longtable}{p{0.30\textwidth} p{0.14\textwidth} p{0.44\textwidth}}
+\caption{Limitations Connues et Mitigations}\label{tab:limitations}\\
+\toprule
+\textbf{Limitation} & \textbf{Sévérité} & \textbf{Mitigation / Travaux Futurs} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Limitation} & \textbf{Sévérité} & \textbf{Travaux Futurs} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+JWT non révocable avant expiration & Moyenne & Expiration courte planifiée ; table de liste noire (futur) \\
+Courtier MQTT sans TLS en dev & Moyenne & Certificats TLS prévus pour le déploiement production \\
+Stockage avatar base64 dans MongoDB & Faible & Migrer vers S3/MinIO (futur) \\
+Pas de pipeline CI/CD automatisé & Faible & Tests Postman manuels avant chaque démo de sprint \\
+Calibration capteur MQ6 variable & Moyenne & Valeur de calibration Ro (9,83) mesurée par unité \\
+Backend instance unique (pas HA) & Faible & Conception sans état supporte la mise à l'échelle horizontale \\
+\end{longtable}
+\end{center}

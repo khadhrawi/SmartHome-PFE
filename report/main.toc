@@ -1,0 +1,155 @@
+\babel@toc {french}{}\relax 
+\contentsline {chapter}{Dédicace}{i}{chapter*.1}%
+\contentsline {chapter}{Remerciements}{ii}{chapter*.2}%
+\contentsline {chapter}{Résumé}{iii}{chapter*.3}%
+\contentsline {chapter}{Abstract}{iv}{chapter*.4}%
+\contentsline {chapter}{\numberline {1}Introduction Générale}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Contexte et Motivation}{1}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Cadre du Projet}{1}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Problématique}{2}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Objectifs du Projet}{2}{section.1.4}%
+\contentsline {section}{\numberline {1.5}Approche Méthodologique --- Scrum}{3}{section.1.5}%
+\contentsline {section}{\numberline {1.6}Contributions Scientifiques et Techniques}{4}{section.1.6}%
+\contentsline {section}{\numberline {1.7}Organisation du Rapport}{5}{section.1.7}%
+\contentsline {chapter}{\numberline {2}Analyse des Besoins et Backlog Produit}{6}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Parties Prenantes et Acteurs}{6}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Besoins Fonctionnels}{7}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Authentification et Gestion des Utilisateurs}{7}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Gestion des Appareils}{7}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}Plan d'Étage et Visualisation}{8}{subsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.2.4}Systèmes de Sécurité}{8}{subsection.2.2.4}%
+\contentsline {subsection}{\numberline {2.2.5}Assistant IA, Scénarios et Énergie}{9}{subsection.2.2.5}%
+\contentsline {section}{\numberline {2.3}Besoins Non Fonctionnels}{9}{section.2.3}%
+\contentsline {section}{\numberline {2.4}Backlog Produit}{10}{section.2.4}%
+\contentsline {section}{\numberline {2.5}Diagramme de Cas d'Utilisation Global}{13}{section.2.5}%
+\contentsline {chapter}{\numberline {3}État de l'Art et Stack Technologique}{14}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Panorama des Plateformes de Maison Intelligente}{14}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Protocoles de Communication IoT}{15}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}MQTT (Message Queuing Telemetry Transport)}{15}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}Comparaison des Protocoles}{16}{subsection.3.2.2}%
+\contentsline {section}{\numberline {3.3}Évaluation du Stack Technologique}{16}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Backend : Node.js et Express}{16}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}Base de Données : MongoDB et Mongoose}{16}{subsection.3.3.2}%
+\contentsline {subsection}{\numberline {3.3.3}Frontend : React et Vite}{17}{subsection.3.3.3}%
+\contentsline {subsection}{\numberline {3.3.4}Firmware IoT : Arduino / ESP32}{17}{subsection.3.3.4}%
+\contentsline {subsection}{\numberline {3.3.5}Intégration IA : API Groq}{17}{subsection.3.3.5}%
+\contentsline {section}{\numberline {3.4}Environnement de Développement}{18}{section.3.4}%
+\contentsline {section}{\numberline {3.5}Synthèse}{18}{section.3.5}%
+\contentsline {chapter}{\numberline {4}Architecture Système et Modélisation UML}{19}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Vision Architecturale}{19}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Diagramme de Déploiement}{20}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Diagramme de Composants}{21}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Structure du Monorepo}{21}{section.4.4}%
+\contentsline {section}{\numberline {4.5}Diagramme de Classes (Modèle Domaine)}{22}{section.4.5}%
+\contentsline {section}{\numberline {4.6}Diagramme de Séquence --- Commande d'Appareil}{23}{section.4.6}%
+\contentsline {section}{\numberline {4.7}Diagramme de Séquence --- Urgence Gaz}{24}{section.4.7}%
+\contentsline {section}{\numberline {4.8}Machine à États --- Mode Urgence}{25}{section.4.8}%
+\contentsline {section}{\numberline {4.9}Flux de Données Bout en Bout}{26}{section.4.9}%
+\contentsline {chapter}{\numberline {5}Sprint 1 \& 2 --- Authentification, Gestion des Utilisateurs et Contrôle des Appareils}{27}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Backlog Sprint 1}{27}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Modèle de Base de Données : Schéma Utilisateur}{28}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}Algorithme de Génération du Code Maison}{29}{subsection.5.2.1}%
+\contentsline {section}{\numberline {5.3}Flux d'Authentification}{29}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Inscription et Connexion Email/Mot de Passe}{30}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}Authentification à Deux Facteurs TOTP}{30}{subsection.5.3.2}%
+\contentsline {section}{\numberline {5.4}Middleware JWT}{31}{section.5.4}%
+\contentsline {section}{\numberline {5.5}Revue et Rétrospective Sprint 1}{32}{section.5.5}%
+\contentsline {section}{\numberline {5.6}Modèle Appareil}{32}{section.5.6}%
+\contentsline {subsection}{\numberline {5.6.1}Types d'Appareils et Puissance Estimée}{33}{subsection.5.6.1}%
+\contentsline {section}{\numberline {5.7}Cartographie GPIO de l'ESP32}{33}{section.5.7}%
+\contentsline {section}{\numberline {5.8}Publication MQTT des Commandes}{34}{section.5.8}%
+\contentsline {section}{\numberline {5.9}Revue et Rétrospective Sprint 2}{35}{section.5.9}%
+\contentsline {chapter}{\numberline {6}Sprint 3 --- Visualisation du Plan d'Étage, Contrôle de Scènes et Synchronisation Temps Réel}{36}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Modèle État Maison (HouseState)}{36}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Routes API du Plan d'Étage}{37}{section.6.2}%
+\contentsline {section}{\numberline {6.3}Implémentation des Scènes d'Éclairage}{37}{section.6.3}%
+\contentsline {section}{\numberline {6.4}Passerelle Socket.IO Temps Réel}{39}{section.6.4}%
+\contentsline {subsection}{\numberline {6.4.1}Authentification et Adhésion aux Chambres}{39}{subsection.6.4.1}%
+\contentsline {subsection}{\numberline {6.4.2}Catalogue des Événements Socket.IO}{39}{subsection.6.4.2}%
+\contentsline {section}{\numberline {6.5}Plan d'Étage 3D Isométrique}{40}{section.6.5}%
+\contentsline {section}{\numberline {6.6}Revue et Rétrospective Sprint 3}{41}{section.6.6}%
+\contentsline {chapter}{\numberline {7}Sprint 4 --- Détection Gaz, Capteur DHT11 et Protocoles d'Urgence}{42}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Service de Fond Gas Monitor}{42}{section.7.1}%
+\contentsline {section}{\numberline {7.2}Calcul PPM du Capteur Gaz MQ6}{43}{section.7.2}%
+\contentsline {section}{\numberline {7.3}Service DHT11 et Firmware}{44}{section.7.3}%
+\contentsline {section}{\numberline {7.4}Overlay d'Urgence Frontend}{45}{section.7.4}%
+\contentsline {section}{\numberline {7.5}Revue et Rétrospective Sprint 4}{45}{section.7.5}%
+\contentsline {chapter}{\numberline {8}Sprint 5 --- Compagnon IA (Melo), Automatisation par Scénarios et Surveillance Énergétique}{47}{chapter.8}%
+\contentsline {section}{\numberline {8.1}Backlog Sprint 5}{47}{section.8.1}%
+\contentsline {section}{\numberline {8.2}Compagnon IA Melo}{48}{section.8.2}%
+\contentsline {subsection}{\numberline {8.2.1}Architecture}{48}{subsection.8.2.1}%
+\contentsline {subsection}{\numberline {8.2.2}Construction du Prompt Système}{48}{subsection.8.2.2}%
+\contentsline {subsection}{\numberline {8.2.3}Implémentation de l'Endpoint Chat}{49}{subsection.8.2.3}%
+\contentsline {subsection}{\numberline {8.2.4}Composant Frontend Melo}{50}{subsection.8.2.4}%
+\contentsline {section}{\numberline {8.3}Modèle de Scénario et Moteur d'Automatisation}{52}{section.8.3}%
+\contentsline {subsection}{\numberline {8.3.1}Schéma Scénario}{52}{subsection.8.3.1}%
+\contentsline {subsection}{\numberline {8.3.2}Service Planificateur}{52}{subsection.8.3.2}%
+\contentsline {section}{\numberline {8.4}Surveillance Énergétique}{54}{section.8.4}%
+\contentsline {subsection}{\numberline {8.4.1}Algorithme de Calcul de la Consommation}{54}{subsection.8.4.1}%
+\contentsline {section}{\numberline {8.5}Système de Demandes de Permission}{55}{section.8.5}%
+\contentsline {subsection}{\numberline {8.5.1}Modèle DemandePermission}{55}{subsection.8.5.1}%
+\contentsline {subsection}{\numberline {8.5.2}Flux d'Approbation de Permission}{55}{subsection.8.5.2}%
+\contentsline {section}{\numberline {8.6}Revue et Rétrospective Sprint 5}{56}{section.8.6}%
+\contentsline {chapter}{\numberline {9}Sprint 6 --- Portail Agence, Journal d'Audit et Finalisation}{57}{chapter.9}%
+\contentsline {section}{\numberline {9.1}Hub Conciergerie et Portail Agence}{57}{section.9.1}%
+\contentsline {subsection}{\numberline {9.1.1}Server-Sent Events (SSE) pour le Statut en Direct}{57}{subsection.9.1.1}%
+\contentsline {section}{\numberline {9.2}Système de Journal d'Audit}{58}{section.9.2}%
+\contentsline {subsection}{\numberline {9.2.1}Schéma AuditLog}{58}{subsection.9.2.1}%
+\contentsline {subsection}{\numberline {9.2.2}Événements Journalisés}{58}{subsection.9.2.2}%
+\contentsline {section}{\numberline {9.3}Modes de Sécurité}{59}{section.9.3}%
+\contentsline {section}{\numberline {9.4}Récapitulatif Complet des Routes API}{60}{section.9.4}%
+\contentsline {section}{\numberline {9.5}Revue et Rétrospective Sprint 6}{61}{section.9.5}%
+\contentsline {chapter}{\numberline {10}Sécurité, Tests et Assurance Qualité}{62}{chapter.10}%
+\contentsline {section}{\numberline {10.1}Architecture de Sécurité}{62}{section.10.1}%
+\contentsline {section}{\numberline {10.2}Conformité OWASP Top 10}{62}{section.10.2}%
+\contentsline {section}{\numberline {10.3}Stratégie de Tests}{63}{section.10.3}%
+\contentsline {subsection}{\numberline {10.3.1}Cas de Test Principaux}{64}{subsection.10.3.1}%
+\contentsline {section}{\numberline {10.4}Limitations Connues}{65}{section.10.4}%
+\contentsline {chapter}{\numberline {11}Gestion de Projet, Planification et Gouvernance des Risques}{66}{chapter.11}%
+\contentsline {section}{\numberline {11.1}Mise en Œuvre du Cadre Scrum}{66}{section.11.1}%
+\contentsline {subsection}{\numberline {11.1.1}Rôles et Cérémonies}{66}{subsection.11.1.1}%
+\contentsline {subsection}{\numberline {11.1.2}Cérémonies de Sprint}{66}{subsection.11.1.2}%
+\contentsline {section}{\numberline {11.2}Chronogramme du Projet}{67}{section.11.2}%
+\contentsline {section}{\numberline {11.3}Vélocité des Sprints}{67}{section.11.3}%
+\contentsline {section}{\numberline {11.4}Registre des Risques}{68}{section.11.4}%
+\contentsline {section}{\numberline {11.5}Métriques Récapitulatives du Projet}{69}{section.11.5}%
+\contentsline {chapter}{\numberline {12}Conclusion et Perspectives}{70}{chapter.12}%
+\contentsline {section}{\numberline {12.1}Conclusion du Projet}{70}{section.12.1}%
+\contentsline {subsection}{\numberline {12.1.1}Leçons Apprises}{71}{subsection.12.1.1}%
+\contentsline {section}{\numberline {12.2}Perspectives et Travaux Futurs}{71}{section.12.2}%
+\contentsline {subsection}{\numberline {12.2.1}Améliorations à Court Terme (3 prochains mois)}{71}{subsection.12.2.1}%
+\contentsline {subsection}{\numberline {12.2.2}Fonctionnalités à Moyen Terme (3--6 mois)}{72}{subsection.12.2.2}%
+\contentsline {subsection}{\numberline {12.2.3}Directions de Recherche à Long Terme (6+ mois)}{72}{subsection.12.2.3}%
+\contentsline {section}{\numberline {12.3}Remarques Finales}{73}{section.12.3}%
+\contentsline {chapter}{\numberline {13}Annexe A : Référence Complète de l'API}{74}{chapter.13}%
+\contentsline {section}{\numberline {13.1}Vue d'Ensemble}{74}{section.13.1}%
+\contentsline {section}{\numberline {13.2}Endpoints d'Authentification (\texttt {/api/auth})}{74}{section.13.2}%
+\contentsline {section}{\numberline {13.3}Endpoints Appareils (\texttt {/api/devices})}{75}{section.13.3}%
+\contentsline {section}{\numberline {13.4}Endpoints Plan d'Étage (\texttt {/api/floorplan})}{75}{section.13.4}%
+\contentsline {section}{\numberline {13.5}Endpoints Sécurité Gaz (\texttt {/api/gas})}{76}{section.13.5}%
+\contentsline {section}{\numberline {13.6}Endpoint Compagnon IA (\texttt {/api/companion})}{76}{section.13.6}%
+\contentsline {section}{\numberline {13.7}Endpoints Scénarios (\texttt {/api/scenarios})}{76}{section.13.7}%
+\contentsline {section}{\numberline {13.8}Codes de Statut HTTP Courants}{77}{section.13.8}%
+\contentsline {chapter}{\numberline {14}Annexe B : Architecture Frontend et Interface Utilisateur}{78}{chapter.14}%
+\contentsline {section}{\numberline {14.1}Routage de l'Application}{78}{section.14.1}%
+\contentsline {section}{\numberline {14.2}Inventaire des Pages}{79}{section.14.2}%
+\contentsline {section}{\numberline {14.3}Composants Réutilisables Clés}{80}{section.14.3}%
+\contentsline {section}{\numberline {14.4}Implémentation AuthContext}{81}{section.14.4}%
+\contentsline {section}{\numberline {14.5}ThemeContext et Mode Sombre}{82}{section.14.5}%
+\contentsline {chapter}{\numberline {15}Annexe C : Guide d'Installation et Runbook Opérationnel}{84}{chapter.15}%
+\contentsline {section}{\numberline {15.1}Prérequis}{84}{section.15.1}%
+\contentsline {section}{\numberline {15.2}Variables d'Environnement Backend}{84}{section.15.2}%
+\contentsline {section}{\numberline {15.3}Étapes d'Installation Complètes}{85}{section.15.3}%
+\contentsline {section}{\numberline {15.4}Configuration du Firmware ESP32}{86}{section.15.4}%
+\contentsline {subsection}{\numberline {15.4.1}Installation des Bibliothèques Arduino IDE}{86}{subsection.15.4.1}%
+\contentsline {subsection}{\numberline {15.4.2}Étapes de Flashage}{87}{subsection.15.4.2}%
+\contentsline {section}{\numberline {15.5}Déploiement Production (Render / Railway)}{87}{section.15.5}%
+\contentsline {section}{\numberline {15.6}Runbook Opérationnel}{87}{section.15.6}%
+\contentsline {subsection}{\numberline {15.6.1}Vérifications de l'État des Services}{88}{subsection.15.6.1}%
+\contentsline {subsection}{\numberline {15.6.2}Résolution des Problèmes Courants}{88}{subsection.15.6.2}%
+\contentsline {chapter}{\numberline {16}Annexe D : Matrice de Traçabilité des Exigences}{89}{chapter.16}%
+\contentsline {section}{\numberline {16.1}Objectif}{89}{section.16.1}%
+\contentsline {section}{\numberline {16.2}Matrice de Traçabilité}{89}{section.16.2}%
+\contentsline {section}{\numberline {16.3}Données de Burndown des Sprints}{91}{section.16.3}%
+\contentsline {section}{\numberline {16.4}Verrouillage des Versions Technologiques}{92}{section.16.4}%
+\contentsfinish 

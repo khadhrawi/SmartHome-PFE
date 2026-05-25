@@ -1,194 +1,537 @@
-\chapter{System Architecture and UML Modeling}
+%=============================================================================
+%  Chapitre 4 — Architecture Système et Modélisation UML
+%=============================================================================
+\chapter{Architecture Système et Modélisation UML}
 
-\section{Architectural Vision}
-The SmartHome platform follows a layered event-driven architecture combining:
-\begin{itemize}[leftmargin=1.2cm]
-  \item API-oriented business services (REST).
-  \item Event-oriented machine communication (MQTT).
-  \item Real-time user synchronization (Socket.IO).
-  \item Persistent state and history (MongoDB).
-\end{itemize}
+\section{Vision Architecturale}
 
-This architecture separates concerns while allowing fast propagation of state changes across subsystems.
+La Plateforme IoT Maison Intelligente suit une \textbf{architecture en couches
+événementielle} construite sur trois canaux de communication principaux :
 
-\section{High-Level Context Diagram}
-\begin{figure}[H]
-\centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-  node distance=1.2cm and 1.6cm,
-  actor/.style={draw, rounded corners, fill=blue!10, minimum width=3.2cm, minimum height=0.9cm, align=center},
-  system/.style={draw, rounded corners, fill=green!12, minimum width=5.0cm, minimum height=1.2cm, align=center},
-  datastore/.style={draw, cylinder, shape border rotate=90, aspect=0.2, minimum height=1.2cm, minimum width=2.0cm, fill=orange!15, align=center}
-]
-\node[actor] (agency) {Agency User};
-\node[actor, below=of agency] (admin) {House Admin};
-\node[actor, below=of admin] (resident) {Resident};
-
-\node[system, right=3.2cm of admin] (platform) {SmartHome Platform\\(API + Realtime + Broker)};
-\node[datastore, right=3.6cm of platform] (db) {MongoDB};
-\node[actor, below=1.6cm of platform] (devices) {IoT Devices};
-
-\draw[-{Latex[length=3mm]}] (agency) -- node[above,sloped]{Manage units, requests} (platform);
-\draw[-{Latex[length=3mm]}] (admin) -- node[above,sloped]{Control home, review permissions} (platform);
-\draw[-{Latex[length=3mm]}] (resident) -- node[below,sloped]{Use allowed features} (platform);
-\draw[-{Latex[length=3mm]}] (platform) -- node[above]{Persist/read} (db);
-\draw[-{Latex[length=3mm]}] (devices) -- node[right]{MQTT telemetry / commands} (platform);
-\end{tikzpicture}
-}
-\caption{System context diagram}
-\end{figure}
-
-\section{Component Diagram}
-\begin{figure}[H]
-\centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-  comp/.style={draw, rounded corners, fill=cyan!10, minimum width=3.4cm, minimum height=1.0cm, align=center},
-  arr/.style={-{Latex[length=3mm]}}
-]
-\node[comp] (frontend) at (0,0) {React Frontend};
-\node[comp] (api) at (5,0) {Express API Layer};
-\node[comp] (socket) at (10,0) {Socket.IO Service};
-
-\node[comp] (auth) at (5,-2) {Auth and RBAC Middleware};
-\node[comp] (domain) at (5,-4) {Domain Routes and Services};
-\node[comp] (broker) at (10,-2) {Aedes MQTT Broker};
-\node[comp] (gas) at (10,-4) {Gas Monitor Service};
-\node[comp] (mongo) at (5,-6) {MongoDB and Models};
-
-\draw[arr] (frontend) -- node[above]{REST} (api);
-\draw[arr] (frontend) -- node[above]{Realtime events} (socket);
-\draw[arr] (api) -- (auth);
-\draw[arr] (auth) -- (domain);
-\draw[arr] (domain) -- (mongo);
-\draw[arr] (broker) -- node[right]{publish/subscribe} (gas);
-\draw[arr] (gas) -- (mongo);
-\draw[arr] (gas) -- node[left]{emit alerts} (socket);
-\draw[arr] (domain) -- (broker);
-\draw[arr] (api) -- (socket);
-\end{tikzpicture}
-}
-\caption{Logical component architecture}
-\end{figure}
-
-\section{Deployment Diagram}
-\begin{figure}[H]
-\centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-  box/.style={draw, rounded corners, fill=gray!10, minimum width=4.4cm, minimum height=1.2cm, align=center},
-  arr/.style={-{Latex[length=3mm]}}
-]
-\node[box] (browser) at (0,0) {Client Browser\\(React SPA)};
-\node[box] (node) at (6,0) {Node.js Runtime\\Express + Socket.IO + Aedes};
-\node[box] (mongo) at (12,0) {MongoDB Server};
-\node[box] (iot) at (6,-2.2) {IoT Devices / Simulators\\MQTT TCP / MQTT over WS};
-\node[box] (mail) at (12,-2.2) {Email Service\\(verification/reset)};
-
-\draw[arr] (browser) -- node[above]{HTTPS/HTTP + WS} (node);
-\draw[arr] (node) -- node[above]{Mongoose} (mongo);
-\draw[arr] (iot) -- node[left]{MQTT topics} (node);
-\draw[arr] (node) -- node[right]{SMTP/API} (mail);
-\end{tikzpicture}
-}
-\caption{Deployment-level topology}
-\end{figure}
-
-\section{Use Case Diagram Narrative}
-The main use-case clusters are:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Agency governance: manage units, review owner requests, monitor analytics.
-  \item Admin operations: manage users and devices, approve permissions, activate scenes.
-  \item Resident interactions: controlled dashboard usage, permission requests, profile actions.
-  \item Automated safety loop: ingest sensor values, compute emergency state, propagate alerts.
-\end{itemize}
-
-\section{Sequence Diagram: Resident Permission Request}
-\begin{figure}[H]
-\centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-  lifeline/.style={draw, minimum width=2.6cm, minimum height=0.8cm, fill=blue!8, align=center},
-  arr/.style={-{Latex[length=2.5mm]}}
-]
-\node[lifeline] (res) at (0,0) {Resident UI};
-\node[lifeline] (api) at (4,0) {Permissions API};
-\node[lifeline] (db) at (8,0) {MongoDB};
-\node[lifeline] (sock) at (12,0) {Socket.IO};
-\node[lifeline] (adm) at (16,0) {Admin UI};
-
-\draw[dashed] (res) -- (0,-5.2);
-\draw[dashed] (api) -- (4,-5.2);
-\draw[dashed] (db) -- (8,-5.2);
-\draw[dashed] (sock) -- (12,-5.2);
-\draw[dashed] (adm) -- (16,-5.2);
-
-\draw[arr] (0,-1) -- node[above]{POST request} (4,-1);
-\draw[arr] (4,-2) -- node[above]{create doc} (8,-2);
-\draw[arr] (8,-2.6) -- node[below]{created} (4,-2.6);
-\draw[arr] (4,-3.4) -- node[above]{emit event} (12,-3.4);
-\draw[arr] (12,-4.2) -- node[above]{requestCreated} (16,-4.2);
-\end{tikzpicture}
-}
-\caption{Permission request event propagation}
-\end{figure}
-
-\section{Sequence Diagram: Gas Emergency}
-\begin{figure}[H]
-\centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-  lifeline/.style={draw, minimum width=2.4cm, minimum height=0.8cm, fill=red!8, align=center},
-  arr/.style={-{Latex[length=2.5mm]}}
-]
-\node[lifeline] (sensor) at (0,0) {Gas Sensor};
-\node[lifeline] (broker) at (3.8,0) {MQTT Broker};
-\node[lifeline] (monitor) at (7.6,0) {Gas Monitor};
-\node[lifeline] (db) at (11.4,0) {HouseState DB};
-\node[lifeline] (sock) at (15.2,0) {Socket.IO};
-\node[lifeline] (ui) at (19,0) {Dashboards};
-
-\foreach \x in {0,3.8,7.6,11.4,15.2,19} {\draw[dashed] (\x,-0.4) -- (\x,-6.2);} 
-
-\draw[arr] (0,-1.0) -- node[above]{publish sensors/H1234/gas} (3.8,-1.0);
-\draw[arr] (3.8,-1.8) -- node[above]{event packet} (7.6,-1.8);
-\draw[arr] (7.6,-2.6) -- node[above]{save level + emergencyMode} (11.4,-2.6);
-\draw[arr] (7.6,-3.4) -- node[above]{publish alarm + valve command} (3.8,-3.4);
-\draw[arr] (7.6,-4.2) -- node[above]{emit house:gas-emergency} (15.2,-4.2);
-\draw[arr] (15.2,-5.0) -- node[above]{real-time alert} (19,-5.0);
-\end{tikzpicture}
-}
-\caption{Gas emergency sequence}
-\end{figure}
-
-\section{Activity Diagram Narrative: User Onboarding}
-User onboarding branch logic:
-\begin{enumerate}[leftmargin=1.2cm]
-  \item User authenticates.
-  \item If house code already exists in profile, redirect to dashboard.
-  \item Else choose between join existing unit and create solo unit.
-  \item Persist onboarding result and assign role capabilities.
-  \item Navigate to role-appropriate dashboard.
+\begin{enumerate}[leftmargin=1.5cm,itemsep=6pt]
+  \item \textbf{REST (HTTP/JSON)} --- requête-réponse synchrone pour les opérations
+        CRUD, l'authentification, la configuration et la récupération de données.
+  \item \textbf{MQTT (Publication-Abonnement)} --- messagerie asynchrone à faible
+        latence entre le courtier backend et les dispositifs IoT (ESP32).
+  \item \textbf{Socket.IO (WebSocket)} --- canal bidirectionnel événementiel pour la
+        diffusion d'état en temps réel aux clients navigateur.
 \end{enumerate}
 
-\section{State Diagram Narrative: House Safety State}
-House safety states can be conceptualized as:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Normal: gas level below threshold, emergency disabled.
-  \item Alert Triggered: gas level exceeds threshold and transition detected.
-  \item Emergency Active: emergency mode true, valve closed, alarm command retained.
-  \item Recovery: value returns below threshold or admin clear action executed.
-\end{itemize}
+Le backend joue le rôle de \textbf{hub d'intégration} : il héberge le courtier MQTT,
+l'API HTTP et la passerelle Socket.IO, traduisant les événements entre les trois canaux
+tout en persistant l'état dans MongoDB.
 
-\section{Architectural Quality Attributes}
-The architecture optimizes for:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Modularity: independent route and service modules.
-  \item Responsiveness: push events to clients instead of polling.
-  \item Evolvability: model and route extensions with localized impact.
-  \item Operational clarity: deterministic handling for safety events.
-\end{itemize}
+%-----------------------------------------------------------------------------
+\section{Diagramme de Déploiement}
+%-----------------------------------------------------------------------------
 
-\section{Design Constraints and Evolution Strategy}
-The architecture currently co-hosts API, sockets, and broker in one process. This is acceptable for project and early deployment stages. A future production strategy can separate broker, API, and realtime gateway into independent services while preserving contracts defined in this chapter.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.76, transform shape,
+  every node/.style={font=\normalsize},
+  box/.style={
+    draw, rounded corners=6pt,
+    minimum width=4.5cm, minimum height=1.4cm,
+    align=center, fill=blue!10, thick
+  },
+  db/.style={
+    draw, cylinder, shape border rotate=90,
+    minimum width=3.5cm, minimum height=1.4cm,
+    align=center, fill=orange!20, thick
+  },
+  esp/.style={
+    draw, rounded corners=6pt,
+    minimum width=4.5cm, minimum height=1.4cm,
+    align=center, fill=green!15, thick
+  },
+  cloud/.style={
+    draw, ellipse,
+    minimum width=3.8cm, minimum height=1.2cm,
+    align=center, fill=gray!12, thick
+  },
+  arr/.style={-{Stealth[length=8pt, width=6pt]}, thick, espritblue},
+  darr/.style={<->, thick, dashed, espritblue},
+  lbl/.style={font=\small, fill=white, inner sep=2pt}
+]
+
+%--- Nœuds ---
+\node[box, fill=blue!18]        (fe)     at (0,    0)    {\textbf{Navigateur Web}\\\small React 19 / Vite SPA};
+\node[box, fill=espritblue!25]  (be)     at (7.5,  0)    {\textbf{Backend Node.js}\\\small Express + Aedes\\+ Socket.IO};
+\node[db]                       (mongo)  at (14.5, 0)    {\textbf{MongoDB}\\Atlas / Local};
+\node[esp, fill=green!20]       (esp)    at (7.5, -4.5)  {\textbf{ESP32-D}\\\small Firmware Arduino};
+\node[cloud]                    (groq)   at (7.5,  4.5)  {\textbf{Groq API}\\\small LLM Inférence};
+\node[cloud, fill=blue!8]       (google) at (0,    4.5)  {\textbf{Google OAuth 2.0}};
+\node[cloud, fill=yellow!20]    (email)  at (14.5, 4.5)  {\textbf{SMTP}\\\small Nodemailer};
+
+%--- Connexions ---
+\draw[darr] (fe)    -- node[lbl, above]{REST + Socket.IO}                        (be);
+\draw[arr]  (be)    -- node[lbl, above]{Mongoose ODM}                            (mongo);
+\draw[darr] (be)    -- node[lbl, right]{MQTT port 1883}                          (esp);
+\draw[arr]  (be)    -- node[lbl, right]{HTTPS / API Groq}                        (groq);
+\draw[arr]  (fe)    -- node[lbl, left]{Redirection OAuth}                        (google);
+\draw[arr]  (google)-- node[lbl, above]{Token JWT}                               (be);
+\draw[arr]  (be)    -- node[lbl, above]{SMTP port 587}                           (email);
+
+%--- Cadre réseau ---
+\draw[dashed, thick, gray!60, rounded corners=8pt]
+      (-2.8,-6.2) rectangle (17.5, 2.5);
+\node[font=\small\itshape, gray] at (7.5,-5.9)
+      {Réseau local / Serveur VPS (déploiement production)};
+
+\end{tikzpicture}
+\caption{Diagramme de Déploiement de la Plateforme SmartHome}
+\label{fig:deployment}
+\end{figure}
+
+%-----------------------------------------------------------------------------
+\section{Diagramme de Composants}
+%-----------------------------------------------------------------------------
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  every node/.style={font=\normalsize},
+  comp/.style={
+    draw, rectangle, rounded corners=4pt,
+    minimum width=4.2cm, minimum height=1.1cm,
+    align=center, fill=lightblue, thick
+  },
+  svc/.style={
+    draw, rectangle, rounded corners=4pt,
+    minimum width=4.2cm, minimum height=1.1cm,
+    align=center, fill=lightgreen, thick
+  },
+  mw/.style={
+    draw, rectangle, rounded corners=4pt,
+    minimum width=3.8cm, minimum height=1.0cm,
+    align=center, fill=lightyellow, thick
+  },
+  arr/.style={-{Stealth[length=7pt,width=5pt]}, thick, gray!70},
+  lbl/.style={font=\small, fill=white, inner sep=2pt}
+]
+
+% Couche Routes
+\node[comp] (router)   at (6.5, 9)    {\textbf{Couche Routes}\\\small 19 fichiers de routes};
+
+% Middlewares
+\node[mw]   (mw_auth)  at (2.0, 7.0)  {\textbf{Auth MW}\\\small protect / admin};
+\node[mw]   (mw_res)   at (6.5, 7.0)  {\textbf{Resident MW}\\\small accès limité};
+\node[mw]   (mw_ag)    at (11.0,7.0)  {\textbf{Agency MW}\\\small agencyOnly};
+
+% Contrôleurs
+\node[comp] (ctrl)     at (6.5, 5.0)  {\textbf{Logique Contrôleur}\\\small Handlers en ligne};
+
+% Services
+\node[svc]  (gasmon)   at (0.5, 2.8)  {\textbf{Gas Monitor}\\\small MQTT → urgence};
+\node[svc]  (dhtmon)   at (5.0, 2.8)  {\textbf{DHT Monitor}\\\small Temp/Humidité};
+\node[svc]  (sched)    at (9.5, 2.8)  {\textbf{Planificateur}\\\small node-cron};
+\node[svc]  (audit_s)  at (13.5,2.8)  {\textbf{Audit Logger}\\\small toutes actions};
+
+% Infrastructure
+\node[comp] (broker)   at (0.5, 0.5)  {\textbf{Courtier MQTT}\\\small Aedes};
+\node[comp] (socketio) at (5.0, 0.5)  {\textbf{Socket.IO}\\\small Passerelle TR};
+\node[comp] (mongo)    at (9.5, 0.5)  {\textbf{MongoDB}\\\small 9 modèles Mongoose};
+
+% Flèches
+\draw[arr] (router) -- (mw_auth);
+\draw[arr] (router) -- (mw_res);
+\draw[arr] (router) -- (mw_ag);
+\draw[arr] (mw_auth) -- (ctrl);
+\draw[arr] (mw_res)  -- (ctrl);
+\draw[arr] (mw_ag)   -- (ctrl);
+\draw[arr] (ctrl) -- (gasmon);
+\draw[arr] (ctrl) -- (dhtmon);
+\draw[arr] (ctrl) -- (sched);
+\draw[arr] (ctrl) -- (audit_s);
+\draw[arr] (ctrl) -- (broker);
+\draw[arr] (ctrl) -- (socketio);
+\draw[arr] (ctrl) -- (mongo);
+\draw[arr] (broker) -- (gasmon);
+\draw[arr] (broker) -- (dhtmon);
+\draw[arr] (gasmon) -- (socketio);
+\draw[arr] (sched)  -- (ctrl);
+
+\end{tikzpicture}
+\caption{Diagramme de Composants du Backend}
+\label{fig:component}
+\end{figure}
+
+%-----------------------------------------------------------------------------
+\section{Structure du Monorepo}
+%-----------------------------------------------------------------------------
+
+\begin{lstlisting}[style=codeblock,language=,caption={Structure du R\'epertoire du Projet}]
+SmartHome-PFE/
+|-- index.js                 # Point d'entree monorepo (demarre le backend)
+|-- package.json             # Scripts racine (concurrently dev)
+|-- backend/
+|   |-- server.js            # Application Express + configuration Socket.IO
+|   |-- broker.js            # Configuration courtier MQTT Aedes
+|   |-- gasMonitor.js        # Service telemetrie gaz + logique urgence
+|   |-- dhtMonitor.js        # Service persistance telemetrie DHT11
+|   |-- scheduler.js         # Executeur de scenarios node-cron
+|   |-- routes/              # 19 modules de routes
+|   |-- models/              # 9 schemas Mongoose
+|   |-- middlewares/         # protect, admin, resident, agency
+|   |-- realtime/            # Gestionnaires evenements Socket.IO
+|   |-- utils/               # mailer, auditLogger
+|   `-- .env                 # Secrets d'environnement
+|-- frontend/
+|   |-- src/
+|   |   |-- pages/           # 34 composants de pages
+|   |   |-- components/      # 25+ composants reutilisables
+|   |   |-- hooks/           # Hooks React personnalises
+|   |   |-- context/         # AuthContext, ThemeContext
+|   |   |-- realtime/        # Integration client Socket.IO
+|   |   `-- App.jsx          # Definitions de routes + gardes
+|   `-- vite.config.js
+`-- esp32/
+    `-- SmartHome_ESP32/
+        `-- SmartHome_ESP32.ino   # Firmware Arduino (~430 lignes)
+\end{lstlisting}
+
+%-----------------------------------------------------------------------------
+\section{Diagramme de Classes (Modèle Domaine)}
+%-----------------------------------------------------------------------------
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  every node/.style={font=\small},
+  cls/.style={
+    draw, rectangle, thick,
+    minimum width=4.8cm,
+    fill=blue!6
+  },
+  rel/.style={-{Stealth[length=7pt,width=5pt]}, thick},
+  assoc/.style={thick, dashed, gray}
+]
+
+%-------------- Classe User ---------------
+\node[cls] (user) at (0, 10) {
+  \begin{tabular}{|l|}
+    \hline
+    \multicolumn{1}{|c|}{\textbf{Utilisateur (User)}} \\
+    \hline
+    \_id, nom, email \\
+    rôle, codeMailson \\
+    estVérifié, estSuperAdmin \\
+    permissions[], chambre \\
+    secret2FA, googleId \\
+    \hline
+    connexion() \\
+    inscription() \\
+    vérifier2FA() \\
+    \hline
+  \end{tabular}
+};
+
+%-------------- Classe Device ---------------
+\node[cls] (device) at (11.5, 10) {
+  \begin{tabular}{|l|}
+    \hline
+    \multicolumn{1}{|c|}{\textbf{Appareil (Device)}} \\
+    \hline
+    \_id, nom, type \\
+    topicMQTT (unique) \\
+    chambre, codeMaison \\
+    état, luminosité \\
+    ouvertPct, couleur \\
+    statut (en ligne/hors ligne) \\
+    \hline
+    publierCommande() \\
+    \hline
+  \end{tabular}
+};
+
+%-------------- Classe HouseState ---------------
+\node[cls] (hstate) at (5.75, 5.5) {
+  \begin{tabular}{|l|}
+    \hline
+    \multicolumn{1}{|c|}{\textbf{État Maison (HouseState)}} \\
+    \hline
+    codeMaison (unique) \\
+    modeEclairage \\
+    estVerrouillé, modeAbsence \\
+    modeUrgence \\
+    niveauGaz, seuilGaz \\
+    vanneOuverte \\
+    température, humidité \\
+    \hline
+  \end{tabular}
+};
+
+%-------------- Classe Scenario ---------------
+\node[cls] (scenario) at (0, 1.5) {
+  \begin{tabular}{|l|}
+    \hline
+    \multicolumn{1}{|c|}{\textbf{Scénario}} \\
+    \hline
+    \_id, nom, codeMaison \\
+    typeDeclencheur \\
+    heureExecution (HH:MM) \\
+    action, estActif \\
+    dernierDeclenchement \\
+    \hline
+    executer() \\
+    \hline
+  \end{tabular}
+};
+
+%-------------- Classe AuditLog ---------------
+\node[cls] (audit) at (11.5, 1.5) {
+  \begin{tabular}{|l|}
+    \hline
+    \multicolumn{1}{|c|}{\textbf{Journal Audit (AuditLog)}} \\
+    \hline
+    acteur (réf User) \\
+    nomActeur, rôleActeur \\
+    action, catégorie \\
+    détails, métadonnées \\
+    adresseIP, codeMaison \\
+    \hline
+  \end{tabular}
+};
+
+%-------------- Classe PermissionRequest ---------------
+\node[cls] (perm) at (0, 5.5) {
+  \begin{tabular}{|l|}
+    \hline
+    \multicolumn{1}{|c|}{\textbf{DemandePermission}} \\
+    \hline
+    demandeur (réf User) \\
+    adminMaison (réf User) \\
+    cléAction, libelléAction \\
+    chambre, statut \\
+    notesRevue \\
+    \hline
+  \end{tabular}
+};
+
+%-------------- Classe Message ---------------
+\node[cls] (msg) at (11.5, 5.5) {
+  \begin{tabular}{|l|}
+    \hline
+    \multicolumn{1}{|c|}{\textbf{Message}} \\
+    \hline
+    nomExpéditeur \\
+    sujet, corps \\
+    statut, réponseAdmin \\
+    codeMaison \\
+    \hline
+  \end{tabular}
+};
+
+%--- Relations ---
+\draw[rel]   (user)   -- node[above, font=\scriptsize]{gère} (device);
+\draw[assoc] (user)   -- (hstate);
+\draw[assoc] (user)   -- (perm);
+\draw[rel]   (user)   -- node[left,  font=\scriptsize]{crée} (scenario);
+\draw[assoc] (device) -- (hstate);
+\draw[assoc] (user)   -- (audit);
+\draw[assoc] (user)   -- (msg);
+
+\end{tikzpicture}
+\caption{Diagramme de Classes du Modèle Domaine}
+\label{fig:class_diagram}
+\end{figure}
+
+%-----------------------------------------------------------------------------
+\section{Diagramme de Séquence --- Commande d'Appareil}
+%-----------------------------------------------------------------------------
+
+Ce diagramme illustre le flux complet d'un clic utilisateur sur un bouton de contrôle
+jusqu'à la réponse physique de l'actionneur sur l'ESP32.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  every node/.style={font=\small},
+  life/.style={thick, dashed, gray!60},
+  actbox/.style={draw, fill=blue!12, rounded corners=3pt,
+                 minimum width=2.8cm, minimum height=0.8cm, align=center, thick},
+  msg/.style={-{Stealth[length=6pt,width=4pt]}, thick, espritblue},
+  rmsg/.style={-{Stealth[length=6pt,width=4pt]}, thick, dashed, gray},
+  lbl/.style={font=\scriptsize, fill=white, inner sep=2pt}
+]
+
+%--- Participants ---
+\node[actbox, fill=blue!20]   (ui)   at (0,    12) {\textbf{Navigateur}\\\small (React)};
+\node[actbox, fill=blue!15]   (api)  at (4,    12) {\textbf{API Express}};
+\node[actbox, fill=orange!25] (mqtt) at (8,    12) {\textbf{Courtier}\\\small Aedes MQTT};
+\node[actbox, fill=green!20]  (esp)  at (12,   12) {\textbf{ESP32}};
+\node[actbox, fill=orange!15] (db)   at (4,    12) {};
+
+%--- Lignes de vie ---
+\foreach \x in {0, 4, 8, 12}
+  \draw[life] (\x, 11.6) -- (\x, -1.0);
+
+%--- Messages numérotés ---
+% 1
+\draw[msg]  (0,11.0) -- node[lbl,above]{\textbf{1.} POST /api/floorplan/command} (4,11.0);
+% 2
+\draw[msg]  (4,10.0) -- node[lbl,above]{\textbf{2.} Vérif. JWT + permission} (4, 9.4);
+\node[font=\scriptsize, align=center] at (2.0, 9.7) {};
+% 3
+\draw[msg]  (4, 9.2) -- node[lbl,above]{\textbf{3.} publish(command/\{topic\}, payload)} (8, 9.2);
+% 4
+\draw[msg]  (8, 8.2) -- node[lbl,above]{\textbf{4.} Livraison au client ESP32} (12,8.2);
+% 5
+\draw[msg]  (12,7.2) -- node[lbl,above,xshift=1cm]{\textbf{5.} Actionner (servo/LED/buzzer)} (12,6.8);
+% 6
+\draw[rmsg] (4, 6.0) -- node[lbl,above]{\textbf{6.} 200 OK \{success: true\}} (0, 6.0);
+% 7
+\draw[msg]  (4, 5.0) -- node[lbl,above]{\textbf{7.} Mise à jour Device.état en MongoDB} (8, 5.0);
+% 8
+\draw[msg]  (4, 4.0) -- node[lbl,above]{\textbf{8.} io.emit('device:updated', état)} (0, 4.0);
+% 9
+\draw[msg]  (4, 3.0) -- node[lbl,above]{\textbf{9.} Journaliser audit (acteur, action)} (8, 3.0);
+
+%--- Étiquettes verticales ---
+\foreach \y/\col in {11.0/espritblue, 9.2/espritblue, 8.2/sprintgreen,
+                      6.0/gray, 4.0/espritblue}
+  \draw[thick, \col!30] (-1.2,\y) -- (-0.2,\y);
+
+\end{tikzpicture}
+\caption{Diagramme de Séquence --- Flux de Commande d'Appareil}
+\label{fig:seq_command}
+\end{figure}
+
+%-----------------------------------------------------------------------------
+\section{Diagramme de Séquence --- Urgence Gaz}
+%-----------------------------------------------------------------------------
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  every node/.style={font=\small},
+  life/.style={thick, dashed, gray!60},
+  actbox/.style={draw, fill=blue!12, rounded corners=3pt,
+                 minimum width=2.6cm, minimum height=0.8cm, align=center, thick},
+  msg/.style={-{Stealth[length=6pt,width=4pt]}, thick},
+  lbl/.style={font=\scriptsize, fill=white, inner sep=2pt}
+]
+
+%--- Participants ---
+\node[actbox, fill=green!20]  (esp)  at (0,   12) {\textbf{ESP32}};
+\node[actbox, fill=orange!25] (mqtt) at (3.5, 12) {\textbf{Courtier}\\\small MQTT};
+\node[actbox, fill=blue!18]   (gas)  at (7,   12) {\textbf{Gas}\\\small Monitor};
+\node[actbox, fill=blue!15]   (sio)  at (10.5,12) {\textbf{Socket.IO}};
+\node[actbox, fill=blue!20]   (ui)   at (14,  12) {\textbf{Navigateur}};
+
+%--- Lignes de vie ---
+\foreach \x in {0, 3.5, 7, 10.5, 14}
+  \draw[life] (\x, 11.6) -- (\x, -0.5);
+
+%--- Messages ---
+\draw[msg, espritblue]  (0,   11.0) -- node[lbl,above]{\textbf{1.} sensors/\{code\}/gas: \{"ppm":450\}} (3.5,11.0);
+\draw[msg, espritblue]  (3.5, 10.0) -- node[lbl,above]{\textbf{2.} Livraison au Gas Monitor}   (7,  10.0);
+\draw[msg, gray]        (7,    9.2) -- node[lbl,above,xshift=0.5cm]{\textbf{3.} PPM $\geq$ seuil (400) ?}  (7,   8.8);
+\draw[msg, red!70]      (7,    8.4) -- node[lbl,above]{\textbf{4.} emit('house:gas-emergency')} (10.5, 8.4);
+\draw[msg, red!70]      (10.5, 7.5) -- node[lbl,above]{\textbf{5.} broadcast house rooms}       (14,   7.5);
+\draw[msg, espritblue]  (7,    6.8) -- node[lbl,above,xshift=1cm]{\textbf{6.} Afficher overlay urgence rouge}(14, 6.8);
+\draw[msg, espritblue]  (7,    6.0) -- node[lbl,above]{\textbf{7.} updateHouseState(urgence=vrai)} (7, 5.6);
+\draw[msg, orange!80]   (7,    5.0) -- node[lbl,above]{\textbf{8.} publish(cmd/vanne, FERMER)}  (3.5,  5.0);
+\draw[msg, orange!80]   (3.5,  4.2) -- node[lbl,above]{\textbf{9.} Livraison à ESP32}           (0,    4.2);
+\draw[msg, orange!80]   (7,    3.4) -- node[lbl,above]{\textbf{10.} publish(cmd/alarme, ON)}    (3.5,  3.4);
+\draw[msg, orange!80]   (3.5,  2.6) -- node[lbl,above]{\textbf{11.} Livraison à ESP32}          (0,    2.6);
+\draw[msg, green!60]    (0,    1.6) -- node[lbl,above,xshift=1cm]{\textbf{12.} Activer buzzer + fermer servo vanne}(0,1.2);
+
+\end{tikzpicture}
+\caption{Diagramme de Séquence --- Détection et Réponse à l'Urgence Gaz}
+\label{fig:seq_gas}
+\end{figure}
+
+%-----------------------------------------------------------------------------
+\section{Machine à États --- Mode Urgence}
+%-----------------------------------------------------------------------------
+
+\begin{figure}[H]
+\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[
+  every node/.style={font=\normalsize},
+  state/.style={
+    draw, ellipse, thick,
+    minimum width=5.5cm, minimum height=1.8cm,
+    align=center, fill=blue!10
+  },
+  danger/.style={
+    draw, ellipse, thick,
+    minimum width=5.5cm, minimum height=1.8cm,
+    align=center, fill=red!25
+  },
+  safe/.style={
+    draw, ellipse, thick,
+    minimum width=5.5cm, minimum height=1.8cm,
+    align=center, fill=green!15
+  },
+  arr/.style={-{Stealth[length=8pt,width=6pt]}, thick},
+  lbl/.style={font=\small, fill=white, inner sep=3pt, align=center}
+]
+
+\node[state]  (normal)    at (0,   8) {\textbf{Fonctionnement Normal}\\\small Tous appareils opérationnels};
+\node[state]  (monitor)   at (10,  8) {\textbf{Surveillance Active}\\\small PPM $<$ seuil configurable};
+\node[danger] (emergency) at (10,  3) {\textbf{MODE URGENCE}\\\small Buzzer ON · Vanne FERM\'EE\\\small Socket.IO alerte};
+\node[safe]   (cleared)   at (0,   3) {\textbf{Urgence Lev\'ee}\\\small \'Etat r\'einitiialis\'e\\\small par l'Admin};
+
+\draw[arr, espritblue]
+  (normal) -- node[lbl, above]{capteur gaz publie} (monitor);
+
+\draw[arr, espritblue]
+  (monitor.north) to[out=60,in=120, looseness=4]
+  node[lbl, above]{PPM $<$ seuil} (monitor.north);
+
+\draw[arr, red, very thick]
+  (monitor) -- node[lbl, right]{PPM $\geq$ seuil\\\small (d\'efaut : 400 PPM)} (emergency);
+
+\draw[arr, espritgold, very thick]
+  (emergency) -- node[lbl, below]{Admin cl\^oture l'urgence\\\small via tableau de bord} (cleared);
+
+\draw[arr, sprintgreen]
+  (cleared) -- node[lbl, left]{Reprendre\\ la surveillance} (normal);
+
+\draw[arr, red, dashed]
+  (emergency.south) to[out=-60,in=-120, looseness=4]
+  node[lbl, below]{Maintient :\\ buzzer actif\\ vanne ferm\'ee} (emergency.south);
+
+\end{tikzpicture}%
+}
+\caption{Machine à États --- Transitions du Mode Urgence Maison}
+\label{fig:state_emergency}
+\end{figure}
+
+%-----------------------------------------------------------------------------
+\section{Flux de Données Bout en Bout}
+%-----------------------------------------------------------------------------
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  every node/.style={font=\normalsize},
+  flowstep/.style={
+    draw, rectangle, rounded corners=5pt,
+    minimum width=10cm, minimum height=0.9cm,
+    align=center, fill=lightblue, thick
+  },
+  arr/.style={-{Stealth[length=7pt,width=5pt]}, thick, espritblue}
+]
+
+\node[flowstep]                    (s1)  {\textbf{1.} L'utilisateur clique sur le bouton de contr\^ole d'un appareil};
+\node[flowstep, below=0.5cm of s1] (s2)  {\textbf{2.} React envoie POST /api/floorplan/command};
+\node[flowstep, below=0.5cm of s2] (s3)  {\textbf{3.} Express : authentification JWT + v\'erification des permissions};
+\node[flowstep, below=0.5cm of s3] (s4)  {\textbf{4.} Publication MQTT vers command/\{topic\}};
+\node[flowstep, below=0.5cm of s4] (s5)  {\textbf{5.} Aedes route le message vers l'abonn\'e ESP32};
+\node[flowstep, below=0.5cm of s5] (s6)  {\textbf{6.} ESP32 actionne le dispositif physique (servo/LED)};
+\node[flowstep, below=0.5cm of s6] (s7)  {\textbf{7.} Express : mise \`a jour de Device.\'etat dans MongoDB};
+\node[flowstep, below=0.5cm of s7] (s8)  {\textbf{8.} Socket.IO \'emet 'device:updated' \`a la salle maison};
+\node[flowstep, below=0.5cm of s8] (s9)  {\textbf{9.} React met \`a jour l'interface en temps r\'eel};
+\node[flowstep, below=0.5cm of s9] (s10) {\textbf{10.} \'Ecriture d'un enregistrement AuditLog dans MongoDB};
+
+\foreach \a/\b in {s1/s2, s2/s3, s3/s4, s4/s5, s5/s6, s6/s7, s7/s8, s8/s9, s9/s10}
+  \draw[arr] (\a) -- (\b);
+
+\end{tikzpicture}
+\caption{Flux de Données de Commande d'Appareil Bout en Bout}
+\label{fig:dataflow}
+\end{figure}

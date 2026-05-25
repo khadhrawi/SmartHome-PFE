@@ -1,96 +1,415 @@
-\chapter{Realtime and IoT Communication Flows}
+%=============================================================================
+%  Chapitre 8 — Sprint 5 : Compagnon IA Melo, Scénarios et Surveillance Énergétique
+%=============================================================================
+\chapter{Sprint 5 --- Compagnon IA (Melo), Automatisation par Scénarios et Surveillance Énergétique}
 
-\section{Communication Architecture}
-The platform uses a dual-realtime strategy:
-\begin{itemize}[leftmargin=1.2cm]
-  \item MQTT for device-to-platform and platform-to-device messages.
-  \item Socket.IO for platform-to-user asynchronous events.
-\end{itemize}
+\begin{tcolorbox}[sprintbox,title={Sprint 5 --- Compagnon IA \& Automatisation}]
+\textbf{Durée :} 2 semaines \quad
+\textbf{Points de Story :} 34 \quad
+\textbf{Objectif :} Livrer le compagnon IA Melo pour le contrôle des appareils en langage
+naturel, l'automatisation temporelle via node-cron, et un tableau de bord de surveillance
+de la consommation énergétique.
+\end{tcolorbox}
 
-\section{MQTT Topic Design}
-Representative topic families:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Device telemetry: \texttt{devices/<deviceTopic>}
-  \item Commands: \texttt{command/<deviceTopic>}
-  \item Gas sensors: \texttt{sensors/<houseCode>/gas}
-  \item Auto-generated safety commands: \texttt{command/autogen/<house>/alarm} and \texttt{.../gas-valve}
-\end{itemize}
+\section{Backlog Sprint 5}
 
-The naming strategy allows deterministic routing and straightforward debugging.
+\begin{center}
+\begin{longtable}{p{0.07\textwidth} p{0.54\textwidth} p{0.08\textwidth} p{0.12\textwidth}}
+\caption{Décomposition des User Stories Sprint 5}\label{tab:sprint5_backlog}\\
+\toprule
+\textbf{ID} & \textbf{User Story} & \textbf{PS} & \textbf{Statut} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{User Story} & \textbf{PS} & \textbf{Statut} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+US-23 & Compagnon IA (Melo) pour contrôle d'appareils en langage naturel & 13 & \done Terminé \\
+US-24 & Scénarios d'automatisation temporels avec node-cron & 8 & \done Terminé \\
+US-25 & Graphiques de consommation énergétique horaire & 8 & \done Terminé \\
+US-26 & Historique et statut des demandes de permission & 5 & \done Terminé \\
+\end{longtable}
+\end{center}
 
-\section{Broker Events and Device State Handling}
-When a telemetry packet is received:
-\begin{enumerate}[leftmargin=1.2cm]
-  \item Broker emits publish event.
-  \item Handler parses payload and resolves device identity.
-  \item Device document state/status/lastSeen is updated.
-  \item Relevant state is exposed to frontend through API and sockets.
+\section{Compagnon IA Melo}
+
+\subsection{Architecture}
+
+Melo est construit sur l'\textbf{API Groq}, un service d'inférence cloud offrant des temps
+de réponse LLM inférieurs à la seconde. Le backend expose un seul endpoint
+\api{POST /api/companion/chat} qui :
+
+\begin{enumerate}[leftmargin=1.5cm,itemsep=4pt]
+  \item Enrichit le message utilisateur avec un prompt système structuré contenant la liste
+        des appareils courants, les lectures des capteurs et les permissions utilisateur.
+  \item Envoie l'historique de conversation à l'API Groq avec le modèle
+        \texttt{llama-3.3-70b-versatile}.
+  \item Analyse la réponse LLM pour détecter les \textbf{blocs d'action} (commandes JSON structurées).
+  \item Exécute les actions validées via le même pipeline de commande d'appareils que l'API REST.
+  \item Retourne la réponse LLM et les résultats des actions au frontend.
 \end{enumerate}
 
-\section{Socket Room Strategy}
-Socket connections join rooms by identity and context:
-\begin{itemize}[leftmargin=1.2cm]
-  \item user-scoped rooms for direct notifications.
-  \item role-scoped rooms for group updates.
-  \item house-scoped rooms for household state broadcasts.
-  \item agency-global room for cross-unit emergency visibility.
-\end{itemize}
+\subsection{Construction du Prompt Système}
 
-\section{Gas Emergency Control Loop}
-\subsection{Detection}
-Gas monitor listens for sensor topic messages and extracts numeric reading.
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Construction du Prompt Syst\`{e}me Melo (backend/routes/companion.js)}]
+const buildSystemPrompt = (user, devices, houseState) => {
+  const accessibleDevices = user.role === 'admin'
+    ? devices
+    : devices.filter(d =>
+        d.room === user.room ||
+        user.permissions.includes(`room:${d.room.toLowerCase().replace(' ', '-')}`) ||
+        user.permissions.includes('global:controls')
+      );
 
-\subsection{Evaluation}
-Reading is compared to stored threshold in house state.
+  return `
+Tu es Melo, un assistant maison intelligente intelligent et amical.
+Tu aides les utilisateurs a controler leurs appareils en langage naturel.
 
-\subsection{Transition}
-If threshold is exceeded and transition edge detected, system enables emergency mode, stores alert timestamp, and closes valve state.
+UTILISATEUR COURANT :
+- Nom : ${user.name}
+- Role : ${user.role}
+- Piece assignee : ${user.room || 'Toutes les pieces (admin)'}
 
-\subsection{Actuation}
-Alarm and valve commands are published to auto-generated MQTT command topics.
+APPAREILS ACCESSIBLES (${accessibleDevices.length} au total) :
+${accessibleDevices.map(d =>
+  `- ${d.name} (${d.type}) dans ${d.room} | topic: ${d.mqttTopic} | etat: ${d.state}`
+).join('\n')}
 
-\subsection{Notification}
-Socket events broadcast emergency payload to house and agency audiences.
+ENVIRONNEMENT :
+- Niveau gaz : ${houseState?.gas?.level?.toFixed(0) ?? 'N/A'} PPM
+- Temperature : ${houseState?.temperature ?? 'N/A'}C
+- Humidite : ${houseState?.humidity ?? 'N/A'}%
+- Scene courante : ${houseState?.lightingMode ?? 'Aucune'}
 
-\section{Permission Workflow Event Flow}
-\begin{enumerate}[leftmargin=1.2cm]
-  \item Resident creates request via API.
-  \item Request persistence triggers socket emission to admin channels.
-  \item Admin decision updates request status and possibly resident permissions.
-  \item Updated status and permission payload pushed to requester.
-\end{enumerate}
-
-\section{Realtime Reliability Considerations}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Token-based handshake validation prevents anonymous socket access.
-  \item Reconnection strategies in frontend socket client mitigate transient failures.
-  \item Event naming consistency simplifies client subscription patterns.
-\end{itemize}
-
-\section{Latency and Throughput Notes}
-The architecture favors low-latency propagation for home-scale event rates. For larger deployments, dedicated brokers, queue buffering, and back-pressure controls should be introduced.
-
-\section{Event Schema Recommendation}
-A stable envelope is recommended for future-proofing:
-\begin{lstlisting}[style=codeblock,language=JavaScript]
-{
-  "event": "house:gas-emergency",
-  "version": "1.0",
-  "houseCode": "H1234",
-  "payload": { "gasLevel": 650, "threshold": 400, "emergencyMode": true },
-  "ts": 1710000000000,
-  "correlationId": "uuid"
-}
+CAPACITES :
+- Pour controler un appareil, reponds avec un bloc ACTION :
+  [ACTION: {"deviceId":"<id>","command":{"state":"ON"|"OFF","brightness":0-100}}]
+- Pour activer une scene : [SCENE: "Morning"|"Dinner"|"Cinematic"|"Sleep"]
+- Pour des requetes d'information, reponds de maniere conversationnelle.
+- Ne controle JAMAIS des appareils hors de la liste accessible.
+- Si tu ne peux pas faire quelque chose (permission refusee), explique poliment.
+`.trim();
+};
 \end{lstlisting}
 
-\section{Operational Monitoring of Realtime Paths}
-Recommended production metrics:
-\begin{itemize}[leftmargin=1.2cm]
-  \item MQTT publish rate per topic family.
-  \item Socket connection count and reconnect frequency.
-  \item Gas emergency transition counters per house.
-  \item Notification delivery lag estimations.
-\end{itemize}
+\subsection{Implémentation de l'Endpoint Chat}
 
-\section{Chapter Conclusion}
-Realtime and IoT channels are not peripheral in this platform; they are the core execution paths that transform user intent and physical sensor inputs into synchronized operational state.
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Endpoint Chat Compagnon (backend/routes/companion.js)}]
+router.post('/chat', protect, async (req, res) => {
+  const { messages } = req.body;   // Historique de conversation du frontend
+
+  const devices    = await Device.find({ houseCode: req.user.houseCode });
+  const houseState = await HouseState.findOne({ houseCode: req.user.houseCode });
+  const sysPrompt  = buildSystemPrompt(req.user, devices, houseState);
+
+  // Appel API Groq
+  const completion = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages: [
+      { role: 'system', content: sysPrompt },
+      ...messages
+    ],
+    temperature: 0.3,              // Basse temperature pour des commandes deterministes
+    max_tokens: 1024
+  });
+
+  const reply = completion.choices[0].message.content;
+
+  // Analyser et executer les blocs ACTION
+  const actionMatches = [...reply.matchAll(/\[ACTION: ({.*?})\]/g)];
+  const results = [];
+  for (const match of actionMatches) {
+    try {
+      const { deviceId, command } = JSON.parse(match[1]);
+      const device = devices.find(d => d._id.toString() === deviceId);
+      if (device) {
+        await executeDeviceCommand(device, command, mqttClient, io, req.user);
+        results.push({ deviceId, success: true });
+      }
+    } catch { /* Ignorer les blocs d'action malformes */ }
+  }
+
+  // Analyser les blocs SCENE
+  const sceneMatch = reply.match(/\[SCENE: "([^"]+)"\]/);
+  if (sceneMatch) {
+    await activateScene(sceneMatch[1], req.user.houseCode, mqttClient, io);
+  }
+
+  res.json({ reply, actionsExecuted: results.length });
+});
+\end{lstlisting}
+
+\subsection{Composant Frontend Melo}
+
+L'interface Melo est un widget de chat flottant rendu dans le coin inférieur droit de
+l'application. Elle inclut une mascotte 3D animée (\texttt{Melo3D}) construite avec
+React Three Fiber et animée avec Framer Motion.
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Interface Chat AuraCompanion (frontend)}]
+const AuraCompanion = () => {
+  const [open, setOpen]       = useState(false);
+  const [messages, setMessages]= useState([]);
+  const [input, setInput]     = useState('');
+  const [loading, setLoading] = useState(false);
+  const { token }             = useAuth();
+
+  const sendMessage = async () => {
+    const userMsg = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setLoading(true);
+    try {
+      const { data } = await axios.post('/api/companion/chat',
+        { messages: [...messages, userMsg] },
+        { headers: { Authorization: `Bearer ${token}` } });
+      setMessages(prev => [
+        ...prev, { role: 'assistant', content: data.reply }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50">
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            className="w-80 h-[450px] bg-white dark:bg-gray-900
+                       rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+          >
+            <div className="bg-indigo-600 p-3 text-white font-bold
+                            flex items-center gap-2">
+              <Sparkles size={18} /> Melo -- Votre IA Maison Intelligente
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {messages.map((m, i) => (
+                <div key={i} className={`flex
+                  ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`rounded-xl px-3 py-2 max-w-[80%] text-sm
+                    ${m.role === 'user'
+                      ? 'bg-indigo-100'
+                      : 'bg-gray-100 dark:bg-gray-800'}`}>
+                    {m.content
+                      .replace(/\[ACTION:.*?\]/g, '')
+                      .replace(/\[SCENE:.*?\]/g, '')}
+                  </div>
+                </div>
+              ))}
+              {loading && (
+                <div className="text-xs text-gray-400 animate-pulse">
+                  Melo reflechit...
+                </div>
+              )}
+            </div>
+            <div className="p-3 border-t flex gap-2">
+              <input value={input} onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                className="flex-1 rounded-lg border px-3 py-1.5 text-sm"
+                placeholder="Posez une question a Melo..." />
+              <button onClick={sendMessage}
+                className="bg-indigo-600 text-white rounded-lg px-3 py-1.5 text-sm">
+                Envoyer
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <button onClick={() => setOpen(!open)}
+        className="w-14 h-14 rounded-full bg-indigo-600 text-white shadow-lg
+                   flex items-center justify-center hover:bg-indigo-700 transition">
+        <Bot size={28} />
+      </button>
+    </div>
+  );
+};
+\end{lstlisting}
+
+\section{Modèle de Scénario et Moteur d'Automatisation}
+
+\subsection{Schéma Scénario}
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Sch\'ema Sc\'enario (backend/models/Scenario.js)}]
+const scenarioSchema = new mongoose.Schema({
+  name:         { type: String, required: true },
+  description:  { type: String },
+  houseCode:    { type: String, required: true },
+  isActive:     { type: Boolean, default: true },
+  triggerType:  { type: String, enum: ['time'], default: 'time' },
+  scheduleTime: { type: String, required: true },  // Format "HH:MM"
+  action:       { type: String, required: true },  // ex. "mood:Morning"
+  targetDevice: { type: mongoose.Schema.Types.ObjectId, ref: 'Device' },
+  lastTriggeredAt: { type: Date }
+}, { timestamps: true });
+\end{lstlisting}
+
+\subsection{Service Planificateur}
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Planificateur de Sc\'enarios (backend/scheduler.js)}]
+const { schedule } = require('node-cron');
+
+const initScheduler = (mqttClient, io) => {
+  // Executer chaque minute
+  schedule('* * * * *', async () => {
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2,'0')}:`
+                      + `${String(now.getMinutes()).padStart(2,'0')}`;
+
+    const scenarios = await Scenario.find({
+      isActive: true,
+      scheduleTime: currentTime
+    });
+
+    for (const scenario of scenarios) {
+      try {
+        if (scenario.action.startsWith('mood:')) {
+          const scene = scenario.action.split(':')[1];
+          await activateScene(scene, scenario.houseCode, mqttClient, io);
+        } else if (scenario.action === 'lock_all') {
+          await lockAllDoors(scenario.houseCode, mqttClient);
+        } else if (scenario.action.startsWith('toggle:light:')) {
+          const state = scenario.action.endsWith(':on') ? 'ON' : 'OFF';
+          await toggleLights(scenario.houseCode, state, mqttClient);
+        }
+        scenario.lastTriggeredAt = new Date();
+        await scenario.save();
+
+        io.to(scenario.houseCode).emit('scenario:triggered', {
+          name: scenario.name, action: scenario.action
+        });
+
+        await AuditLog.create({
+          actorName: 'Planificateur',
+          actorRole: 'system',
+          action: `Scenario "${scenario.name}" declenche : ${scenario.action}`,
+          category: 'scenario',
+          houseCode: scenario.houseCode
+        });
+      } catch (err) {
+        console.error(`[Planificateur] Erreur scenario ${scenario._id}:`, err);
+      }
+    }
+  });
+};
+\end{lstlisting}
+
+\section{Surveillance Énergétique}
+
+\subsection{Algorithme de Calcul de la Consommation}
+
+La consommation énergétique est estimée à partir de la collection AuditLog. Chaque
+événement ON pour un appareil marque le début d'une période de consommation. L'événement
+OFF correspondant (ou la fin de session) la ferme. Le kWh pour chaque période est :
+\[ \text{kWh} = \frac{W_{\text{appareil}} \times \Delta t_{\text{heures}}}{1000} \]
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Endpoint \'Energie (backend/routes/energy.js)}]
+router.get('/hourly', protect, async (req, res) => {
+  const WATTAGE = { light:10, lamp:10, 'rgb-light':10, ac:1500,
+                    tv:80, fan:50, outlet:200, 'washing-machine':500 };
+
+  const logs = await AuditLog.find({
+    houseCode: req.user.houseCode,
+    category:  'device',
+    createdAt: { $gte: new Date(Date.now() - 86400000) }  // Dernieres 24h
+  }).sort({ createdAt: 1 });
+
+  // Construire la carte de consommation horaire
+  const hourly = Array(24).fill(0);
+  const openPeriods = {};  // deviceId -> { startHour, watt }
+
+  for (const log of logs) {
+    const deviceId = log.metadata?.deviceId;
+    const action   = log.action;
+    const hour     = new Date(log.createdAt).getHours();
+    const watt     = WATTAGE[log.metadata?.deviceType] ?? 10;
+
+    if (action.includes('ON') || action.includes('OPEN')) {
+      openPeriods[deviceId] = { startHour: hour, watt };
+    } else if (openPeriods[deviceId]) {
+      const duration = (hour - openPeriods[deviceId].startHour) || 1;
+      hourly[hour] += (openPeriods[deviceId].watt * duration) / 1000;
+      delete openPeriods[deviceId];
+    }
+  }
+
+  res.json({ hourly, totalKwh: hourly.reduce((a,b) => a+b, 0) });
+});
+\end{lstlisting}
+
+\section{Système de Demandes de Permission}
+
+\subsection{Modèle DemandePermission}
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Sch\'ema DemandePermission (backend/models/PermissionRequest.js)}]
+const permissionRequestSchema = new mongoose.Schema({
+  requester:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  houseAdmin:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  actionKey:   { type: String, required: true },   // ex. 'room:kitchen'
+  actionLabel: { type: String, required: true },   // libelle lisible
+  room:        { type: String },                   // piece demandee (optionnel)
+  status:      { type: String,
+                 enum: ['pending','approved','denied'], default: 'pending' },
+  reviewer:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  reviewNotes: { type: String },
+  adminReadAt:     { type: Date },
+  requesterReadAt: { type: Date }
+}, { timestamps: true });
+\end{lstlisting}
+
+\subsection{Flux d'Approbation de Permission}
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Approbation Demande de Permission (backend/routes/permissions.js)}]
+router.post('/:id/approve', protect, admin, async (req, res) => {
+  const { reviewNotes } = req.body;
+  const request = await PermissionRequest.findById(req.params.id)
+    .populate('requester');
+
+  if (!request || request.status !== 'pending')
+    return res.status(400).json({ message: 'Demande introuvable ou deja traitee' });
+
+  request.status      = 'approved';
+  request.reviewer    = req.user._id;
+  request.reviewNotes = reviewNotes;
+  await request.save();
+
+  // Accorder la permission au resident
+  const resident = await User.findById(request.requester._id);
+  if (!resident.permissions.includes(request.actionKey)) {
+    resident.permissions.push(request.actionKey);
+  }
+  if (request.room && !resident.room) {
+    resident.room = request.room;
+  }
+  await resident.save();
+
+  // Notifier le resident en temps reel
+  io.to(`user:${resident._id}`).emit('permission:updated', {
+    status: 'approved', actionKey: request.actionKey
+  });
+
+  res.json({ success: true });
+});
+\end{lstlisting}
+
+\section{Revue et Rétrospective Sprint 5}
+
+\begin{tcolorbox}[goalbox,title={Revue Sprint 5}]
+\textbf{Complété :} 4 stories sur 4 (34 PS). La démo Melo a impressionné. \\
+\textbf{Points forts :} Taper ``Allume toutes les lumières de la chambre à 80\%'' a fait
+illuminer la LED RGB chambre à 80\% de luminosité en 1,5 secondes. Le graphique d'énergie
+a montré des pics de consommation réalistes lors du déclenchement du scénario climatisation. \\
+\textbf{Rétrospective :}
+\begin{itemize}[leftmargin=1cm,itemsep=2pt]
+  \item \textbf{Ce qui a bien fonctionné :} La latence d'inférence Groq ($<$800~ms) rend
+        Melo très réactif.
+  \item \textbf{Défi :} L'analyse des blocs ACTION a nécessité des regex soigneuses pour
+        éviter les faux positifs dans les réponses conversationnelles.
+  \item \textbf{Amélioration :} Ajout de \texttt{temperature: 0.3} pour réduire les noms
+        d'appareils hallucités dans les réponses LLM.
+\end{itemize}
+\end{tcolorbox}

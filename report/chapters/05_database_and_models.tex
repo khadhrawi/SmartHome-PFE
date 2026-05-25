@@ -1,118 +1,376 @@
-\chapter{Database Design and Domain Models}
+%=============================================================================
+%  Chapitre 5 — Sprint 1 & 2 : Authentification, Utilisateurs, Appareils et MQTT
+%=============================================================================
+\chapter{Sprint 1 \& 2 --- Authentification, Gestion des Utilisateurs et Contrôle des Appareils}
 
-\section{Data Strategy}
-MongoDB is used as the primary persistence layer. The design follows bounded domain entities with pragmatic denormalization where needed for query simplicity and runtime performance.
+\begin{tcolorbox}[sprintbox,title={Sprint 1 --- Authentification et Gestion des Utilisateurs}]
+\textbf{Durée :} 2 semaines \quad
+\textbf{Points de Story :} 34 \quad
+\textbf{Objectif :} Livrer un système d'inscription et d'authentification multi-rôles
+complet et sécurisé, incluant la vérification email, Google OAuth et l'authentification
+à deux facteurs.
+\end{tcolorbox}
 
-\section{Main Collections}
+\section{Backlog Sprint 1}
 
-\subsection{User}
-The user model captures identity and role governance:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Core identity: name, email, password hash.
-  \item Role domain: admin, resident, agency.
-  \item House linkage: houseCode, linkedAdmin.
-  \item Access metadata: permissions, assignedRoom.
-  \item Account lifecycle: email verification and reset token fields.
-  \item OAuth metadata: googleId.
-\end{itemize}
+\begin{center}
+\begin{longtable}{p{0.07\textwidth} p{0.52\textwidth} p{0.08\textwidth} p{0.14\textwidth}}
+\caption{Décomposition des User Stories --- Sprint 1}\label{tab:sprint1_backlog}\\
+\toprule
+\textbf{ID} & \textbf{User Story} & \textbf{PS} & \textbf{Statut} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{User Story} & \textbf{PS} & \textbf{Statut} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+US-01 & Inscription Admin avec génération de code maison & 5 & \done Terminé \\
+US-02 & Inscription Résident avec validation du code maison & 3 & \done Terminé \\
+US-03 & Connexion email/mot de passe avec émission JWT & 3 & \done Terminé \\
+US-04 & Connexion Google OAuth 2.0 & 5 & \done Terminé \\
+US-05 & Flux de vérification email & 5 & \done Terminé \\
+US-06 & Réinitialisation de mot de passe par token email & 5 & \done Terminé \\
+US-07 & Configuration de l'authentification à deux facteurs TOTP & 8 & \done Terminé \\
+US-08 & Gestion des utilisateurs Admin (liste/suppression résidents) & 5 & \done Terminé \\
+\end{longtable}
+\end{center}
 
-Unique constraints and generation logic enforce house-code integrity for admin accounts.
+\section{Modèle de Base de Données : Schéma Utilisateur}
 
-\subsection{Device}
-Devices represent connected assets and include:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Human metadata: name, room, type, color.
-  \item Integration metadata: topic, owner, houseCode.
-  \item Runtime state: status, state payload, brightness/openPct.
-  \item Spatial metadata: position coordinates for floor plan rendering.
-\end{itemize}
+La collection \texttt{User} est le magasin d'identité central. Elle supporte les quatre
+rôles et accumule toutes les informations d'authentification dans un seul document.
 
-\subsection{HouseState}
-House-level global state includes:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Lighting mode and occupancy/security flags.
-  \item Gas safety data: gasLevel, gasThreshold, emergencyMode, gasValveOpen.
-  \item Audit fields: updatedBy and timestamps.
-\end{itemize}
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Sch\'ema Mongoose Utilisateur (backend/models/User.js)}]
+const userSchema = new mongoose.Schema({
+  name:              { type: String, required: true, trim: true },
+  email:             { type: String, required: true, unique: true, lowercase: true },
+  password:          { type: String, select: false },          // hachage bcrypt
+  role:              { type: String,
+                       enum: ['admin','resident','user','agency'],
+                       default: 'user' },
+  houseCode:         { type: String, default: null },           // 1 lettre + 4 chiffres
+  isVerified:        { type: Boolean, default: false },
+  isSuperAdmin:      { type: Boolean, default: false },
+  status:            { type: String,
+                       enum: ['active','pending','restricted'],
+                       default: 'pending' },
+  permissions:       [{ type: String }],          // ex: 'room:cuisine'
+  room:              { type: String, default: null },
+  googleId:          { type: String, default: null },
+  verificationToken: { type: String, select: false },
+  verificationExpires:{ type: Date,  select: false },
+  resetToken:        { type: String, select: false },
+  resetExpires:      { type: Date,   select: false },
+  twoFASecret:       { type: String, select: false },           // secret TOTP base32
+  twoFAEnabled:      { type: Boolean, default: false },
+  twoFATempSecret:   { type: String, select: false },
+  avatar:            { type: String, default: null },            // URI donnees base64
+}, { timestamps: true });
+\end{lstlisting}
 
-\subsection{PermissionRequest}
-This collection implements access-governance workflow:
-\begin{itemize}[leftmargin=1.2cm]
-  \item requester and houseAdmin references.
-  \item action key/label and optional room scope.
-  \item status lifecycle: pending, approved, denied.
-  \item read-state metadata for admin and requester.
-\end{itemize}
+\subsection{Algorithme de Génération du Code Maison}
 
-\subsection{Unit}
-Unit entities support agency-level management:
-\begin{itemize}[leftmargin=1.2cm]
-  \item unique unitCode, claim status, and owner linkage.
-  \item managed/unmanaged mode with operational status indicators.
-\end{itemize}
+Chaque admin se voit attribuer un code maison unique suivant le modèle
+\texttt{[A-Z][0-9]\{4\}} (ex. : \texttt{I5402}). L'algorithme garantit l'unicité :
 
-\subsection{HouseOwnerRequest}
-This collection tracks candidate owner requests submitted for agency review, including approval workflow and one-time access code lifecycle.
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={G\'en\'eration du Code Maison}]
+const generateHouseCode = async () => {
+  let code, exists;
+  do {
+    const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+    const digits = Math.floor(1000 + Math.random() * 9000);
+    code = `${letter}${digits}`;
+    exists = await User.findOne({ houseCode: code });
+  } while (exists);
+  return code;   // Unicite garantie en base de donnees
+};
+\end{lstlisting}
 
-\section{Entity Relationship View}
+\section{Flux d'Authentification}
+
+\subsection{Inscription et Connexion Email/Mot de Passe}
+
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  entity/.style={draw, rounded corners, fill=purple!8, minimum width=3.2cm, minimum height=1cm, align=center},
-  rel/.style={-{Latex[length=3mm]}}
+\begin{tikzpicture}[scale=0.80, transform shape,
+  every node/.style={font=\normalsize},
+  authstep/.style={
+    draw, rectangle, rounded corners=4pt,
+    minimum width=5.5cm, minimum height=0.85cm,
+    align=center, fill=lightblue, thick
+  },
+  decision/.style={
+    draw, diamond, thick,
+    minimum width=4cm, minimum height=1cm,
+    align=center, fill=lightyellow
+  },
+  err/.style={
+    draw, rectangle, rounded corners=4pt,
+    minimum width=3.5cm, minimum height=0.85cm,
+    align=center, fill=red!20, thick
+  },
+  arr/.style={-{Stealth[length=7pt,width=5pt]}, thick, espritblue}
 ]
-\node[entity] (user) at (0,0) {User};
-\node[entity] (device) at (5,0) {Device};
-\node[entity] (house) at (10,0) {HouseState};
-\node[entity] (perm) at (0,-3) {PermissionRequest};
-\node[entity] (unit) at (5,-3) {Unit};
-\node[entity] (ownerreq) at (10,-3) {HouseOwnerRequest};
 
-\draw[rel] (user) -- node[above]{owns/manages} (device);
-\draw[rel] (device) -- node[above]{belongs to} (house);
-\draw[rel] (user) -- node[left]{creates/reviews} (perm);
-\draw[rel] (user) -- node[above,sloped]{linked by houseCode} (house);
-\draw[rel] (unit) -- node[right]{owned by} (user);
-\draw[rel] (ownerreq) -- node[right]{approved to create} (user);
+% --- Inscription ---
+\node[authstep]     (reg)    at (0, 12)  {\textbf{POST /api/auth/register}};
+\node[decision] (valid)  at (0, 10)  {Validation\\OK ?};
+\node[err]      (err1)   at (-4, 10) {\textbf{400}\\Erreur validation};
+\node[authstep]     (hash)   at (4, 10)  {bcrypt.hash(mdp, 10)};
+\node[authstep]     (code)   at (4,  8.5){generateHouseCode()};
+\node[authstep]     (save)   at (4,  7.0){User.save()};
+\node[authstep]     (email)  at (4,  5.5){sendVerificationEmail()};
+\node[authstep]     (resp1)  at (4,  4.0){\textbf{201 Cr\'e\'e}};
+
+% --- Connexion ---
+\node[authstep]     (login)  at (0,  0.5){\textbf{POST /api/auth/login}};
+\node[decision] (pw)     at (0, -1.5){bcrypt.compare\\OK ?};
+\node[err]      (err2)   at (-4,-1.5){\textbf{401}\\Identifiants invalides};
+\node[decision] (tfa)    at (4, -1.5){2FA\\activ\'e ?};
+\node[authstep]     (jwt)    at (7.5,-1.5){jwt.sign(30j)};
+\node[authstep]     (resp2)  at (7.5,-3.0){\textbf{200 + token + user}};
+\node[authstep, fill=lightyellow] (otp) at (4, -3.0){Demander code OTP};
+
+\draw[arr] (reg)   -- (valid);
+\draw[arr] (valid) -- node[above, font=\small]{Non} (err1);
+\draw[arr] (valid) -- node[above, font=\small]{Oui} (hash);
+\draw[arr] (hash)  -- (code);
+\draw[arr] (code)  -- (save);
+\draw[arr] (save)  -- (email);
+\draw[arr] (email) -- (resp1);
+\draw[arr] (login) -- (pw);
+\draw[arr] (pw)    -- node[above, font=\small]{Non} (err2);
+\draw[arr] (pw)    -- node[above, font=\small]{Oui} (tfa);
+\draw[arr] (tfa)   -- node[above, font=\small]{Non} (jwt);
+\draw[arr] (tfa)   -- node[right, font=\small]{Oui} (otp);
+\draw[arr] (jwt)   -- (resp2);
+
 \end{tikzpicture}
-\caption{Conceptual data relationship view}
+\caption{Flux d'Inscription et de Connexion}
+\label{fig:auth_flow}
 \end{figure}
 
-\section{Schema Decisions and Justification}
-\subsection{Document-oriented Flexibility}
-Device state payloads may differ by type; MongoDB mixed fields simplify this heterogeneity.
+\subsection{Authentification à Deux Facteurs TOTP}
 
-\subsection{House Code as Domain Anchor}
-Many queries are scoped by houseCode, making it a key partition-like attribute in authorization and event fan-out.
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Configuration et V\'erification 2FA (backend/routes/2fa.js)}]
+// Etape 1 : Generer le secret TOTP et le QR code
+router.post('/setup', protect, async (req, res) => {
+  const secret = speakeasy.generateSecret({
+    name: `SmartHome:${req.user.email}`
+  });
+  req.user.twoFATempSecret = secret.base32;
+  await req.user.save();
+  const qrCode = await QRCode.toDataURL(secret.otpauth_url);
+  res.json({ qrCode, secret: secret.base32 });
+});
 
-\subsection{Auditability}
-Timestamp and reviewer fields across workflow collections provide traceability for governance actions.
+// Etape 2 : Verifier le code TOTP et activer la 2FA
+router.post('/verify', protect, async (req, res) => {
+  const { token } = req.body;
+  const verified = speakeasy.totp.verify({
+    secret:   req.user.twoFATempSecret,
+    encoding: 'base32',
+    token,
+    window:   1                       // tolerance +/-30 secondes
+  });
+  if (!verified)
+    return res.status(400).json({ message: 'Code invalide' });
 
-\section{Indexing Strategy}
-Recommended indexes for scale:
-\begin{itemize}[leftmargin=1.2cm]
-  \item User(email) unique.
-  \item User(role, houseCode) for role/house queries.
-  \item Device(topic) unique and Device(houseCode, room).
-  \item PermissionRequest(houseCode, status, createdAt).
-  \item Unit(unitCode) unique.
+  req.user.twoFASecret  = req.user.twoFATempSecret;
+  req.user.twoFAEnabled = true;
+  await req.user.save();
+  res.json({ message: '2FA activee avec succes' });
+});
+\end{lstlisting}
+
+\section{Middleware JWT}
+
+Toutes les routes protégées utilisent le middleware \texttt{protect} pour valider le token
+JWT et attacher l'objet utilisateur à \texttt{req.user} :
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Middleware d'Authentification (backend/middlewares/authMiddleware.js)}]
+const protect = async (req, res, next) => {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer '))
+    return res.status(401).json({ message: 'Aucun token fourni' });
+
+  const token = header.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = await User.findById(decoded.id).select('+twoFASecret');
+    if (!req.user)
+      return res.status(401).json({ message: 'Utilisateur introuvable' });
+    next();
+  } catch {
+    res.status(401).json({ message: 'Token invalide ou expire' });
+  }
+};
+\end{lstlisting}
+
+\section{Revue et Rétrospective Sprint 1}
+
+\begin{tcolorbox}[goalbox,title={Revue Sprint 1}]
+\textbf{Complété :} 8 user stories sur 8 (34 PS). \\
+\textbf{Points forts de la démo :} Inscription multi-rôles réussie, callback OAuth Google
+fonctionnel, scan QR code TOTP avec Google Authenticator, livraison d'email de
+réinitialisation. \\
+\textbf{Rétrospective :}
+\begin{itemize}[leftmargin=1cm,itemsep=2pt]
+  \item \textbf{Ce qui a bien fonctionné :} La conception du middleware JWT s'est révélée
+        propre et réutilisable dans tous les 19 fichiers de routes.
+  \item \textbf{Amélioration :} La vérification automatique des comptes Admin a été ajoutée
+        en milieu de sprint pour éviter de bloquer le flux d'intégration pendant les tests.
 \end{itemize}
+\end{tcolorbox}
 
-\section{Data Integrity Rules}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Password must be hashed before persistence.
-  \item House code pattern must follow one-letter + four-digit format.
-  \item Permission request decisions restricted to approved/denied set.
-  \item Gas threshold bounded to safe operational range.
+%=============================================================================
+\section*{}
+\begin{tcolorbox}[sprintbox,title={Sprint 2 --- Gestion des Appareils et Intégration MQTT}]
+\textbf{Durée :} 2 semaines \quad
+\textbf{Points de Story :} 39 \quad
+\textbf{Objectif :} Implémenter le cycle de vie CRUD complet des appareils, intégrer le
+courtier MQTT Aedes, et déployer le premier flux de commande bout en bout vers l'ESP32.
+\end{tcolorbox}
+
+\section{Modèle Appareil}
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Sch\'ema Appareil (backend/models/Device.js)}]
+const deviceSchema = new mongoose.Schema({
+  name:      { type: String, required: true },
+  type:      { type: String, required: true,
+               enum: ['light','lamp','door','lock','window','blind','ac',
+                      'climate','thermostat','tv','camera','fan','outlet',
+                      'washing-machine','gas-sensor','smoke','irrigation',
+                      'rgb-light','valve','buzzer'] },
+  mqttTopic: { type: String, required: true, unique: true },
+  room:      { type: String, required: true },
+  houseCode: { type: String, required: true },
+  owner:     { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  state:     { type: mongoose.Schema.Types.Mixed, default: false },
+  brightness:{ type: Number, default: 100, min: 0, max: 100 },
+  openPct:   { type: Number, default: 0,   min: 0, max: 100 },
+  color:     { type: String, default: '#FFFFFF' },
+  position:  { x: { type: Number, default: 50 },
+               y: { type: Number, default: 50 } },
+  status:    { type: String, enum: ['online','offline'], default: 'offline' },
+  lastSeen:  { type: Date }
+}, { timestamps: true });
+\end{lstlisting}
+
+\subsection{Types d'Appareils et Puissance Estimée}
+
+\begin{center}
+\begin{longtable}{lcc}
+\caption{Types d'Appareils et Consommation Estimée}\label{tab:device_types}\\
+\toprule
+\textbf{Type d'Appareil} & \textbf{Mode de Contrôle} & \textbf{Puissance Est. (W)} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Type d'Appareil} & \textbf{Mode de Contrôle} & \textbf{Puissance Est. (W)} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+light, lamp, rgb-light & ON/OFF + luminosité (0--100) & 10 \\
+door, lock             & OPEN/CLOSE (servo 0--180°)   & 5 \\
+window, blind          & OPEN/CLOSE + ouverturePct    & 5 \\
+ac, climate            & ON/OFF                       & 1500 \\
+thermostat             & ON/OFF                       & 100 \\
+tv                     & ON/OFF                       & 80 \\
+camera                 & ON/OFF                       & 5 \\
+fan                    & ON/OFF                       & 50 \\
+outlet                 & ON/OFF                       & 200 \\
+washing-machine        & ON/OFF                       & 500 \\
+gas-sensor, smoke      & Passif (lecture seule)       & 1 \\
+valve                  & OPEN/CLOSE                   & 10 \\
+buzzer                 & ON/OFF                       & 1 \\
+\end{longtable}
+\end{center}
+
+\section{Cartographie GPIO de l'ESP32}
+
+\begin{center}
+\begin{longtable}{p{0.30\textwidth} p{0.15\textwidth} p{0.15\textwidth} p{0.28\textwidth}}
+\caption{Affectation des Broches GPIO ESP32}\label{tab:esp32_pins}\\
+\toprule
+\textbf{Composant} & \textbf{Broche(s)} & \textbf{Mode} & \textbf{Description} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Composant} & \textbf{Broche(s)} & \textbf{Mode} & \textbf{Description} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+LED RGB 1 (Salon)    & GPIO 2, 4, 5    & Sortie/PWM & Canaux Rouge, Vert, Bleu \\
+LED RGB 2 (Chambre)  & GPIO 21, 22, 32 & Sortie/PWM & Canaux Rouge, Vert, Bleu \\
+LED RGB 3 (Cuisine)  & GPIO 25, 26, 27 & Sortie/PWM & Canaux Rouge, Vert, Bleu \\
+Buzzer (alarme)      & GPIO 15         & Sortie     & Tonalité 1000~Hz au déclenchement \\
+Servomoteur (Porte)  & GPIO 18         & PWM 50~Hz  & 0°=Fermé, 180°=Ouvert \\
+Servomoteur (Fenêtre)& GPIO 19         & PWM 50~Hz  & 0°=Fermé, 180°=Ouvert \\
+Capteur MQ6 (Gaz)   & GPIO 34         & Entrée ADC & Concentration gaz analogique \\
+Capteur DHT11        & GPIO 23         & Numérique  & Température + Humidité \\
+\end{longtable}
+\end{center}
+
+\section{Publication MQTT des Commandes}
+
+Les commandes sont publiées sur \mqtt{command/\{topicMQTT\}} avec un payload spécifiant
+l'état cible. L'ESP32 s'abonne à \mqtt{command/\#} et analyse le suffixe du topic pour
+identifier quel actionneur contrôler.
+
+\begin{lstlisting}[style=codeblock,language=C++,caption={Callback MQTT ESP32 (SmartHome\_ESP32.ino)}]
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String topicStr(topic);
+  String msg;
+  for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
+  msg.trim();
+  msg.toUpperCase();
+
+  // Normalisation des variantes de payload
+  bool isOn  = (msg=="ON"||msg=="TRUE"||msg=="OPEN"||msg=="UNLOCK"||msg=="1");
+  bool isOff = (msg=="OFF"||msg=="FALSE"||msg=="CLOSE"||msg=="LOCK"||msg=="0");
+
+  // Routage par topic
+  if (topicStr.endsWith("/alarm")) {
+    if (isOn) tone(BUZZER_PIN, 1000);
+    else      noTone(BUZZER_PIN);
+    return;
+  }
+  // LEDs RGB
+  for (int i = 0; i < NUM_LEDS; i++) {
+    if (topicStr.endsWith(ledTopics[i])) {
+      int bri = isOn ? 100 : 0;
+      if (!isOn && !isOff) bri = msg.toInt();
+      setRGBBrightness(i, bri);
+      return;
+    }
+  }
+  // Servo porte
+  if (topicStr.endsWith("/door"))
+    { doorServo.write(isOn ? 180 : 0); return; }
+  // Servo fenetre
+  if (topicStr.endsWith("/window"))
+    { windowServo.write(isOn ? 180 : 0); return; }
+}
+\end{lstlisting}
+
+\section{Revue et Rétrospective Sprint 2}
+
+\begin{tcolorbox}[goalbox,title={Revue Sprint 2}]
+\textbf{Complété :} Tous les éléments du sprint (39 PS). Première réponse d'actionneur
+physique vérifiée. \\
+\textbf{Points forts :} Cliquer sur un bouton de lumière dans le tableau de bord a allumé
+la LED RGB sur la maquette en moins de 200~ms. \\
+\textbf{Rétrospective :}
+\begin{itemize}[leftmargin=1cm,itemsep=2pt]
+  \item \textbf{Ce qui a bien fonctionné :} Aedes en processus a éliminé la surcharge de configuration.
+  \item \textbf{Défi :} La logique des LEDs RGB à anode commune nécessite des valeurs PWM inversées
+        (255 $-$ valeur) --- identifié lors de l'intégration matérielle.
+  \item \textbf{Amélioration :} Ajout de \texttt{qos:1} à toutes les publications de commandes pour
+        garantir la livraison même lors de brèves reconnexions Wi-Fi.
 \end{itemize}
-
-\section{Migration and Evolution Notes}
-Future schema evolution can include:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Time-series collection for telemetry historical analytics.
-  \item Event journal for full audit replay.
-  \item Soft-delete flags for compliance and operational recovery.
-\end{itemize}
-
-\section{Data Governance Summary}
-The current model set balances expressive domain coverage and implementation simplicity while preserving clear migration paths for advanced analytics and enterprise compliance.
+\end{tcolorbox}

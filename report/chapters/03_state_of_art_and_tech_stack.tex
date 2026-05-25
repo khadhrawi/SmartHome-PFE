@@ -1,82 +1,208 @@
-\chapter{State of the Art and Technology Stack}
+%=============================================================================
+%  Chapitre 3 — État de l'Art et Stack Technologique
+%=============================================================================
+\chapter{État de l'Art et Stack Technologique}
 
-\section{Smart Home Platforms: Current Landscape}
-Smart-home systems generally follow one of three patterns:
-\begin{enumerate}[leftmargin=1.2cm]
-  \item Vendor-locked ecosystems focused on proprietary devices.
-  \item Gateway-centric open-source stacks with limited user governance.
-  \item Cloud-native IoT services with strong scaling but high integration overhead.
-\end{enumerate}
+\section{Panorama des Plateformes de Maison Intelligente}
 
-The SmartHome platform targets a hybrid engineering path: flexible protocol-level integration (MQTT), application-level governance (REST + role model), and web-native UX (React).
+Le marché de la maison intelligente est dominé par plusieurs écosystèmes propriétaires :
+\textbf{Amazon Alexa}, \textbf{Google Home}, \textbf{Apple HomeKit} et
+\textbf{Samsung SmartThings}. Malgré leurs richesses fonctionnelles, ces plateformes
+partagent des limitations communes :
 
-\section{Protocol and Interaction Model}
-\subsection{MQTT for Device Messaging}
-MQTT is lightweight, topic-based, and suitable for constrained devices and low-bandwidth communication. The project uses MQTT for sensor telemetry and device command delivery.
+\begin{itemize}[leftmargin=1.5cm,itemsep=6pt]
+  \item \textbf{Dépendance au fournisseur (vendor lock-in)} : les appareils doivent être
+        certifiés pour l'écosystème spécifique.
+  \item \textbf{Risques pour la vie privée} : les architectures cloud-first acheminent les
+        commandes locales via des serveurs distants, créant de la latence et des risques
+        d'exposition des données.
+  \item \textbf{Personnalisation limitée} : la logique métier, la gouvernance des rôles et
+        les flux de sécurité ne peuvent pas être étendus par l'utilisateur final.
+  \item \textbf{Lacunes multi-locataires} : aucun modèle standard pour les scénarios de
+        gestion d'agence ou de propriétés multi-unités.
+\end{itemize}
 
-\subsection{HTTP/REST for Business Operations}
-REST endpoints handle account management, CRUD workflows, permissions, and administrative functions where request-response semantics are natural.
+Les alternatives open source comme \textbf{Home Assistant} et \textbf{openHAB} résolvent
+le problème de dépendance fournisseur, mais présentent des courbes de configuration
+abruptes et manquent de modèles de gouvernance multi-rôles intégrés.
 
-\subsection{Socket.IO for User-facing Real-time Events}
-Socket.IO complements REST by delivering asynchronous updates such as approval notifications, gas alerts, and dashboard state changes.
-
-\section{Technology Selection Rationale}
-\subsection{Backend: Node.js + Express}
-Node.js provides asynchronous I/O efficiency for mixed workloads (HTTP, sockets, MQTT events). Express offers low ceremony and direct control over middleware and route composition.
-
-\subsection{Database: MongoDB + Mongoose}
-MongoDB supports document flexibility for evolving IoT payload fields and role-specific user metadata. Mongoose adds schema constraints and lifecycle hooks (e.g., password hashing).
-
-\subsection{MQTT Broker: Aedes}
-Aedes allows embedding broker behavior directly inside backend runtime, reducing integration complexity in prototyping and early production stages.
-
-\subsection{Frontend: React + Vite}
-React enables component-level decomposition and route guards. Vite ensures fast development iteration and efficient modern build tooling.
-
-\subsection{Realtime: Socket.IO}
-Socket.IO handles transport fallback and namespace/room abstractions, simplifying per-house and per-role event fan-out.
-
-\section{Comparative Positioning}
-\begin{table}[H]
-\centering
-\caption{Comparative perspective of architectural choices}
-\begin{tabular}{p{4cm}p{4cm}p{6cm}}
+\begin{center}
+\begin{longtable}{p{0.22\textwidth} p{0.11\textwidth} p{0.11\textwidth} p{0.12\textwidth} p{0.11\textwidth} p{0.16\textwidth}}
+\caption{Comparaison des Solutions de Maison Intelligente}\label{tab:sota}\\
 \toprule
-Dimension & Typical Alternative & Adopted Choice and Advantage \\
+\textbf{Fonctionnalité} & \textbf{Amazon Alexa} & \textbf{Google Home} & \textbf{Home Asst.} & \textbf{openHAB} & \textbf{Ce Projet} \\
 \midrule
-Device Messaging & HTTP polling from devices & MQTT topics: lower overhead, event-native pattern \\
-Realtime UI & Frequent client polling & Socket push model: lower latency and less load \\
-Data Model & Strict relational schema & Flexible documents for IoT and user metadata \\
-Auth Model & Single-role simple auth & Multi-role with permission workflow and onboarding \\
+\endfirsthead
+\toprule
+\textbf{Fonctionnalité} & \textbf{Amazon Alexa} & \textbf{Google Home} & \textbf{Home Asst.} & \textbf{openHAB} & \textbf{Ce Projet} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+Gouvernance multi-rôles  & \notdone & \notdone & \notdone & \notdone & \done \\
+Courtier MQTT intégré    & \notdone & \notdone & \done    & \done    & \done \\
+Sécurité gaz intégrée    & \notdone & \notdone & Partiel  & Partiel  & \done \\
+Assistant IA (LLM)       & \done    & \done    & Partiel  & \notdone & \done \\
+Open source / auto-hébergé & \notdone & \notdone & \done  & \done    & \done \\
+Mode agence/conciergerie & \notdone & \notdone & \notdone & \notdone & \done \\
+Plan d'étage 3D          & \notdone & \notdone & \done    & \notdone & \done \\
+Journal d'audit complet  & \notdone & \notdone & Partiel  & \notdone & \done \\
+\end{longtable}
+\end{center}
+
+\section{Protocoles de Communication IoT}
+
+\subsection{MQTT (Message Queuing Telemetry Transport)}
+
+MQTT est un protocole de messagerie publish-subscribe léger conçu pour les appareils
+contraints et les réseaux peu fiables. Il fonctionne sur TCP et utilise un
+\textbf{courtier} comme routeur central de messages.
+
+\begin{center}
+\begin{longtable}{p{0.25\textwidth} p{0.63\textwidth}}
+\caption{Caractéristiques Clés de MQTT}\label{tab:mqtt_features}\\
+\toprule
+\textbf{Caractéristique} & \textbf{Description} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Caractéristique} & \textbf{Description} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+Overhead minimal       & En-tête fixe aussi petit que 2 octets \\
+Niveaux QoS            & QoS 0 (au plus une fois), QoS 1 (au moins une fois), QoS 2 (exactement une fois) \\
+Messages retenus       & La dernière valeur publiée est livrée aux nouveaux abonnés \\
+Last Will (LWT)        & Le courtier publie un message prédéfini lors d'une déconnexion inattendue \\
+Wildcards de topics    & \code{+} (niveau unique) et \code{\#} (multi-niveau) pour les abonnements flexibles \\
+\end{longtable}
+\end{center}
+
+Dans ce projet, \textbf{Aedes} est utilisé comme courtier MQTT en processus, intégré dans
+le backend Node.js, éliminant le besoin d'une instance Mosquitto ou HiveMQ externe.
+
+\subsection{Comparaison des Protocoles}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Critère} & \textbf{MQTT} & \textbf{WebSocket} & \textbf{SSE HTTP} & \textbf{Polling REST} \\
+\midrule
+Adapté aux appareils IoT  & \done & \notdone & \notdone & Partiel \\
+Compatibilité navigateur  & Partiel & \done & \done & \done \\
+Bidirectionnel            & \done & \done & \notdone & \notdone \\
+Faible consommation       & \done & Partiel & Partiel & \notdone \\
+Push serveur              & \done & \done & \done & \notdone \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{center}
 
-\section{Engineering Standards and Principles}
-The project follows practical engineering principles:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Separation of concerns across route, model, middleware, and realtime services.
-  \item Explicit role checks for privileged operations.
-  \item Deterministic state transitions for safety-critical workflows.
-  \item Event-driven synchronization between data persistence and UI state.
+\noindent L'architecture choisie utilise \textbf{MQTT pour l'IoT} et
+\textbf{Socket.IO pour les navigateurs}, le backend servant de pont entre les deux protocoles.
+
+\section{Évaluation du Stack Technologique}
+
+\subsection{Backend : Node.js et Express}
+
+\textbf{Node.js} avec son modèle de boucle d'événements est bien adapté aux applications
+à forte intensité d'I/O comme cette plateforme, où le serveur gère simultanément les
+requêtes HTTP, les événements MQTT, les connexions Socket.IO et les opérations de base
+de données. \textbf{Express.js} fournit une couche de routage minimale et non opinionnée.
+
+\subsection{Base de Données : MongoDB et Mongoose}
+
+\textbf{MongoDB} a été sélectionné pour sa flexibilité schématique lors des premières
+itérations de conception et son modèle de document JSON natif aligné avec JavaScript.
+\textbf{Mongoose} fournit la validation de schéma, les virtuels, les hooks et une API
+de requête cohérente.
+
+\subsection{Frontend : React et Vite}
+
+\begin{center}
+\begin{longtable}{p{0.28\textwidth} p{0.18\textwidth} p{0.42\textwidth}}
+\caption{Bibliothèques Frontend Utilisées}\label{tab:frontend_stack}\\
+\toprule
+\textbf{Bibliothèque} & \textbf{Version} & \textbf{Rôle} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Bibliothèque} & \textbf{Version} & \textbf{Rôle} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+React               & 19.2.4  & Framework UI basé sur les composants \\
+React Router        & 7.13.2  & Routage côté client avec routes protégées \\
+Tailwind CSS        & 4.2.2   & CSS utilitaire pour le design responsive \\
+Framer Motion       & 12.38.0 & Animations et transitions déclaratives \\
+Three.js            & 0.184.0 & Rendu 3D WebGL pour le plan d'étage \\
+React Three Fiber   & 9.x     & Liaisons React pour Three.js \\
+Recharts            & 3.8.1   & Bibliothèque de graphiques SVG pour le tableau de bord énergétique \\
+Socket.IO Client    & 4.8.3   & Communication temps réel navigateur-serveur \\
+mqtt.js             & 5.15.1  & Client MQTT pour le navigateur \\
+Axios               & 1.14.0  & Client HTTP basé sur les promesses \\
+jsPDF               & 4.2.1   & Génération de PDF côté client (export audit) \\
+Lucide React        & 1.7.0   & Bibliothèque d'icônes SVG cohérente \\
+\end{longtable}
+\end{center}
+
+\subsection{Firmware IoT : Arduino / ESP32}
+
+Le microcontrôleur \textbf{ESP32-D} a été choisi pour :
+\begin{itemize}[leftmargin=1.5cm,itemsep=4pt]
+  \item Dual-core Xtensa LX6 à 240~MHz avec 520~Ko SRAM.
+  \item Wi-Fi intégré (802.11 b/g/n) et Bluetooth.
+  \item Riche ensemble GPIO supportant ADC, PWM, UART, I2C et SPI.
+  \item Vaste écosystème Arduino avec bibliothèques MQTT, JSON et servo.
+  \item Logique 3,3~V compatible avec la plupart des capteurs.
 \end{itemize}
 
-\section{Toolchain and Dependencies}
-\subsection{Backend Core Libraries}
-Important dependencies include Express, Mongoose, Aedes, Socket.IO server, JWT, bcrypt, and OAuth strategy packages.
+\subsection{Intégration IA : API Groq}
 
-\subsection{Frontend Core Libraries}
-Important dependencies include React, React Router, Axios, Socket.IO client, MQTT client, and chart/animation utilities.
+\textbf{Groq} fournit une inférence LLM ultra-faible latence, atteignant un débit
+significativement plus rapide que les endpoints standard d'OpenAI. Pour un assistant IA
+interactif, le temps de réponse est critique pour l'expérience utilisateur.
 
-\subsection{Development Tooling}
-Nodemon and Vite support development cycles; ESLint supports code quality baselines.
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Bibliothèque d'Auth} & \textbf{Version} & \textbf{Rôle} \\
+\midrule
+jsonwebtoken            & 9.0.2  & Génération et vérification JWT \\
+bcryptjs                & 2.4.3  & Hachage des mots de passe \\
+passport                & 0.7.x  & Orchestration des middlewares d'auth \\
+passport-google-oauth20 & 2.x    & Stratégie Google OAuth 2.0 \\
+speakeasy               & 2.0.0  & Génération et vérification TOTP/2FA \\
+qrcode                  & 1.5.4  & Génération d'images QR code pour 2FA \\
+\bottomrule
+\end{tabular}
+\end{center}
 
-\section{Known Trade-offs}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Embedded broker simplifies architecture but couples API and broker runtime.
-  \item Flexible schemas ease evolution but require strict validation discipline.
-  \item Socket-heavy UX improves responsiveness but demands robust auth handling and room hygiene.
-\end{itemize}
+\section{Environnement de Développement}
 
-\section{Chapter Synthesis}
-The selected stack is coherent with project constraints: quick iteration, protocol-level interoperability, and real-time operational responsiveness. Subsequent chapters translate these choices into formal architecture and implementation.
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Outil} & \textbf{Rôle} \\
+\midrule
+VS Code + Claude Code CLI & IDE principal et assistance au codage par IA \\
+Git + GitHub              & Contrôle de version et collaboration \\
+Postman                   & Tests API et documentation \\
+Arduino IDE 2.x           & Développement et flashage du firmware ESP32 \\
+MongoDB Compass           & Inspection de base de données et développement de requêtes \\
+MQTT Explorer             & Surveillance des topics MQTT lors des tests d'intégration \\
+Nodemon                   & Rechargement automatique du backend en développement \\
+ESLint + Prettier         & Qualité et formatage du code JavaScript \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Synthèse}
+
+Le stack technologique sélectionné combine des \textbf{outils éprouvés par l'industrie}
+(Node.js, MongoDB, React) avec des \textbf{protocoles spécifiques IoT} (MQTT/Aedes, ESP32)
+et des \textbf{capacités IA émergentes} (Groq LLM), créant un système cohérent,
+maintenable et déployable. Les choix privilégient l'\textbf{ergonomie développeur},
+la \textbf{performance runtime} et la \textbf{maturité de l'écosystème} pour un projet PFE
+à développeur unique livré en 12 semaines.

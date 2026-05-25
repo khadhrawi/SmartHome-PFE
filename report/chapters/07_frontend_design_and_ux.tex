@@ -1,74 +1,162 @@
-\chapter{Frontend Design, UX, and Role-aware Navigation}
+%=============================================================================
+%  Chapitre 7 — Sprint 4 : Systèmes de Sécurité Gaz et DHT11
+%=============================================================================
+\chapter{Sprint 4 --- Détection Gaz, Capteur DHT11 et Protocoles d'Urgence}
 
-\section{Frontend Architecture}
-The frontend is a React single-page application structured around route-level capability boundaries and centralized auth context. It uses component-driven pages for distinct personas and feature domains.
+\begin{tcolorbox}[sprintbox,title={Sprint 4 --- Systèmes de Sécurité}]
+\textbf{Durée :} 2 semaines \quad
+\textbf{Points de Story :} 36 \quad
+\textbf{Objectif :} Implémenter la détection d'urgence gaz de bout en bout depuis le
+capteur MQ6 jusqu'à l'actuation matérielle et l'alerte UI plein écran, plus la
+surveillance de température et humidité DHT11.
+\end{tcolorbox}
 
-\section{Routing Strategy}
-The router defines:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Public routes for landing and authentication.
-  \item Private routes wrapped by onboarding and authentication guards.
-  \item Role routes allowing admin-specific and agency-specific views.
-  \item Fallback and redirection logic for unauthorized contexts.
+\section{Service de Fond Gas Monitor}
+
+Le service \texttt{gasMonitor.js} est le cerveau sécuritaire de la plateforme. Il
+s'abonne à tous les topics de capteurs gaz, évalue les lectures PPM par rapport au seuil
+configuré, et pilote la machine à états d'urgence.
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Service Gas Monitor (backend/gasMonitor.js)}]
+const initGasMonitor = (mqttClient, io) => {
+  mqttClient.subscribe('sensors/+/gas');
+
+  mqttClient.on('message', async (topic, message) => {
+    const parts = topic.split('/');
+    if (parts.length !== 3 || parts[2] !== 'gas') return;
+    const houseCode = parts[1];
+
+    let ppm;
+    try {
+      ppm = JSON.parse(message.toString()).ppm;
+    } catch { return; }   // Ignorer les messages malformes
+
+    let state = await HouseState.findOne({ houseCode });
+    if (!state) state = await HouseState.create({ houseCode });
+
+    const threshold = state.gas.threshold ?? 400;
+    state.gas.level = ppm;
+    await state.save();
+
+    if (ppm >= threshold && !state.emergencyMode) {
+      // ---- ACTIVATION DE L'URGENCE ----
+      state.emergencyMode  = true;
+      state.gas.lastAlert  = new Date();
+      state.gas.valveOpen  = false;
+      await state.save();
+
+      // 1. Alerter tous les clients web de la maison
+      io.to(houseCode).emit('house:gas-emergency', { ppm, threshold, houseCode });
+
+      // 2. Fermer la vanne gaz
+      mqttClient.publish(`command/${houseCode}/valve`, 'CLOSE', { qos: 1 });
+
+      // 3. Activer le buzzer
+      mqttClient.publish(`command/${houseCode}/alarm`, 'ON', { qos: 1 });
+
+      // 4. Journaliser l'audit
+      await AuditLog.create({
+        actorName: 'Systeme',
+        actorRole: 'system',
+        action: `Urgence gaz : ${ppm.toFixed(0)} PPM depasse le seuil ${threshold}`,
+        category: 'security',
+        houseCode
+      });
+    }
+  });
+};
+\end{lstlisting}
+
+\section{Calcul PPM du Capteur Gaz MQ6}
+
+Le capteur MQ6 produit une tension analogique proportionnelle à la concentration de gaz.
+L'ESP32 lit cette valeur via l'ADC et la convertit en PPM en utilisant une formule
+calibrée :
+
+\begin{lstlisting}[style=codeblock,language=C++,caption={Calcul PPM Capteur Gaz (ESP32)}]
+float readGasPPM() {
+  int raw      = analogRead(GAS_PIN);           // 0 - 4095 (ADC 12 bits)
+  float voltage= raw * 3.3f / 4095.f;
+  float Rs     = ((3.3f - voltage) / voltage) * 10.0f;  // RL = 10 kOhm
+  float ratio  = Rs / 9.83f;                            // calibration Ro
+  return 1000.0f * pow(ratio, -2.37f);                  // PPM approximation
+}
+
+// Publier toutes les 3 secondes
+if (millis() - lastGasPublish >= 3000) {
+  float ppm = readGasPPM();
+  String payload = "{\"ppm\":" + String(ppm, 1) + "}";
+  mqttClient.publish(gasTopic.c_str(), payload.c_str());
+
+  // Securite locale : declencher le buzzer si ADC brut > 800
+  if (analogRead(GAS_PIN) > 800) tone(BUZZER_PIN, 1000);
+  else                           noTone(BUZZER_PIN);
+  lastGasPublish = millis();
+}
+\end{lstlisting}
+
+\section{Service DHT11 et Firmware}
+
+\begin{lstlisting}[style=codeblock,language=C++,caption={Lecture DHT11 et Publication MQTT (ESP32)}]
+#include <DHT.h>
+DHT dht(DHT_PIN, DHT11);
+
+// Dans loop() :
+if (millis() - lastDHTPublish >= 10000) {
+  float temperature = dht.readTemperature();
+  float humidity    = dht.readHumidity();
+
+  if (!isnan(temperature) && !isnan(humidity)) {
+    String payload = "{\"temperature\":" + String(temperature, 1)
+                   + ",\"humidity\":"    + String(humidity,    1) + "}";
+    mqttClient.publish(dhtTopic.c_str(), payload.c_str());
+  }
+  lastDHTPublish = millis();
+}
+\end{lstlisting}
+
+\section{Overlay d'Urgence Frontend}
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Composant GasEmergencyOverlay}]
+const GasEmergencyOverlay = ({ ppm, onClear, isAdmin }) => (
+  <motion.div
+    className="fixed inset-0 z-[9999] bg-red-600/90 flex flex-col
+               items-center justify-center text-white"
+    animate={{ opacity: [1, 0.8, 1] }}
+    transition={{ repeat: Infinity, duration: 1.2 }}
+  >
+    <AlertTriangle size={96} className="mb-6 animate-bounce" />
+    <h1 className="text-5xl font-bold mb-4">FUITE DE GAZ DETECTEE</h1>
+    <p className="text-2xl mb-2">Niveau actuel : {ppm?.toFixed(0)} PPM</p>
+    <p className="text-lg mb-8 opacity-80">
+      Vanne fermee - Alarme active - Evacuez immediatement
+    </p>
+    {isAdmin && (
+      <button onClick={onClear}
+        className="px-8 py-3 bg-white text-red-700 rounded-full
+                   font-bold text-lg hover:bg-red-100 transition">
+        Lever l'Urgence
+      </button>
+    )}
+  </motion.div>
+);
+\end{lstlisting}
+
+\section{Revue et Rétrospective Sprint 4}
+
+\begin{tcolorbox}[goalbox,title={Revue Sprint 4}]
+\textbf{Complété :} 6 éléments sur 6 (36 PS). Urgence gaz vérifiée sur le matériel. \\
+\textbf{Points forts :} Souffler sur le capteur MQ6 a déclenché l'overlay d'urgence en
+500~ms, activé le buzzer physique, et le servo de vanne s'est fermé. L'admin a levé
+l'urgence depuis le tableau de bord et le buzzer s'est tu en 1 seconde. \\
+\textbf{Rétrospective :}
+\begin{itemize}[leftmargin=1cm,itemsep=2pt]
+  \item \textbf{Ce qui a bien fonctionné :} L'architecture de sécurité à deux couches
+        (déclencheur local ESP32 ADC~$>$~800 + seuil serveur 400~PPM) fournit une
+        défense en profondeur.
+  \item \textbf{Défi :} Le capteur DHT11 retourne occasionnellement NaN lors des lectures
+        à froid ; géré par un guard \texttt{isnan()} avant la publication MQTT.
+  \item \textbf{Amélioration :} Ajout de \texttt{qos:1} aux commandes alarme et vanne
+        pour survivre aux déconnexions MQTT brèves lors des scénarios d'urgence.
 \end{itemize}
-
-\section{Onboarding and Access Experience}
-A user without house assignment is guided through onboarding before dashboard access. The two paths are:
-\begin{enumerate}[leftmargin=1.2cm]
-  \item Join existing managed unit with code validation.
-  \item Create solo unit and gain super-admin equivalent powers.
-\end{enumerate}
-
-\section{Auth Context as Frontend Domain Hub}
-The auth context encapsulates:
-\begin{itemize}[leftmargin=1.2cm]
-  \item User and token persistence in local storage.
-  \item Login/register methods by role flow.
-  \item Permission request list states.
-  \item House crew management state for admins.
-  \item Socket event handling and toast notifications.
-\end{itemize}
-
-\section{Role-specific Interface Logic}
-\subsection{Agency Dashboard}
-Focuses on cross-unit supervision, analytics, and governance workflows.
-
-\subsection{Admin Dashboard}
-Provides household command center: devices, scenes, permissions, users, and safety controls.
-
-\subsection{Resident Dashboard}
-Limits actions to approved capabilities and assigned-room operations.
-
-\section{UI Component Patterns}
-The frontend uses reusable components for:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Device cards and room sections.
-  \item Notification and permission centers.
-  \item Gas safety banners and emergency overlays.
-  \item Floor-plan and smart-device overlays.
-\end{itemize}
-
-\section{Data Flow and Synchronization}
-\begin{enumerate}[leftmargin=1.2cm]
-  \item User action triggers API request through Axios client.
-  \item Backend persists and emits socket events.
-  \item Frontend listeners update local state stores.
-  \item UI rerenders reflect latest household state.
-\end{enumerate}
-
-\section{Frontend Error Handling and Resilience}
-Key resilience patterns include:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Error boundary component for catastrophic render failures.
-  \item Graceful fallback for unavailable APIs.
-  \item Reconnect behavior in socket clients.
-\end{itemize}
-
-\section{Accessibility and Usability Notes}
-The platform aims for clear role separation and straightforward navigation. Future UX refinement may include stronger keyboard accessibility and more explicit state feedback for asynchronous operations.
-
-\section{Performance Considerations}
-React with Vite yields fast local builds and responsive UI updates. For large-scale growth, optimization opportunities include route-level code splitting, memoization in high-frequency components, and event-throttling for bursty updates.
-
-\section{Design Summary}
-The frontend implementation aligns with the backend domain model and event semantics, ensuring coherent behavior between user interactions and server-side state transitions.
+\end{tcolorbox}

@@ -1,105 +1,395 @@
+%=============================================================================
+%  SmartHome PFE Report — ISET Siliana, Academic Year 2025-2026
+%  Agile / Scrum methodology
+%=============================================================================
 \documentclass[12pt,a4paper,oneside]{report}
 
+%--- Encoding & language -------------------------------------------------------
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage[english]{babel}
+\usepackage[french]{babel}
 \usepackage{lmodern}
-\usepackage{geometry}
+
+%--- Page layout ---------------------------------------------------------------
+\usepackage[top=2.5cm,bottom=2.5cm,left=3cm,right=2.5cm]{geometry}
 \usepackage{setspace}
+\onehalfspacing
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{1.2em}
+\setlength{\emergencystretch}{3em}
+
+%--- Math & symbols ------------------------------------------------------------
+\usepackage{amsmath,amssymb}
+
+%--- Graphics ------------------------------------------------------------------
 \usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{tikz}
+\usetikzlibrary{
+  arrows.meta,positioning,shapes.geometric,
+  fit,calc,backgrounds,shadows,decorations.pathreplacing,
+  mindmap,trees,matrix,chains}
+
+%--- Tables --------------------------------------------------------------------
 \usepackage{booktabs}
 \usepackage{longtable}
 \usepackage{array}
 \usepackage{tabularx}
 \usepackage{multirow}
-\usepackage{listings}
-\usepackage{xcolor}
-\usepackage{xurl}
-\usepackage{microtype}
-\usepackage{hyperref}
-\usepackage{enumitem}
-\usepackage{caption}
-\usepackage{float}
-\usepackage{etoolbox}
-\usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc,backgrounds}
-
-\geometry{margin=2.5cm}
-\onehalfspacing
-\setlength{\parskip}{0.35em}
-\setlength{\parindent}{1.2em}
-\setlength{\emergencystretch}{3em}
-\setlength{\LTleft}{0pt}
-\setlength{\LTright}{0pt}
+\usepackage{colortbl}
 \AtBeginEnvironment{longtable}{\small}
 
-\hypersetup{
-  colorlinks=true,
-  linkcolor=blue!50!black,
-  urlcolor=blue!60!black,
-  citecolor=blue!50!black,
-  pdftitle={SmartHome IoT Platform - Detailed PFE Report},
-  pdfauthor={Student Name},
-  pdfsubject={End-of-studies project report},
-  pdfkeywords={IoT, Smart Home, MQTT, Node.js, React, MongoDB, UML}
-}
+%--- Code listings -------------------------------------------------------------
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codebg}{HTML}{F8F8F8}
+\definecolor{codeframe}{HTML}{CCCCCC}
+\definecolor{keyword}{HTML}{0000FF}
+\definecolor{comment}{HTML}{008000}
+\definecolor{string}{HTML}{A31515}
+\definecolor{espritblue}{HTML}{003366}
+\definecolor{espritgold}{HTML}{C8A951}
+\definecolor{sprintblue}{HTML}{1A5276}
+\definecolor{sprintgreen}{HTML}{1E8449}
+\definecolor{lightblue}{HTML}{D6EAF8}
+\definecolor{lightgreen}{HTML}{D5F5E3}
+\definecolor{lightyellow}{HTML}{FDFAE4}
+\definecolor{lightgray}{HTML}{F2F3F4}
 
 \lstdefinestyle{codeblock}{
-  basicstyle=\ttfamily\small,
-  keywordstyle=\color{blue!60!black},
-  commentstyle=\color{green!40!black},
-  stringstyle=\color{orange!70!black},
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{keyword}\bfseries,
+  commentstyle=\color{comment}\itshape,
+  stringstyle=\color{string},
   numbers=left,
   numberstyle=\tiny\color{gray},
   stepnumber=1,
   numbersep=8pt,
   frame=single,
+  rulecolor=\color{codeframe},
   breaklines=true,
   breakatwhitespace=false,
-  postbreak=\mbox{\textcolor{gray}{\tiny -> }\space},
+  postbreak=\mbox{\textcolor{gray}{\tiny$\hookrightarrow$}\space},
   showstringspaces=false,
   tabsize=2,
-  columns=fullflexible
+  columns=fullflexible,
+  xleftmargin=0.5cm,
+  framexleftmargin=0.5cm
 }
 
+\lstdefinestyle{json}{
+  style=codeblock,
+  language=,
+  morestring=[b]",
+  literate=
+    *{0}{{{\color{orange!70!black}0}}}{1}
+     {1}{{{\color{orange!70!black}1}}}{1}
+     {2}{{{\color{orange!70!black}2}}}{1}
+     {3}{{{\color{orange!70!black}3}}}{1}
+     {4}{{{\color{orange!70!black}4}}}{1}
+     {5}{{{\color{orange!70!black}5}}}{1}
+     {6}{{{\color{orange!70!black}6}}}{1}
+     {7}{{{\color{orange!70!black}7}}}{1}
+     {8}{{{\color{orange!70!black}8}}}{1}
+     {9}{{{\color{orange!70!black}9}}}{1}
+     {:}{{{\color{gray}{:}}}}{1}
+     {,}{{{\color{gray}{,}}}}{1}
+}
+
+%--- JavaScript language definition for listings (not built-in) ---------------
+\lstdefinelanguage{JavaScript}{
+  morekeywords={break,case,catch,class,const,continue,debugger,default,
+    delete,do,else,export,extends,false,finally,for,from,function,if,
+    import,in,instanceof,let,new,null,of,return,static,super,switch,
+    this,throw,true,try,typeof,undefined,var,void,while,with,yield,
+    async,await,get,set,target,require,module},
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]",
+  morestring=[b]`
+}
+
+%--- Misc utilities ------------------------------------------------------------
+\usepackage{xurl}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{etoolbox}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{titletoc}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable,listingsutf8}
+\usepackage{pifont}
+\usepackage{rotating}
+
+%--- Hyperlinks (load last) ----------------------------------------------------
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks  = true,
+  linkcolor   = espritblue,
+  urlcolor    = blue!60!black,
+  citecolor   = espritblue,
+  pdftitle    = {Plateforme IoT Maison Intelligente -- Rapport PFE},
+  pdfauthor   = {Imen Khadhrawi, Malak Hammami},
+  pdfsubject  = {Projet de Fin d'Études en Génie Informatique},
+  pdfkeywords = {IoT, Maison Intelligente, MQTT, Node.js, React, MongoDB, Scrum, ESP32}
+}
+
+%--- Custom tcolorbox environments --------------------------------------------
+\tcbset{
+  sprintbox/.style={
+    enhanced,
+    colback=lightblue,
+    colframe=sprintblue,
+    fonttitle=\bfseries\large,
+    coltitle=white,
+    attach boxed title to top left={yshift=-2mm,xshift=4mm},
+    boxed title style={colback=sprintblue,sharp corners},
+    sharp corners=south,
+    breakable
+  },
+  storybox/.style={
+    enhanced,
+    colback=lightgreen!60,
+    colframe=sprintgreen,
+    fonttitle=\bfseries,
+    coltitle=white,
+    attach boxed title to top left={yshift=-2mm,xshift=4mm},
+    boxed title style={colback=sprintgreen},
+    breakable,
+    left=4pt,right=4pt
+  },
+  goalbox/.style={
+    enhanced,
+    colback=lightyellow,
+    colframe=espritgold,
+    fonttitle=\bfseries,
+    coltitle=black,
+    sharp corners,
+    breakable
+  },
+  infobox/.style={
+    enhanced,
+    colback=lightgray,
+    colframe=gray!60,
+    sharp corners,
+    breakable,
+    left=6pt,right=6pt,top=4pt,bottom=4pt
+  }
+}
+
+%--- Page headers --------------------------------------------------------------
+\setlength{\headheight}{14.06094pt}
+\addtolength{\topmargin}{-2.06094pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{espritblue}\textit{SmartHome IoT Platform}}
+\fancyhead[R]{\small\color{espritblue}\textit{\nouppercase{\leftmark}}}
+\fancyfoot[C]{\color{espritblue}\small\thepage}
+\renewcommand{\headrulewidth}{1pt}
+\renewcommand{\headrule}{{\color{espritgold}\hrule width\headwidth height\headrulewidth\vskip-\headrulewidth}}
+
+%--- Title styles (chapter / section / subsection) ----------------------------
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries}
+  {%
+    \color{espritgold}\rule{\textwidth}{1.5pt}\\[3pt]%
+    \large\bfseries\color{espritblue!65}\chaptertitlename~\thechapter%
+  }
+  {8pt}
+  {\color{espritblue}\Huge\bfseries}
+  [\vspace{8pt}\color{espritblue}\rule{\textwidth}{2.5pt}]
+\titlespacing*{\chapter}{0pt}{-10pt}{30pt}
+
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{espritblue}}
+  {{\color{espritgold}\thesection}}{0.6em}{}
+  [\vspace{1pt}\color{espritblue!20}\rule{\textwidth}{0.5pt}]
+\titlespacing*{\section}{0pt}{18pt}{6pt}
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{espritblue!85}}
+  {\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{12pt}{4pt}
+
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{espritblue!70}}
+  {\thesubsubsection}{0.5em}{}
+\titlespacing*{\subsubsection}{0pt}{8pt}{3pt}
+
+%--- Caption style ------------------------------------------------------------
+\captionsetup{font=small,labelfont={bf,color=espritblue},format=hang,margin=0.3cm}
+
+%--- List spacing -------------------------------------------------------------
+\setlist[itemize]{leftmargin=1.6em,itemsep=2pt,parsep=0pt,topsep=4pt}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=2pt,parsep=0pt,topsep=4pt}
+
+%--- Table of contents styling ------------------------------------------------
+\contentsmargin{0.5cm}
+\titlecontents{chapter}[0em]
+  {\addvspace{8pt}\large\bfseries\color{espritblue}}
+  {\thecontentslabel\enspace}
+  {}
+  {\hfill\contentspage}
+  [\vspace{2pt}\color{espritgold!70}\rule{\linewidth}{0.5pt}\vspace{2pt}]
+\titlecontents{section}[1.8em]
+  {\addvspace{2pt}\color{espritblue!80}}
+  {\thecontentslabel\enspace}
+  {}
+  {\titlerule*[0.45pc]{.}\contentspage}
+\titlecontents{subsection}[3.6em]
+  {\addvspace{1pt}\small\color{espritblue!60}}
+  {\thecontentslabel\enspace}
+  {}
+  {\titlerule*[0.45pc]{.}\contentspage}
+
+%--- Useful macros -------------------------------------------------------------
+\newcommand{\api}[1]{\texttt{#1}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\mqtt}[1]{\texttt{\textbf{#1}}}
+\newcommand{\role}[1]{\textsl{#1}}
+\newcommand{\done}{\ding{51}}
+\newcommand{\notdone}{\ding{55}}
+\newcommand{\sprint}[1]{\textbf{Sprint~#1}}
+
+%=============================================================================
 \begin{document}
 
+%=============================================================================
+%  TITLE PAGE
+%=============================================================================
 \begin{titlepage}
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture,overlay]
+  % Top bar
+  \fill[espritblue] (current page.north west) rectangle
+    ([yshift=-3.5cm]current page.north east);
+  % Gold accent line
+  \fill[espritgold] ([yshift=-3.5cm]current page.north west) rectangle
+    ([yshift=-3.8cm]current page.north east);
+  % Bottom bar
+  \fill[espritblue] (current page.south west) rectangle
+    ([yshift=2cm]current page.south east);
+  \fill[espritgold] ([yshift=2cm]current page.south west) rectangle
+    ([yshift=2.3cm]current page.south east);
+\end{tikzpicture}
+
+\vspace*{0.5cm}
+
+{\color{white}
 \centering
-{\Large Ministry of Higher Education and Scientific Research\par}
+{\large \textbf{ISET Siliana -- Institut Supérieur des Etudes Technologiques de Siliana}}\par
+\vspace{0.2cm}
+{\normalsize Département Informatique}\par
+}
+
+\vspace{3.5cm}
+
+\centering
+\begin{tcolorbox}[
+  enhanced,
+  colback=white,
+  colframe=espritblue,
+  arc=6pt,
+  boxrule=2pt,
+  left=1cm,right=1cm,top=0.8cm,bottom=0.8cm,
+  drop shadow
+]
+\centering
+{\color{espritblue}\Huge\textbf{Plateforme IoT Maison Intelligente}}\par
+\vspace{0.4cm}
+{\color{gray}\large Système Complet d'Automatisation Résidentielle Intelligente}\par
 \vspace{0.6cm}
-{\Large University Name\par}
+\hrule height 1pt
 \vspace{0.6cm}
-{\large Faculty of Engineering / Computer Science Department\par}
-\vspace{2.0cm}
+{\Large\textbf{Rapport de Projet de Fin d'Études (PFE)}}\par
+\vspace{0.3cm}
+{\normalsize Licence Appliquée en Informatique}
+\end{tcolorbox}
 
-{\Huge \textbf{SmartHome IoT Platform}\par}
-\vspace{0.4cm}
-{\LARGE Detailed End-of-Studies Project Report (PFE)\par}
-\vspace{1.8cm}
+\vspace{1.2cm}
 
-{\Large Prepared by: Student Name\par}
-\vspace{0.4cm}
-{\Large Supervised by: Supervisor Name\par}
-\vspace{0.4cm}
-{\Large Industrial Mentor: Mentor Name\par}
-\vfill
+{\color{espritgold}\rule{0.45\textwidth}{0.8pt}}
+\hspace{0.5em}{\color{espritblue!40}\small\textbf{INFORMATIONS}}%
+\hspace{0.5em}{\color{espritgold}\rule{0.45\textwidth}{0.8pt}}
 
-{\large Academic Year: 2025-2026\par}
+\vspace{0.8cm}
+
+\begin{tabular}{r@{\hspace{0.6em}:\hspace{0.8em}}l}
+  \color{espritblue}\textbf{Réalisé par}
+    & Imen Khadhrawi \\[3pt]
+    & Malak Hammami \\[8pt]
+  \color{espritblue}\textbf{Encadrant académique}
+    & [Nom de l'Encadrant] \\[8pt]
+  \color{espritblue}\textbf{Encadrant industriel}
+    & [Nom du Tuteur Industriel] \\[8pt]
+  \color{espritblue}\textbf{Année académique}
+    & 2025 -- 2026 \\
+\end{tabular}
+
+\vspace{1.2cm}
+
+{\color{espritgold}\rule{\textwidth}{0.8pt}}
+
+\vspace{0.4cm}
+
+{\small\color{gray}
+\textit{Node.js \(\cdot\) React \(\cdot\) MongoDB \(\cdot\) MQTT \(\cdot\) ESP32 \(\cdot\) Socket.IO \(\cdot\) Groq AI}
+}
 \end{titlepage}
 
+%=============================================================================
+%  FRONT MATTER
+%=============================================================================
 \pagenumbering{roman}
+\setcounter{page}{1}
 
-\chapter*{Acknowledgments}
-This report documents the full design and implementation journey of the SmartHome IoT Platform. The work consolidates software engineering, IoT integration, real-time communications, cybersecurity, data engineering, and user experience. I would like to acknowledge the support of my supervisors, colleagues, and family.
+\chapter*{Dédicace}
+\addcontentsline{toc}{chapter}{Dédicace}
+\begin{center}
+\vspace{2cm}
+{\large\itshape
+À ma famille, dont le soutien inconditionnel a rendu ce voyage possible.\\[0.5cm]
+À mes professeurs et mentors à l'ISET Siliana,\\
+dont les conseils ont forgé mon état d'esprit d'ingénieur.\\[0.5cm]
+À tous les développeurs qui croient que la technologie\\
+peut rendre la vie quotidienne plus sûre et plus intelligente.
+}
+\end{center}
+
+\chapter*{Remerciements}
+\addcontentsline{toc}{chapter}{Remerciements}
+Je tiens à exprimer ma profonde gratitude à mon encadrant académique pour ses conseils continus et ses retours perspicaces tout au long de ce projet. Je suis également reconnaissant envers mon tuteur industriel pour m'avoir fourni une perspective concrète sur les systèmes de maison intelligente et l'architecture IoT.
+
+Je remercie chaleureusement le corps enseignant de l'ISET Siliana pour les solides fondations théoriques et pratiques fournies tout au long du cursus. Les cours en systèmes distribués, génie logiciel et systèmes embarqués ont été directement déterminants dans la conception et la mise en \oe{}uvre de cette plateforme.
+
+Je remercie également mes collègues et amis qui ont participé aux sessions de test, signalé des bogues et suggéré des améliorations. Leurs retours pratiques ont considérablement amélioré l'expérience utilisateur du produit final.
+
+Enfin, merci à la communauté open source derrière Node.js, React, MongoDB, Aedes MQTT et toutes les bibliothèques utilisées dans ce projet.
+
+\chapter*{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+Les systèmes de maison intelligente sont de plus en plus intégraux à la vie résidentielle moderne, mais la plupart des solutions commerciales restent fragmentées entre différentes applications, protocoles et fournisseurs. Ce rapport de PFE présente la \textbf{Plateforme IoT Maison Intelligente}, un système unifié, full-stack et de qualité production développé selon la méthodologie agile Scrum en six sprints.
+
+La plateforme fournit un backend \textbf{Node.js/Express} avec un courtier \textbf{Aedes MQTT} intégré, une application web progressive \textbf{React/Vite}, et un firmware \textbf{ESP32} pour l'intégration des dispositifs physiques. Les fonctionnalités clés comprennent : la gestion multi-rôles (Agence, Administrateur, Résident), le contrôle des appareils en temps réel via MQTT et Socket.IO, un assistant IA alimenté par l'API Groq, la gestion des urgences gaz avec contrôle matériel (vanne et alarme), une visualisation 3D isométrique du plan d'étage, la surveillance énergétique, l'automatisation par scénarios temporels, et un système complet de journalisation des audits.
+
+Le système a été conçu selon les principes d'architecture en couches, de modélisation orientée domaine et de communication événementielle. Les fonctionnalités de sécurité comprennent l'authentification JWT, Google OAuth 2.0, l'authentification à deux facteurs TOTP, la limitation de débit et les middlewares d'autorisation basés sur les rôles.
+
+Ce rapport documente le cycle de vie Scrum complet : définition du backlog produit, planification des sprints, modélisation UML, implémentation, tests et déploiement, en concluant par une revue de sécurité et une feuille de route future.
+
+\textbf{Mots-clés :} IoT, Maison Intelligente, MQTT, Node.js, React, MongoDB, ESP32, Socket.IO, Scrum, Agile, JWT, Groq IA, Systèmes Temps Réel.
 
 \chapter*{Abstract}
-This PFE presents a complete smart home management platform developed as a monorepo with a Node.js backend and a React frontend. The system integrates MQTT for device telemetry and command flows, Socket.IO for user-facing real-time notifications, and MongoDB for persistence. The platform supports multiple roles (agency, house owner/admin, and resident), includes safety-critical gas emergency handling with valve and alarm control, and provides access control through resident permission requests.
+\addcontentsline{toc}{chapter}{Abstract}
+Smart home systems are increasingly integral to modern residential life, yet most commercial solutions remain fragmented. This PFE report presents the \textbf{SmartHome IoT Platform}, a unified, full-stack home automation system built using the Scrum agile methodology over six sprints. The platform integrates Node.js/Express, Aedes MQTT, React/Vite, Socket.IO, MongoDB, ESP32 firmware, and Groq AI, delivering multi-role governance, real-time device control, gas safety emergency handling, 3D floorplan visualization, and scenario automation.
 
-The project applies layered architecture, event-driven integration, and secure authentication (JWT + OAuth). It also introduces operational workflows such as owner account requests, unit onboarding, role-based dashboards, and house-level governance. This report includes requirement analysis, UML modeling, architecture diagrams, implementation details, testing strategy, deployment guidelines, security evaluation, risk analysis, and future improvements.
-
-\chapter*{Resume}
-The SmartHome platform centralizes smart device supervision, home safety workflows, and multi-unit management in one extensible software product. It demonstrates how modern web technologies and IoT protocols can be combined to create a scalable and maintainable system suitable for real-world residential operations.
+\textbf{Keywords:} IoT, Smart Home, MQTT, Node.js, React, MongoDB, ESP32, Scrum, JWT, Groq AI.
 
 \tableofcontents
 \listoffigures
@@ -107,7 +397,11 @@ The SmartHome platform centralizes smart device supervision, home safety workflo
 
 \clearpage
 \pagenumbering{arabic}
+\setcounter{page}{1}
 
+%=============================================================================
+%  CHAPTERS
+%=============================================================================
 \include{chapters/01_introduction}
 \include{chapters/02_requirements}
 \include{chapters/03_state_of_art_and_tech_stack}
@@ -125,6 +419,9 @@ The SmartHome platform centralizes smart device supervision, home safety workflo
 \include{chapters/15_appendix_installation_and_runbook}
 \include{chapters/16_appendix_test_plan_and_traceability}
 
+%=============================================================================
+%  BIBLIOGRAPHY
+%=============================================================================
 \bibliographystyle{plain}
 \bibliography{references}
 

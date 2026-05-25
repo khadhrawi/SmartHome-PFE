@@ -1,99 +1,165 @@
-\chapter{Security, Testing, and Quality Assurance}
+%=============================================================================
+%  Chapitre 9 — Sprint 6 : Portail Agence, Journal d'Audit et Finalisation
+%=============================================================================
+\chapter{Sprint 6 --- Portail Agence, Journal d'Audit et Finalisation}
 
-\section{Security Model Overview}
-Security in the SmartHome platform is implemented as a layered model:
-\begin{itemize}[leftmargin=1.2cm]
-  \item Identity assurance (credential and OAuth authentication).
-  \item Session trust (JWT verification on API and socket channels).
-  \item Authorization constraints (role and scope checks).
-  \item Data protection (password hashing and controlled payload exposure).
-\end{itemize}
+\begin{tcolorbox}[sprintbox,title={Sprint 6 --- Portail Agence et Audit}]
+\textbf{Durée :} 2 semaines \quad
+\textbf{Points de Story :} 37 \quad
+\textbf{Objectif :} Livrer le hub conciergerie agence avec streaming en direct des maisons,
+un tableau de bord de journal d'audit complet, les demandes de permission résidents,
+les modes de sécurité et la gestion du profil.
+\end{tcolorbox}
 
-\section{Authentication Security Controls}
-\subsection{Password-based Flows}
-Passwords are hashed using bcrypt before persistence. Password strength checks are enforced server-side to prevent weak-secret registration.
+\section{Hub Conciergerie et Portail Agence}
 
-\subsection{OAuth Integration}
-Google OAuth allows trusted identity bootstrap and account linking while preserving platform role and onboarding policies.
+\subsection{Server-Sent Events (SSE) pour le Statut en Direct}
 
-\subsection{Email Verification and Reset}
-Tokenized email verification and expiring password reset links reduce account takeover risks associated with unverified identities and stale reset tokens.
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Endpoint SSE pour le Hub Conciergerie (backend/routes/concierge.js)}]
+router.get('/stream', protect, agencyOnly, (req, res) => {
+  res.setHeader('Content-Type',  'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection',    'keep-alive');
+  res.flushHeaders();
 
-\section{Authorization and Least Privilege}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Role checks guard admin and agency endpoints.
-  \item House-scoped filtering prevents cross-house data leakage.
-  \item Resident access is constrained and progressively expanded by approval workflow.
-\end{itemize}
+  const push = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
 
-\section{Socket Security}
-Socket handshake requires a valid token. User context is resolved and attached to socket instance before room membership assignment, preventing unauthorized event subscriptions.
+  // Envoyer l'instantane initial de tous les statuts admin
+  push({ type: 'snapshot', houses: getOnlineAdmins() });
 
-\section{IoT Safety Security}
-Safety commands are generated server-side from controlled logic paths. This minimizes direct client authority over critical actuator topics such as alarm and valve controls.
+  // S'abonner aux evenements de connexion admin
+  const onConnect    = (admin) => push({ type:'online',  houseCode: admin.houseCode });
+  const onDisconnect = (admin) => push({ type:'offline', houseCode: admin.houseCode });
 
-\section{Threat Analysis}
-\begin{table}[H]
-\centering
-\caption{Threat matrix and controls}
-\begin{tabular}{p{4cm}p{5cm}p{5cm}}
+  adminEvents.on('connect',    onConnect);
+  adminEvents.on('disconnect', onDisconnect);
+
+  // Nettoyage a la deconnexion du client
+  req.on('close', () => {
+    adminEvents.off('connect',    onConnect);
+    adminEvents.off('disconnect', onDisconnect);
+    res.end();
+  });
+});
+\end{lstlisting}
+
+\section{Système de Journal d'Audit}
+
+\subsection{Schéma AuditLog}
+
+\begin{lstlisting}[style=codeblock,language=JavaScript,caption={Sch\'ema AuditLog (backend/models/AuditLog.js)}]
+const auditLogSchema = new mongoose.Schema({
+  actor:      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  actorName:  { type: String, required: true },
+  actorRole:  { type: String },
+  action:     { type: String, required: true },
+  category:   { type: String,
+                enum: ['auth','device','security','user','scenario','system'],
+                default: 'system' },
+  details:    { type: String },
+  metadata:   { type: mongoose.Schema.Types.Mixed },
+  ipAddress:  { type: String },
+  houseCode:  { type: String }
+}, { timestamps: true });
+\end{lstlisting}
+
+\subsection{Événements Journalisés}
+
+\begin{center}
+\begin{longtable}{p{0.16\textwidth} p{0.72\textwidth}}
+\caption{Catégories et Événements du Journal d'Audit}\label{tab:audit_events}\\
 \toprule
-Threat & Risk & Existing / Recommended Controls \\
+\textbf{Catégorie} & \textbf{Événements Journalisés} \\
 \midrule
-Credential stuffing & Unauthorized login & Password policy, rate limiting (recommended), anomaly detection \\
-Token theft & Account/session hijack & HTTPS, token expiry, secure storage hardening \\
-Privilege escalation & Unauthorized admin action & Strict role guards and server-side authorization \\
-Event spoofing & Fake realtime updates & Authenticated socket handshake and server-origin events \\
-MQTT misuse & Device command abuse & Broker auth enhancement, ACL topics, signed payloads \\
+\endfirsthead
+\toprule
+\textbf{Catégorie} & \textbf{Événements Journalisés} \\
+\midrule
+\endhead
 \bottomrule
-\end{tabular}
-\end{table}
+\endfoot
+\texttt{auth}     & Connexion (succès/échec), inscription, réinitialisation mdp, vérification email, 2FA activer/désactiver, connexion Google OAuth \\
+\texttt{device}   & Appareil créé, mis à jour, supprimé, commande exécutée (ON/OFF/luminosité/scène) \\
+\texttt{security} & Urgence gaz activée, urgence levée, mode Absence activé, mode Verrouillage activé \\
+\texttt{user}     & Résident ajouté/supprimé, rôle modifié, permission accordée/révoquée \\
+\texttt{scenario} & Scénario créé/mis à jour/supprimé, scénario déclenché par le planificateur \\
+\texttt{system}   & Démarrage serveur, démarrage courtier MQTT, initialisation planificateur \\
+\end{longtable}
+\end{center}
 
-\section{Testing Strategy}
-A multi-layer testing strategy is recommended:
-\begin{enumerate}[leftmargin=1.2cm]
-  \item Unit tests for model hooks and utility methods.
-  \item Integration tests for route + DB + realtime interaction.
-  \item End-to-end tests for role-specific user journeys.
-  \item Simulation tests for MQTT telemetry and command loop.
-\end{enumerate}
+\section{Modes de Sécurité}
 
-\section{Representative Test Scenarios}
-\subsection{Auth Scenarios}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Reject login with invalid house code.
-  \item Reject admin login with invalid admin access code.
-  \item Reject resident login if email not verified.
+\begin{center}
+\begin{longtable}{p{0.18\textwidth} p{0.70\textwidth}}
+\caption{Définition des Modes de Sécurité}\label{tab:security_modes}\\
+\toprule
+\textbf{Mode} & \textbf{Comportement} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Mode} & \textbf{Comportement} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+Normal           & Fonctionnement standard ; tous les appareils librement contrôlables par les utilisateurs autorisés. \\
+Mode Absence     & Surveillance caméra renforcée ; toutes les portes extérieures verrouillées ; fenêtres fermées ; vanne gaz fermée ; événements de mouvement journalisés. \\
+Mode Verrouillage & Sécurité maximale ; toutes les caméras armées ; toutes les portes et fenêtres verrouillées ; vanne gaz fermée ; contrôle des appareils résidents suspendu. \\
+\end{longtable}
+\end{center}
+
+\section{Récapitulatif Complet des Routes API}
+
+\begin{center}
+\begin{longtable}{p{0.26\textwidth} p{0.14\textwidth} p{0.48\textwidth}}
+\caption{Toutes les Routes Backend API}\label{tab:api_summary}\\
+\toprule
+\textbf{Préfixe de Route} & \textbf{Auth} & \textbf{Rôle} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Préfixe de Route} & \textbf{Auth} & \textbf{Rôle} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\api{/api/auth}         & Aucune/JWT   & Inscription, connexion, vérification email, réinitialisation mdp \\
+\api{/api/oauth}        & Aucune       & Callback Google OAuth 2.0 \\
+\api{/api/2fa}          & JWT          & Configuration, vérification, désactivation TOTP 2FA \\
+\api{/api/profile}      & JWT          & Obtenir/mettre à jour le profil et l'avatar utilisateur \\
+\api{/api/users}        & Admin JWT    & Liste, mise à jour, suppression des utilisateurs de la maison \\
+\api{/api/devices}      & Admin JWT    & CRUD des appareils \\
+\api{/api/floorplan}    & JWT          & État plan, commandes, scènes \\
+\api{/api/scenarios}    & Admin JWT    & CRUD des scénarios \\
+\api{/api/gas}          & Admin JWT    & État gaz, seuil, levée urgence \\
+\api{/api/permissions}  & JWT          & CRUD demandes de permission et approbation \\
+\api{/api/messages}     & JWT          & Soumission de message support et réponse admin \\
+\api{/api/agency}       & Agence JWT   & Liste des admins pour la vue agence \\
+\api{/api/units}        & Admin JWT    & Gestion des unités/maisons \\
+\api{/api/concierge}    & Agence JWT   & Données hub conciergerie et flux SSE \\
+\api{/api/audit}        & Admin JWT    & Requête et pagination du journal d'audit \\
+\api{/api/stats}        & Admin JWT    & Statistiques tableau de bord \\
+\api{/api/energy}       & Admin JWT    & Consommation énergétique horaire/quotidienne \\
+\api{/api/companion}    & JWT          & Endpoint chat assistant IA \\
+\api{/api/owner-requests}& Aucune/JWT  & Demandes de compte propriétaire \\
+\end{longtable}
+\end{center}
+
+\section{Revue et Rétrospective Sprint 6}
+
+\begin{tcolorbox}[goalbox,title={Revue Sprint 6}]
+\textbf{Complété :} 8 stories sur 8 (37 PS). Plateforme fonctionnellement complète. \\
+\textbf{Points forts :} Le hub conciergerie agence a affiché 3 maisons simulées avec le
+clignotement en ligne/hors ligne en direct. Le journal d'audit a été exporté avec succès
+en PDF avec jsPDF. Le mode Absence a immédiatement verrouillé tous les servomoteurs de
+porte sur l'ESP32. \\
+\textbf{Rétrospective :}
+\begin{itemize}[leftmargin=1cm,itemsep=2pt]
+  \item \textbf{Ce qui a bien fonctionné :} SSE était plus simple que Socket.IO pour le
+        cas d'utilisation de streaming en lecture seule de l'agence.
+  \item \textbf{Défi :} Le formatage de l'export PDF a nécessité un réglage minutieux des
+        largeurs de colonnes dans jsPDF pour les longues chaînes d'action d'audit.
+  \item \textbf{Amélioration :} Ajout d'une limite de 2~Mo sur les uploads d'avatar après
+        qu'une image base64 de 15~Mo a causé des avertissements de taille de document MongoDB.
 \end{itemize}
-
-\subsection{Permission Scenarios}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Resident can create a pending request.
-  \item Admin approval updates resident permissions.
-  \item Realtime event reaches both requester and admin channels.
-\end{itemize}
-
-\subsection{Gas Safety Scenarios}
-\begin{itemize}[leftmargin=1.2cm]
-  \item Reading below threshold keeps emergency off.
-  \item Reading above threshold triggers emergency mode and commands.
-  \item Clearing emergency emits reset payload to dashboards.
-\end{itemize}
-
-\section{Quality Metrics}
-Useful quality metrics include:
-\begin{itemize}[leftmargin=1.2cm]
-  \item API success rate and p95 latency.
-  \item Socket reconnect frequency.
-  \item Emergency false-positive/false-negative rate.
-  \item Test coverage by route and critical services.
-\end{itemize}
-
-\section{Code Quality Practices}
-The project uses linting and modular folder organization. Recommended extensions include conventional commits, pre-commit hooks, and CI quality gates.
-
-\section{Compliance and Privacy Notes}
-The platform processes personal identifiers (email, name) and household behavior metadata. Production deployment should include a data retention policy, account deletion policy, and explicit privacy notices.
-
-\section{Quality Assurance Summary}
-Current implementation provides a strong baseline for PFE scope. Formal automation and observability expansion are the next maturity step for production confidence.
+\end{tcolorbox}
