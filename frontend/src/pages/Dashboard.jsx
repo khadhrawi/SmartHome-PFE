@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, ChevronRight, Plus, X, CheckCircle2, ChevronDown, Lock, Send, Flame, Link2, Zap, Lightbulb, DoorOpen, AppWindow } from 'lucide-react';
+import { Camera, ChevronRight, Plus, X, CheckCircle2, ChevronDown, Lock, Send, Flame, Link2, Zap, Lightbulb, DoorOpen, AppWindow, Thermometer, Droplets } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import FloorPlan from '../components/FloorPlan';
@@ -8,6 +8,7 @@ import DeviceCard from '../components/DeviceCard';
 import SmartDeviceOverlay from '../components/SmartDeviceOverlay';
 import { useFloorPlanState } from '../hooks/useFloorPlanState';
 import { useGasMonitor } from '../hooks/useGasMonitor';
+import { useDht } from '../hooks/useDht';
 import api from '../api/axios';
 
 /* ── Live Stats Bar ───────────────────────────────────────── */
@@ -46,6 +47,108 @@ function LiveStatsBar() {
           <div className="h-px w-8 rounded-full mt-1" style={{ background: `${accent}40` }} />
         </motion.div>
       ))}
+    </div>
+  );
+}
+
+/* ── Climate Card (live DHT11 temperature + humidity) ─────── */
+function ClimateCard() {
+  const { temperature, humidity, lastDhtRead } = useDht();
+  const hasReading = temperature != null && humidity != null;
+
+  const tempColor =
+    !hasReading ? '#94a3b8' :
+    temperature <= 19 ? '#60a5fa' :
+    temperature <= 26 ? '#4ade80' :
+    temperature <= 30 ? '#f59e0b' : '#ef4444';
+
+  const humColor =
+    !hasReading ? '#94a3b8' :
+    humidity < 30 ? '#f59e0b' :
+    humidity <= 60 ? '#22d3ee' : '#3b82f6';
+
+  const lastSeenLabel = (() => {
+    if (!lastDhtRead) return 'waiting for sensor…';
+    const ageSec = Math.max(0, Math.round((Date.now() - new Date(lastDhtRead).getTime()) / 1000));
+    if (ageSec < 5)    return 'live · now';
+    if (ageSec < 60)   return `live · ${ageSec}s ago`;
+    if (ageSec < 3600) return `${Math.round(ageSec / 60)}m ago`;
+    return `${Math.round(ageSec / 3600)}h ago`;
+  })();
+
+  return (
+    <div
+      className="rounded-[2rem] p-5 grid grid-cols-1 sm:grid-cols-2 gap-4"
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        backdropFilter: 'blur(24px)',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+      }}
+    >
+      {/* Temperature */}
+      <div className="flex items-center gap-4 p-4 rounded-2xl"
+        style={{
+          background: `linear-gradient(135deg, ${tempColor}14, ${tempColor}06)`,
+          border: `1px solid ${tempColor}33`,
+        }}
+      >
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+          style={{
+            background: `${tempColor}22`,
+            border: `1px solid ${tempColor}55`,
+            boxShadow: `0 0 14px ${tempColor}44`,
+          }}
+        >
+          <Thermometer size={22} style={{ color: tempColor }} strokeWidth={2.5} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.15em]" style={{ color: `${tempColor}cc` }}>
+            Temperature
+          </p>
+          <p className="text-2xl font-black tabular-nums mt-0.5" style={{ color: tempColor }}>
+            {hasReading ? temperature.toFixed(1) : '--'}
+            <span className="text-sm font-bold opacity-60 ml-1">°C</span>
+          </p>
+          <p className="text-[9px] font-bold mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            {lastSeenLabel}
+          </p>
+        </div>
+      </div>
+
+      {/* Humidity */}
+      <div className="flex items-center gap-4 p-4 rounded-2xl"
+        style={{
+          background: `linear-gradient(135deg, ${humColor}14, ${humColor}06)`,
+          border: `1px solid ${humColor}33`,
+        }}
+      >
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+          style={{
+            background: `${humColor}22`,
+            border: `1px solid ${humColor}55`,
+            boxShadow: `0 0 14px ${humColor}44`,
+          }}
+        >
+          <Droplets size={22} style={{ color: humColor }} strokeWidth={2.5} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.15em]" style={{ color: `${humColor}cc` }}>
+            Humidity
+          </p>
+          <p className="text-2xl font-black tabular-nums mt-0.5" style={{ color: humColor }}>
+            {hasReading ? humidity.toFixed(0) : '--'}
+            <span className="text-sm font-bold opacity-60 ml-1">%</span>
+          </p>
+          <p className="text-[9px] font-bold mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            {hasReading
+              ? humidity < 30 ? 'dry'
+                : humidity <= 60 ? 'comfortable'
+                : 'humid'
+              : 'waiting for sensor…'}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1043,6 +1146,9 @@ const Dashboard = ({ accessMode = 'admin' }) => {
             </div>
           </div>
         </div>
+
+        {/* ── Climate Card (live DHT11) ───────────────────────── */}
+        <ClimateCard />
 
         {/* ── Gas Sensor PPM Gauge Card (Safety Priority) ───── */}
         <GasSensorCard />
