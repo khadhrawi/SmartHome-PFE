@@ -20,15 +20,33 @@ const C = {
 function LightController({ device, onUpdate }) {
   const [brightness, setBrightness] = useState(device.value ?? 70);
   const [color, setColor]           = useState(device.color ?? '#ffc87a');
+  const [effect, setEffect]         = useState(device.effect ?? 'none');
   const trackRef = useRef(null);
   const dragging  = useRef(false);
 
+  const EFFECTS = [
+    { id: 'none',    label: 'Solid',   icon: '●' },
+    { id: 'rainbow', label: 'Rainbow', icon: '🌈' },
+    { id: 'pulse',   label: 'Pulse',   icon: '✦' },
+  ];
+
   const WARM_PRESETS = [
-    { label: 'Warm',   hex: '#ffc87a' },
-    { label: 'Amber',  hex: '#f5a623' },
-    { label: 'Cool',   hex: '#cce8ff' },
-    { label: 'White',  hex: '#ffffff' },
-    { label: 'Rose',   hex: '#ffb3ba' },
+    { label: 'Warm',    hex: '#ffc87a' },
+    { label: 'Amber',   hex: '#f5a623' },
+    { label: 'Cool',    hex: '#cce8ff' },
+    { label: 'White',   hex: '#ffffff' },
+    { label: 'Rose',    hex: '#ffb3ba' },
+    { label: 'Red',     hex: '#ff3030' },
+    { label: 'Orange',  hex: '#ff7e00' },
+    { label: 'Yellow',  hex: '#ffd700' },
+    { label: 'Lime',    hex: '#a8ff3e' },
+    { label: 'Green',   hex: '#2ecc71' },
+    { label: 'Teal',    hex: '#1abc9c' },
+    { label: 'Cyan',    hex: '#22d3ee' },
+    { label: 'Sky',     hex: '#3b82f6' },
+    { label: 'Indigo',  hex: '#6366f1' },
+    { label: 'Purple',  hex: '#a855f7' },
+    { label: 'Magenta', hex: '#ec4899' },
   ];
 
   const computeBrightness = useCallback((clientY) => {
@@ -117,21 +135,85 @@ function LightController({ device, onUpdate }) {
       </div>
 
       {/* Color swatches */}
-      <div>
+      <div className="w-full max-w-[320px]">
         <p className="text-[10px] font-bold uppercase tracking-widest text-center mb-3" style={{ color: C.dimmed }}>Color Tone</p>
-        <div className="flex gap-3 justify-center">
+        <div className="grid grid-cols-8 gap-2 justify-items-center">
           {WARM_PRESETS.map(p => (
             <button key={p.label}
               onClick={() => { setColor(p.hex); onUpdate({ color: p.hex }); }}
               title={p.label}
-              className="w-9 h-9 rounded-full transition-all duration-300"
+              className="w-7 h-7 rounded-full transition-all duration-300"
               style={{
                 background: p.hex,
                 boxShadow: color === p.hex ? `0 0 12px ${p.hex}cc, 0 0 0 3px rgba(255,255,255,0.3)` : '0 2px 6px rgba(0,0,0,0.3)',
-                transform: color === p.hex ? 'scale(1.2)' : 'scale(1)',
+                transform: color === p.hex ? 'scale(1.25)' : 'scale(1)',
               }} />
           ))}
+          {/* Custom RGB picker — opens the native color wheel */}
+          <label
+            title="Custom RGB"
+            className="w-7 h-7 rounded-full transition-all duration-300 cursor-pointer relative overflow-hidden"
+            style={{
+              background: 'conic-gradient(from 0deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)',
+              boxShadow: !WARM_PRESETS.find(p => p.hex.toLowerCase() === color.toLowerCase())
+                ? `0 0 12px ${color}cc, 0 0 0 3px rgba(255,255,255,0.3)`
+                : '0 2px 6px rgba(0,0,0,0.3)',
+              transform: !WARM_PRESETS.find(p => p.hex.toLowerCase() === color.toLowerCase())
+                ? 'scale(1.25)' : 'scale(1)',
+            }}
+          >
+            <input
+              type="color"
+              value={color}
+              onChange={(e) => { setColor(e.target.value); onUpdate({ color: e.target.value }); }}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
+          </label>
         </div>
+
+        {/* Current RGB readout */}
+        <div className="mt-3 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: C.muted }}>
+          <span className="w-3 h-3 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}88` }} />
+          <span className="tabular-nums">{color.toUpperCase()}</span>
+        </div>
+      </div>
+
+      {/* Effects (animation modes) */}
+      <div className="w-full max-w-[320px]">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-center mb-3" style={{ color: C.dimmed }}>Effect</p>
+        <div className="flex gap-2 justify-center">
+          {EFFECTS.map(fx => {
+            const active = effect === fx.id;
+            const rainbowBg = fx.id === 'rainbow'
+              ? 'conic-gradient(from 0deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)'
+              : undefined;
+            return (
+              <button key={fx.id}
+                onClick={() => { setEffect(fx.id); onUpdate({ effect: fx.id }); }}
+                className="flex-1 px-3 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all duration-300"
+                style={{
+                  background: active
+                    ? (rainbowBg || `${C.gold}25`)
+                    : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${active ? (fx.id === 'rainbow' ? 'rgba(255,255,255,0.5)' : C.gold + '50') : 'rgba(255,255,255,0.1)'}`,
+                  color: active ? (fx.id === 'rainbow' ? '#fff' : C.gold) : C.muted,
+                  textShadow: active && fx.id === 'rainbow' ? '0 1px 4px rgba(0,0,0,0.6)' : undefined,
+                  animation: active && fx.id === 'rainbow' ? 'rainbow-spin 4s linear infinite' : undefined,
+                }}>
+                <span className="mr-1">{fx.icon}</span>{fx.label}
+              </button>
+            );
+          })}
+        </div>
+        <style>{`
+          @keyframes rainbow-spin {
+            0%   { background: conic-gradient(from 0deg,   #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); }
+            25%  { background: conic-gradient(from 90deg,  #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); }
+            50%  { background: conic-gradient(from 180deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); }
+            75%  { background: conic-gradient(from 270deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); }
+            100% { background: conic-gradient(from 360deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); }
+          }
+        `}</style>
       </div>
     </div>
   );

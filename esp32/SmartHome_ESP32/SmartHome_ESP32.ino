@@ -24,6 +24,7 @@
  */
 
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ESP32Servo.h>
 #include <ArduinoJson.h>
@@ -35,8 +36,23 @@
 
 #define WIFI_SSID        "H House"
 #define WIFI_PASSWORD    "HHOUSE2025"
-#define MQTT_SERVER      "192.168.100.54"
-#define MQTT_PORT        1883
+
+// ── MQTT broker (choose ONE block) ───────────────────────────────────────
+// Local development (PC running aedes on LAN):
+//   #define MQTT_SERVER      "192.168.100.54"
+//   #define MQTT_PORT        1883
+//   #define MQTT_USE_TLS     false
+//   #define MQTT_USERNAME    ""
+//   #define MQTT_PASSWORD    ""
+
+// Cloud (HiveMQ Cloud Serverless — free tier, MQTTS):
+#define MQTT_SERVER      "b5f90de06c174bf39246d5b00a0de352.s1.eu.hivemq.cloud"
+#define MQTT_PORT        8883                            // MQTTS port
+#define MQTT_USE_TLS     true
+#define MQTT_USERNAME    "smarthome-esp32"
+// ⚠ Set this LOCALLY before flashing. Don't commit your real password.
+#define MQTT_PASSWORD    "REPLACE_WITH_YOUR_HIVEMQ_PASSWORD"
+
 #define HOUSE_CODE       "I5402"
 
 // Device topics — must EXACTLY match what you create in the SmartHome dashboard
@@ -64,7 +80,7 @@
 //  Buzzer            15      Active buzzer + to GPIO, - to GND
 //  Servo Door        18      Signal pin (power: VIN=5V)
 //  Servo Window      19      Signal pin (power: VIN=5V)
-//  MQ6 AOUT          34      ADC1 only — 5V power from VIN
+//  MQ6 AOUT          33      ADC1 only — 5V power from VIN
 //  DHT11 DATA        23      10kΩ pull-up to 3.3V
 //  ──────────────────────────────────────────────────────────────
 //
@@ -96,7 +112,7 @@
 #define BUZZER_PIN       15
 #define SERVO_DOOR_PIN   18
 #define SERVO_WIN_PIN    19
-#define GAS_PIN          34
+#define GAS_PIN          33
 #define DHT_PIN          23
 #define DHT_TYPE         DHT11
 
@@ -145,7 +161,26 @@
 //  GLOBALS
 // ════════════════════════════════════════════════════════════════
 
-WiFiClient   wifiClient;
+struct LightCmd { bool on; int brightness; int r, g, b; bool hasColor; String effect; };
+
+// Per-LED runtime state for effects (3 LEDs)
+struct LedState {
+  bool   on        = false;
+  int    brightness = 0;
+  int    r = 0, g = 0, b = 0;
+  String effect    = "none";
+} ledState[3];
+
+// LED pin tuples
+const int LED_R_PINS[3] = { 2, 21, 25 };
+const int LED_G_PINS[3] = { 4, 22, 26 };
+const int LED_B_PINS[3] = { 5, 32, 27 };
+
+#if MQTT_USE_TLS
+WiFiClientSecure wifiClient;
+#else
+WiFiClient       wifiClient;
+#endif
 PubSubClient mqtt(wifiClient);
 Servo        servoDoor;
 Servo        servoWindow;
@@ -209,17 +244,122 @@ bool payloadIsOn(const String& raw, int& brightness) {
   return false;
 }
 
+// Parse a #RRGGBB / RRGGBB string into r/g/b 0-255. Returns true on success.
+bool parseHexColor(const String& raw, int& r, int& g, int& b) {
+  String s = raw;
+  s.trim();
+  if (s.startsWith("#")) s = s.substring(1);
+  if (s.length() != 6) return false;
+  for (int i = 0; i < 6; i++) {
+    char c = s.charAt(i);
+    if (!((c>='0'&&c<='9')||(c>='a'&&c<='f')||(c>='A'&&c<='F'))) return false;
+  }
+  long v = strtol(s.c_str(), nullptr, 16);
+  r = (v >> 16) & 0xFF;
+  g = (v >>  8) & 0xFF;
+  b =  v        & 0xFF;
+  return true;
+}
+
+// Try to parse a JSON light command of the form
+//   {"state":"ON"|"OFF", "brightness":0-100, "color":"#RRGGBB"}
+// Falls back to plain string parsing if not JSON.
+// Returns true if the device should be ON.
+bool parseLightPayload(const String& raw, LightCmd& out,
+                       int defaultR, int defaultG, int defaultB) {
+  out.brightness = 100;
+  out.r = defaultR; out.g = defaultG; out.b = defaultB;
+  out.hasColor = false;
+  out.on = false;
+  out.effect = "none";
+
+  String s = raw; s.trim();
+  if (s.length() && s.charAt(0) == '{') {
+    StaticJsonDocument<256> doc;
+    if (!deserializeJson(doc, s)) {
+      if (doc.containsKey("brightness")) {
+        int b = doc["brightness"].as<int>();
+        out.brightness = constrain(b, 0, 100);
+      }
+      if (doc.containsKey("color")) {
+        const char* c = doc["color"];
+        if (c && parseHexColor(String(c), out.r, out.g, out.b)) out.hasColor = true;
+      }
+      if (doc.containsKey("effect")) {
+        const char* e = doc["effect"];
+        if (e) out.effect = String(e);
+      }
+      if (doc.containsKey("state")) {
+        String st = String((const char*)(doc["state"] | "")); st.toUpperCase();
+        out.on = (st == "ON");
+        if (!out.on) out.brightness = 0;
+      } else {
+        out.on = out.brightness > 0;
+      }
+      return out.on;
+    }
+  }
+
+  int br = 100;
+  bool on = payloadIsOn(raw, br);
+  out.brightness = br;
+  out.on = on;
+  return on;
+}
+
+// HSV (h 0-359, s/v 0-255) → RGB 0-255
+void hsvToRgb(int h, int s, int v, int& r, int& g, int& b) {
+  int region = h / 60;
+  int rem    = (h - region * 60) * 255 / 60;
+  int p = (v * (255 - s)) / 255;
+  int q = (v * (255 - (s * rem) / 255)) / 255;
+  int t = (v * (255 - (s * (255 - rem)) / 255)) / 255;
+  switch (region) {
+    case 0: r=v; g=t; b=p; break;
+    case 1: r=q; g=v; b=p; break;
+    case 2: r=p; g=v; b=t; break;
+    case 3: r=p; g=q; b=v; break;
+    case 4: r=t; g=p; b=v; break;
+    default: r=v; g=p; b=q; break;
+  }
+}
+
+// Apply current ledState[idx] to physical pins, respecting active effect.
+void applyLedState(int idx, int phase /* 0-359 for rainbow, 0-255 for pulse */) {
+  const LedState& s = ledState[idx];
+  if (!s.on) {
+    writeRGB(LED_R_PINS[idx], LED_G_PINS[idx], LED_B_PINS[idx], 0, 0, 0);
+    return;
+  }
+  int r = s.r, g = s.g, b = s.b;
+
+  if (s.effect == "rainbow") {
+    hsvToRgb(phase % 360, 255, 255, r, g, b);
+  } else if (s.effect == "pulse") {
+    float pulse = (sin(phase * PI / 128.0f) + 1.0f) * 0.5f; // 0..1
+    r = (int)(s.r * pulse);
+    g = (int)(s.g * pulse);
+    b = (int)(s.b * pulse);
+  }
+
+  float scale = s.brightness / 100.0f;
+  writeRGB(LED_R_PINS[idx], LED_G_PINS[idx], LED_B_PINS[idx],
+           (int)(r * scale), (int)(g * scale), (int)(b * scale));
+}
+
 // ════════════════════════════════════════════════════════════════
 //  GAS SENSOR
 // ════════════════════════════════════════════════════════════════
 
 float readGasPPM() {
   int raw = analogRead(GAS_PIN);
-  if (raw == 0) return 0.0f;
+  if (raw <= 0) return 0.0f;
+  if (raw >= 4090) return 10000.0f; // saturated → report max; avoid div-by-zero
   float vrl   = raw * 3.3f / 4095.0f;
   float rs    = ((3.3f - vrl) / vrl) * MQ6_RL;
   float ratio = rs / MQ6_RO;
   float ppm   = 1000.0f * pow(ratio, -2.37f);
+  if (!isfinite(ppm) || ppm > 10000.0f) return 10000.0f;
   return (ppm < 0.0f) ? 0.0f : ppm;
 }
 
@@ -261,21 +401,31 @@ void onMessage(char* topic, byte* payload, unsigned int len) {
     return;
   }
 
-  int brightness = 100;
-  bool on = payloadIsOn(p, brightness);
+  LightCmd cmd;
+  int idx = -1;
+  int defR = 0, defG = 0, defB = 0;
+  if      (t == topicLed1) { idx = 0; defR = COLOR_LIVING_R;  defG = COLOR_LIVING_G;  defB = COLOR_LIVING_B; }
+  else if (t == topicLed2) { idx = 1; defR = COLOR_BEDROOM_R; defG = COLOR_BEDROOM_G; defB = COLOR_BEDROOM_B; }
+  else if (t == topicLed3) { idx = 2; defR = COLOR_KITCHEN_R; defG = COLOR_KITCHEN_G; defB = COLOR_KITCHEN_B; }
 
-  if (t == topicLed1) {
-    setLed(LED1_R, LED1_G, LED1_B, COLOR_LIVING_R,  COLOR_LIVING_G,  COLOR_LIVING_B,  on, brightness);
-    Serial.printf("[LED1] %s brightness=%d\n", on ? "ON" : "OFF", brightness);
+  if (idx >= 0) {
+    parseLightPayload(p, cmd, defR, defG, defB);
+    ledState[idx].on         = cmd.on;
+    ledState[idx].brightness = cmd.brightness;
+    ledState[idx].r          = cmd.r;
+    ledState[idx].g          = cmd.g;
+    ledState[idx].b          = cmd.b;
+    ledState[idx].effect     = cmd.effect;
+    applyLedState(idx, 0);
+    Serial.printf("[LED%d] %s br=%d rgb=(%d,%d,%d) fx=%s\n",
+                  idx+1, cmd.on ? "ON" : "OFF", cmd.brightness,
+                  cmd.r, cmd.g, cmd.b, cmd.effect.c_str());
+    return;
   }
-  if (t == topicLed2) {
-    setLed(LED2_R, LED2_G, LED2_B, COLOR_BEDROOM_R, COLOR_BEDROOM_G, COLOR_BEDROOM_B, on, brightness);
-    Serial.printf("[LED2] %s brightness=%d\n", on ? "ON" : "OFF", brightness);
-  }
-  if (t == topicLed3) {
-    setLed(LED3_R, LED3_G, LED3_B, COLOR_KITCHEN_R, COLOR_KITCHEN_G, COLOR_KITCHEN_B, on, brightness);
-    Serial.printf("[LED3] %s brightness=%d\n", on ? "ON" : "OFF", brightness);
-  }
+
+  // Door / window — simple ON/OFF
+  int dummy = 100;
+  bool on = payloadIsOn(p, dummy);
   if (t == topicDoor)   setDoor(on);
   if (t == topicWindow) setWindow(on);
 }
@@ -304,7 +454,16 @@ void connectMQTT() {
   while (!mqtt.connected()) {
     Serial.print("[MQTT] Connecting...");
     String clientId = "esp32-" + WiFi.macAddress();
-    if (mqtt.connect(clientId.c_str())) {
+    bool ok;
+#if MQTT_USE_TLS
+    // HiveMQ Cloud needs auth + TLS
+    ok = mqtt.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD);
+#else
+    ok = (strlen(MQTT_USERNAME) > 0)
+       ? mqtt.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)
+       : mqtt.connect(clientId.c_str());
+#endif
+    if (ok) {
       Serial.println(" ✅ connected!");
       mqtt.subscribe(topicLed1);
       mqtt.subscribe(topicLed2);
@@ -373,6 +532,10 @@ void setup() {
 
   // Network
   connectWiFi();
+#if MQTT_USE_TLS
+  // Skip CA validation (acceptable for student/PFE demo; production should pin CA).
+  wifiClient.setInsecure();
+#endif
   mqtt.setServer(MQTT_SERVER, MQTT_PORT);
   mqtt.setCallback(onMessage);
   mqtt.setBufferSize(512);
@@ -393,6 +556,19 @@ void loop() {
   mqtt.loop();
 
   unsigned long now = millis();
+
+  // Tick effect animations every ~30ms for any LED with a non-solid effect
+  static unsigned long lastFxMs = 0;
+  static int           fxPhase  = 0;
+  if (now - lastFxMs >= 30) {
+    lastFxMs = now;
+    fxPhase  = (fxPhase + 3) % 360; // rainbow advances ~3°/tick
+    for (int i = 0; i < 3; i++) {
+      if (ledState[i].on && (ledState[i].effect == "rainbow" || ledState[i].effect == "pulse")) {
+        applyLedState(i, fxPhase);
+      }
+    }
+  }
 
   // Publish gas every 3s + local buzzer trigger
   if (now - lastGasMs >= GAS_INTERVAL) {

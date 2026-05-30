@@ -350,6 +350,7 @@ const serializeDevice = (device) => ({
     ? Number.isFinite(device.openPct) ? device.openPct : (device.state === 'ON' ? 100 : 0)
     : undefined,
   color: String(device.color || '#ffc87a'),
+  effect: String(device.effect || 'none'),
   position: {
     x: Number(device.position?.x ?? 50),
     y: Number(device.position?.y ?? 50),
@@ -608,11 +609,32 @@ router.put('/devices/:id/state', protect, async (req, res) => {
       if (typeof req.body?.color === 'string' && req.body.color.trim()) {
         device.color = req.body.color.trim();
       }
+
+      if (typeof req.body?.effect === 'string') {
+        const allowed = ['none', 'rainbow', 'pulse'];
+        const next = req.body.effect.trim().toLowerCase();
+        if (allowed.includes(next)) device.effect = next;
+      }
     }
 
     await device.save();
 
-    if (hasState) {
+    if (type === 'light') {
+      // Lights: always re-publish full state so ESP32 can apply brightness + color + effect
+      const payload = {
+        state:      device.state,
+        brightness: device.brightness,
+        color:      device.color,
+        effect:     device.effect || 'none',
+      };
+      aedes.publish({
+        cmd: 'publish',
+        topic: `command/${device.topic}`,
+        payload: JSON.stringify(payload),
+        qos: 1,
+        retain: true,
+      });
+    } else if (hasState) {
       aedes.publish({
         cmd: 'publish',
         topic: `command/${device.topic}`,

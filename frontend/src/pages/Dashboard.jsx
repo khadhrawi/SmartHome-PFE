@@ -656,6 +656,10 @@ const Dashboard = ({ accessMode = 'admin' }) => {
       payload.color = patch.color;
     }
 
+    if (typeof patch.effect === 'string') {
+      payload.effect = patch.effect;
+    }
+
     if (Object.keys(payload).length === 0) return;
     await updateDeviceState(device._id, payload);
   };

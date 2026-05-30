@@ -40,17 +40,38 @@ const app = express();
 
 // ── Security middleware ────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors());
+
+// CORS: allow localhost dev + comma-separated FRONTEND_URLS from env (Vercel etc.)
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  ...String(process.env.FRONTEND_URLS || process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+];
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // mobile apps, curl, ESP32 — no Origin header
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(null, true); // permissive for dev/demo — tighten in production
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(passport.initialize());
 
-// Global rate limit: 200 req / 15 min per IP
+// Global rate limit. Localhost (dev) is exempted; otherwise 2000 req / 15 min per IP.
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    const ip = req.ip || '';
+    return ip === '::1' || ip === '127.0.0.1' || ip.endsWith('127.0.0.1');
+  },
   message: { message: 'Too many requests, please try again later.' },
 }));
 
@@ -88,37 +109,53 @@ app.use('/api/companion',     companionRoutes);
 const httpServer = http.createServer(app);
 initNotificationsServer(httpServer);
 
-// Setup MQTT WebSockets over the HTTP server on a specific path /mqtt
-const wss = new ws.Server({ server: httpServer, path: '/mqtt' });
-const wsStream = require('websocket-stream');
+// Local MQTT WebSocket bridge — only mounted when running an embedded broker
+// (no external MQTT_BROKER_URL). In cloud mode the backend is just an MQTT
+// client to HiveMQ, so we don't need to expose /mqtt at all.
+const useExternalMqtt = !!process.env.MQTT_BROKER_URL;
+if (!useExternalMqtt) {
+  const wss = new ws.Server({ noServer: true });
+  const wsStream = require('websocket-stream');
 
-wss.on('connection', function (conn, req) {
-  const stream = wsStream(conn);
-  aedes.handle(stream);
-});
+  wss.on('connection', function (conn, req) {
+    const stream = wsStream(conn);
+    aedes.handle(stream);
+  });
+
+  httpServer.on('upgrade', (req, socket, head) => {
+    const url = req.url || '';
+    if (url === '/mqtt' || url.startsWith('/mqtt?') || url.startsWith('/mqtt/')) {
+      wss.handleUpgrade(req, socket, head, (conn) => {
+        wss.emit('connection', conn, req);
+      });
+    }
+    // any other path (e.g. /socket.io/) is left alone for Socket.IO to handle
+  });
+}
 
 // Connect mapping MongoDB and Start Servers
 const PORT = process.env.PORT || 5000;
 const MQTT_PORT = process.env.MQTT_PORT || 1883;
 
 const startServers = () => {
-  // Start network listeners independently so the service still binds on Render
-  // even if MongoDB is temporarily unavailable.
   httpServer.on('error', (err) => {
     console.error('HTTP server error:', err);
   });
 
   httpServer.listen(PORT, () => {
-    console.log(`HTTP Server and MQTT over WS listening on port ${PORT}`);
+    console.log(`HTTP Server listening on port ${PORT}${useExternalMqtt ? ' (cloud MQTT mode)' : ' + MQTT over WS'}`);
   });
 
-  mqttServer.on('error', (err) => {
-    console.error('MQTT TCP server error:', err.message);
-  });
+  // Embedded MQTT TCP server is only relevant when not using an external broker
+  if (!useExternalMqtt && mqttServer && typeof mqttServer.on === 'function') {
+    mqttServer.on('error', (err) => {
+      console.error('MQTT TCP server error:', err.message);
+    });
 
-  mqttServer.listen(MQTT_PORT, () => {
-    console.log(`Aedes MQTT TCP Server listening on port ${MQTT_PORT}`);
-  });
+    mqttServer.listen(MQTT_PORT, () => {
+      console.log(`Aedes MQTT TCP Server listening on port ${MQTT_PORT}`);
+    });
+  }
 };
 
 startServers();

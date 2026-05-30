@@ -26,7 +26,7 @@ const GasEmergencyOverlay = ({ gasLevel, threshold, gasValveOpen, onClear }) => 
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-y-auto py-6"
       style={{
         background: 'rgba(12,2,2,0.93)',
         backdropFilter: 'blur(32px)',

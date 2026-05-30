@@ -260,6 +260,10 @@ export const useFloorPlanState = () => {
           optimistic.color = nextState.color.trim();
         }
 
+        if (typeof nextState.effect === 'string') {
+          optimistic.effect = nextState.effect;
+        }
+
         return optimistic;
       }),
     }));

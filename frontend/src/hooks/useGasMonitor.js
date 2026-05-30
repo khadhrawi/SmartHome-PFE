@@ -30,12 +30,19 @@ export function useGasMonitor() {
 
   /* ── Connect socket + subscribe ─────────────────────────────────────── */
   useEffect(() => {
+    console.log('[GasMonitor] hook running, hasToken:', !!token);
     if (!token) return;
 
     const socket = connectDashboardSocket(token);
+    console.log('[GasMonitor] connectDashboardSocket returned:', !!socket, 'connected:', socket?.connected);
     if (!socket) return;
 
+    socket.on('connect',    () => console.log('[GasMonitor] socket CONNECTED id=', socket.id));
+    socket.on('disconnect', (r) => console.log('[GasMonitor] socket DISCONNECTED reason=', r));
+    socket.on('connect_error', (e) => console.error('[GasMonitor] socket CONNECT_ERROR:', e.message));
+
     const handleGasEvent = (payload) => {
+      console.log('[GasMonitor] gas event received:', payload);
       setGasState({
         gasLevel:      Number(payload?.gasLevel      ?? 0),
         threshold:     Number(payload?.threshold     ?? 400),

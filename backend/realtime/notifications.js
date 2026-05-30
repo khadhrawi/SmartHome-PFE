@@ -5,25 +5,34 @@ const User = require('../models/User');
 let ioInstance = null;
 
 const attachSocketAuth = (io) => {
+  io.engine.on('connection_error', (err) => {
+    console.log('[SOCKET] engine connection_error:', err.code, err.message, err.context);
+  });
+
   io.use(async (socket, next) => {
     try {
       const authToken = socket.handshake.auth?.token;
       const headerToken = socket.handshake.headers?.authorization?.replace('Bearer ', '');
       const token = authToken || headerToken;
 
+      console.log('[SOCKET] handshake attempt — hasToken:', !!token, 'origin:', socket.handshake.headers?.origin || 'n/a');
+
       if (!token) {
+        console.warn('[SOCKET] auth rejected — missing token');
         return next(new Error('Socket authentication failed: missing token'));
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.id).select('-password');
       if (!user) {
+        console.warn('[SOCKET] auth rejected — user not found for id', decoded.id);
         return next(new Error('Socket authentication failed: user not found'));
       }
 
       socket.user = user;
       return next();
     } catch (error) {
+      console.warn('[SOCKET] auth rejected — error:', error.message);
       return next(new Error('Socket authentication failed'));
     }
   });
@@ -43,6 +52,8 @@ const initNotificationsServer = (httpServer) => {
     const userId = String(socket.user._id);
     const userRole = socket.user.role;
     const houseCode = socket.user.houseCode;
+
+    console.log(`[SOCKET] Connected user=${userId} role=${userRole} house=${houseCode}`);
 
     socket.join(userId);
     socket.join(`user:${userId}`);
@@ -213,15 +224,20 @@ const emitDashboardStateUpdated = ({ houseCode, payload }) => {
  */
 const emitGasEmergency = ({ houseCode, gasLevel, threshold, emergencyMode, gasValveOpen }) => {
   if (!ioInstance || !houseCode) return;
-  const payload = { houseCode, gasLevel, threshold, emergencyMode, gasValveOpen, ts: Date.now() };
-  ioInstance.to(`house:${houseCode}`).emit('house:gas-emergency', payload);
-  // Also update the main dashboard state so the header reacts
-  ioInstance.to(`house:${houseCode}`).emit('dashboard:gas-update', payload);
-  // Forward gas leaks to every connected agency dashboard in real-time
+  const hc = String(houseCode).trim().toUpperCase();
+  const payload = { houseCode: hc, gasLevel, threshold, emergencyMode, gasValveOpen, ts: Date.now() };
+
+  // Gas alerts are safety-critical: broadcast to every connected socket so no
+  // session misses it regardless of role (admin/user/super-admin/agency).
+  ioInstance.emit('house:gas-emergency', payload);
+  ioInstance.emit('dashboard:gas-update', payload);
+
   if (emergencyMode) {
-    // Forward gas leaks to any connected concierge/global listeners in real-time
-    ioInstance.to('agency:global').emit('agency:gas-alert', { houseCode, gasLevel, threshold, ts: Date.now() });
+    ioInstance.to('agency:global').emit('agency:gas-alert', { houseCode: hc, gasLevel, threshold, ts: Date.now() });
   }
+
+  const roomSize = ioInstance.sockets.adapter.rooms.get(`house:${hc}`)?.size || 0;
+  console.log(`[GAS] emit → house:${hc} (members=${roomSize}) ppm=${gasLevel} emergency=${emergencyMode}`);
 };
 
 // Concierge event emitter: used by concierge SSE/routes to subscribe to agency events

@@ -86,6 +86,9 @@ async function handleGasReading(houseCode, rawLevel) {
     const wasEmergency = state.emergencyMode;
     const nowEmergency = rawLevel > threshold;
 
+    // Lightweight debug log for test runs
+    console.log(`[GAS] Reading for ${houseCode}: level=${rawLevel} ppm, threshold=${threshold}, emergency=${nowEmergency}`);
+
     state.gasLevel     = rawLevel;
     state.emergencyMode = nowEmergency;
 

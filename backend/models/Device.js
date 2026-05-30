@@ -12,6 +12,7 @@ const DeviceSchema = new mongoose.Schema({
   brightness: { type: Number, min: 0, max: 100, default: 100 },
   openPct:    { type: Number, min: 0, max: 100, default: 0 },   // for window/blind devices
   color: { type: String, default: '#ffc87a' },
+  effect: { type: String, enum: ['none', 'rainbow', 'pulse'], default: 'none' },
   status: { type: String, enum: ['online', 'offline'], default: 'offline' },
   state: { type: mongoose.Schema.Types.Mixed, default: {} },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
