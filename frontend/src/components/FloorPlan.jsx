@@ -226,6 +226,11 @@ const IsometricScene = ({ rooms, litRooms, selectedRoom, lightingMode }) => {
           <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
           <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
+        {/* Soft ground shadow under whole house */}
+        <filter id="groundShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="14" />
+        </filter>
+
         <style>{`
           @keyframes scanDown {
             0%   { transform: translateY(-120%); opacity: 0; }
@@ -238,13 +243,72 @@ const IsometricScene = ({ rooms, litRooms, selectedRoom, lightingMode }) => {
             from { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.94); }
             to   { opacity: 1; transform: translateX(-50%) translateY(0)     scale(1);    }
           }
+          @keyframes floatStars {
+            from { transform: translateY(0); }
+            to   { transform: translateY(-6px); }
+          }
+          .iso-stars circle { animation: floatStars 4s ease-in-out infinite alternate; }
         `}</style>
+
         <linearGradient id="scanGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"   stopColor="transparent" />
           <stop offset="50%"  stopColor="rgba(96,165,250,0.12)" />
           <stop offset="100%" stopColor="transparent" />
         </linearGradient>
+
+        {/* Wall shading gradients — darker at bottom for depth */}
+        <linearGradient id="wallSouth" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="rgba(28,40,72,0.95)" />
+          <stop offset="100%" stopColor="rgba(8,14,28,0.98)" />
+        </linearGradient>
+        <linearGradient id="wallEast" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="rgba(20,32,60,0.95)" />
+          <stop offset="100%" stopColor="rgba(6,12,24,0.98)" />
+        </linearGradient>
+
+        {/* Floor tile pattern — more visible diagonal lines like real tiles */}
+        <pattern id="floorTile" patternUnits="userSpaceOnUse" width="20" height="12">
+          <path d="M 0 0 L 20 12" stroke="rgba(140,180,240,0.18)" strokeWidth="0.5" />
+          <path d="M 20 0 L 0 12" stroke="rgba(140,180,240,0.12)" strokeWidth="0.5" />
+        </pattern>
+        <pattern id="floorTileLit" patternUnits="userSpaceOnUse" width="20" height="12">
+          <path d="M 0 0 L 20 12" stroke="rgba(255,220,160,0.30)" strokeWidth="0.5" />
+          <path d="M 20 0 L 0 12" stroke="rgba(255,220,160,0.22)" strokeWidth="0.5" />
+        </pattern>
+
+        {/* Floor radial vignette — gives each room subtle depth */}
+        <radialGradient id="floorVignette" cx="50%" cy="50%" r="65%">
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.04)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.25)" />
+        </radialGradient>
+
+        {/* Sky / ambient ground glow */}
+        <radialGradient id="ambientGlow" cx="50%" cy="50%" r="55%">
+          <stop offset="0%"   stopColor="rgba(80,120,200,0.18)" />
+          <stop offset="60%"  stopColor="rgba(40,60,120,0.06)" />
+          <stop offset="100%" stopColor="transparent" />
+        </radialGradient>
       </defs>
+
+      {/* Ambient sky glow behind everything */}
+      <ellipse cx="80" cy="160" rx="280" ry="180" fill="url(#ambientGlow)" />
+
+      {/* Soft ground shadow under the whole house — adds floating feel */}
+      <ellipse
+        cx={iso(2.0, 1.8, 0)[0]}
+        cy={iso(2.0, 1.8, 0)[1] + 16}
+        rx="180"
+        ry="42"
+        fill="rgba(0,0,0,0.45)"
+        filter="url(#groundShadow)"
+      />
+
+      {/* Subtle starfield background */}
+      <g className="iso-stars" opacity="0.45">
+        {[[-180,-30,0.6],[-90,10,0.4],[60,-20,0.5],[180,30,0.5],[-150,80,0.7],[200,90,0.4],[-60,-40,0.4],[140,-30,0.5],[-200,180,0.4],[210,170,0.6],[-100,240,0.5]].map(([x,y,r],i) => (
+          <circle key={i} cx={x} cy={y} r={r} fill="rgba(180,210,255,0.6)" style={{ animationDelay: `${i*0.4}s` }} />
+        ))}
+      </g>
 
       {sorted.map(({ id, rx, ry, w, d, h }) => {
         const lit = litRooms.has(id);
@@ -258,18 +322,18 @@ const IsometricScene = ({ rooms, litRooms, selectedRoom, lightingMode }) => {
         const glowRgb     = lit && sceneCfg ? sceneCfg.glowRgb        : '212,175,55';
 
         const floorFill = lit
-          ? (sceneCfg ? sceneCfg.fill : 'rgba(212,175,55,0.14)')
-          : sel  ? 'rgba(96,165,250,0.10)'
-          : dim  ? 'rgba(8,14,32,0.7)'
-          :        'rgba(12,20,42,0.85)';
+          ? (sceneCfg ? sceneCfg.fill : 'rgba(212,175,55,0.22)')
+          : sel  ? 'rgba(96,165,250,0.22)'
+          : dim  ? 'rgba(20,28,52,0.95)'
+          :        'rgba(28,38,66,0.98)';
 
-        const swFill = dim ? 'rgba(8,12,26,0.75)' : 'rgba(16,24,52,0.92)';
-        const ewFill = dim ? 'rgba(6,10,22,0.75)'  : 'rgba(10,18,40,0.95)';
+        const swFill = dim ? 'rgba(12,18,38,0.95)' : 'url(#wallSouth)';
+        const ewFill = dim ? 'rgba(10,16,32,0.95)' : 'url(#wallEast)';
 
         const edgeCol = lit
           ? glowBorder
-          : sel ? 'rgba(147,197,253,0.6)'
-          :       'rgba(100,130,190,0.18)';
+          : sel ? 'rgba(147,197,253,0.8)'
+          :       'rgba(120,160,220,0.45)';
 
         const floorPts = pts([rx,ry,0],[rx+w,ry,0],[rx+w,ry+d,0],[rx,ry+d,0]);
         const southPts = pts([rx,ry+d,h],[rx+w,ry+d,h],[rx+w,ry+d,0],[rx,ry+d,0]);
@@ -280,7 +344,12 @@ const IsometricScene = ({ rooms, litRooms, selectedRoom, lightingMode }) => {
 
         return (
           <g key={id} style={{ transition: 'all 0.5s ease' }} opacity={dim ? 0.35 : 1}>
+            {/* Floor base */}
             <polygon points={floorPts} fill={floorFill} stroke={edgeCol} strokeWidth="0.4" />
+            {/* Floor tile pattern */}
+            <polygon points={floorPts} fill={lit ? 'url(#floorTileLit)' : 'url(#floorTile)'} opacity="0.9" />
+            {/* Floor radial vignette */}
+            <polygon points={floorPts} fill="url(#floorVignette)" opacity="0.55" />
             {/* Scene-coloured glow overlay for lit rooms */}
             {lit && (
               <polygon
@@ -292,8 +361,16 @@ const IsometricScene = ({ rooms, litRooms, selectedRoom, lightingMode }) => {
                 style={{ filter: `drop-shadow(0 0 6px rgba(${glowRgb},0.7))` }}
               />
             )}
+            {/* Walls */}
             <polygon points={southPts} fill={swFill} stroke={edgeCol} strokeWidth="0.3" />
             <polygon points={eastPts}  fill={ewFill} stroke={edgeCol} strokeWidth="0.3" />
+            {/* Wall highlight on lit rooms — adds glow on top edge */}
+            {lit && (
+              <>
+                <polygon points={southPts} fill={glowFill} opacity="0.35" />
+                <polygon points={eastPts}  fill={glowFill} opacity="0.25" />
+              </>
+            )}
             {/* Top edges */}
             <line x1={swx1} y1={swy1} x2={swx2} y2={swy2}
               stroke={lit ? glowBorder : edgeCol} strokeWidth={lit ? '0.9' : '0.5'} />
@@ -312,13 +389,15 @@ const IsometricScene = ({ rooms, litRooms, selectedRoom, lightingMode }) => {
         />
       </g>
 
-      {/* Outer boundary glow */}
+      {/* Outer boundary glow — encloses entire house footprint */}
       <polygon
-        points={pts([0,0,0],[4,0,0],[4,3.2,0],[0,3.2,0])}
+        points={pts([0,0,0],[5.6,0,0],[5.6,3.9,0],[0,3.9,0])}
         fill="none"
-        stroke="rgba(100,130,200,0.08)"
-        strokeWidth="1.5"
+        stroke="rgba(130,170,240,0.18)"
+        strokeWidth="1.2"
+        strokeDasharray="6 4"
         filter="url(#selGlow)"
+        style={{ opacity: 0.75 }}
       />
     </svg>
   );
@@ -656,22 +735,29 @@ const GasMarker = ({ slot, gasLevel, threshold, emergencyMode, dimmed }) => {
 
 /* ─── Room label overlay ──────────────────────────────────────────── */
 const RoomLabel = ({ room, selectedRoom, onSelect }) => {
-  const { id, label, rx, ry, w, d } = room;
-  const [px, py] = roomCentre(rx, ry, w, d);
+  const { id, label, rx, ry, w, d, h } = room;
+  // Position label at the BACK-LEFT TOP CORNER (off the floor, above the wall)
+  const [sx, sy] = iso(rx + 0.25, ry + 0.15, h + 0.15);
+  const [px, py] = svgPct(sx, sy);
   const isSelected = selectedRoom === id;
   const isDimmed   = selectedRoom && !isSelected;
 
   return (
     <button
       type="button"
-      className="absolute rounded-full border px-2 py-0.5 text-[8px] font-black tracking-[0.15em] backdrop-blur-md transition-all duration-300 hover:scale-105"
+      className="absolute rounded-full border px-2.5 py-1 text-[8px] font-black tracking-[0.18em] backdrop-blur-md transition-all duration-300 hover:scale-110"
       style={{
         left: `${px}%`, top: `${py}%`, transform: 'translate(-50%,-50%)',
-        borderColor: isSelected ? 'rgba(147,197,253,0.5)' : 'rgba(255,255,255,0.1)',
-        background: isSelected ? 'rgba(59,130,246,0.2)' : 'rgba(0,0,0,0.4)',
-        color: isSelected ? '#93c5fd' : 'rgba(148,163,184,0.6)',
+        borderColor: isSelected ? 'rgba(147,197,253,0.65)' : 'rgba(180,200,255,0.18)',
+        background: isSelected
+          ? 'linear-gradient(135deg, rgba(59,130,246,0.28), rgba(99,102,241,0.18))'
+          : 'linear-gradient(135deg, rgba(10,18,40,0.75), rgba(4,8,22,0.85))',
+        color: isSelected ? '#bfdbfe' : 'rgba(180,200,240,0.75)',
         opacity: isDimmed ? 0.2 : 1,
-        boxShadow: isSelected ? '0 0 16px rgba(96,165,250,0.3)' : 'none',
+        boxShadow: isSelected
+          ? '0 0 20px rgba(96,165,250,0.45), inset 0 1px 0 rgba(255,255,255,0.1)'
+          : '0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)',
+        textShadow: '0 1px 3px rgba(0,0,0,0.6)',
         zIndex: 4,
       }}
       onClick={() => onSelect(id === selectedRoom ? null : id)}
