@@ -45,6 +45,15 @@ const MODE_ROOM_BRIGHTNESS = {
   },
 };
 
+// Color tone per lighting scene — pushed to every light over MQTT so the
+// physical RGB LEDs match the mood, not just the brightness.
+const MODE_COLOR = {
+  Cinematic: '#ff6b35', // deep warm amber, cinema mood
+  Dinner:    '#ffb347', // soft warm orange
+  Morning:   '#fff4cc', // bright warm white
+  Sleep:     '#cc4400', // deep ember red — easy on the eyes
+};
+
 const defaultPositions = [
   { x: 20, y: 22 },
   { x: 40, y: 28 },
@@ -439,9 +448,44 @@ router.put('/modes', protect, async (req, res) => {
 
     const filter = houseFilter(req.user);
 
-    // ── Bulk-update lights with scene brightness ──
+    // Helper: publish a light's current state to its MQTT topic so the ESP32
+    // physically updates (brightness + color + on/off).
+    const publishLight = (device) => {
+      try {
+        aedes.publish({
+          cmd: 'publish',
+          topic: `command/${device.topic}`,
+          payload: JSON.stringify({
+            state:      device.state,
+            brightness: device.brightness,
+            color:      device.color || '#ffc87a',
+            effect:     device.effect || 'none',
+          }),
+          qos: 1,
+          retain: true,
+        });
+      } catch (e) {
+        console.warn('[SCENE] publish failed for', device.topic, e.message);
+      }
+    };
+    const publishWindow = (device, open) => {
+      try {
+        aedes.publish({
+          cmd: 'publish',
+          topic: `command/${device.topic}`,
+          payload: JSON.stringify(open ? 'ON' : 'OFF'),
+          qos: 1,
+          retain: true,
+        });
+      } catch (e) {
+        console.warn('[SCENE] window publish failed for', device.topic, e.message);
+      }
+    };
+
+    // ── Bulk-update lights with scene brightness + color ──
     if (state.lightingMode && MODE_ROOM_BRIGHTNESS[state.lightingMode]) {
       const roomBrightness = MODE_ROOM_BRIGHTNESS[state.lightingMode];
+      const sceneColor     = MODE_COLOR[state.lightingMode];
       const lights = await Device.find({ ...filter, type: { $in: ['light', 'lamp'] } });
 
       if (lights.length > 0) {
@@ -457,12 +501,19 @@ router.put('/modes', protect, async (req, res) => {
                   $set: {
                     brightness,
                     state: brightness > 0 ? 'ON' : 'OFF',
+                    ...(sceneColor ? { color: sceneColor } : {}),
+                    effect: 'none', // scenes override per-light effects
                   },
                 },
               },
             };
           }),
         );
+
+        // Push the new state to each ESP32 LED so the lights actually change
+        const updated = await Device.find({ _id: { $in: lights.map((l) => l._id) } });
+        updated.forEach(publishLight);
+        console.log(`[SCENE] ${state.lightingMode}: pushed ${updated.length} light states over MQTT`);
       }
 
       // ── Open windows on Morning scene ──
@@ -471,28 +522,44 @@ router.put('/modes', protect, async (req, res) => {
           { ...filter, type: { $in: ['window', 'blind', 'blinds'] } },
           { $set: { state: 'ON', openPct: 100 } },
         );
+        const windows = await Device.find({ ...filter, type: { $in: ['window', 'blind', 'blinds'] } });
+        windows.forEach((w) => publishWindow(w, true));
       } else {
-        // Other scenes close windows
         await Device.updateMany(
           { ...filter, type: { $in: ['window', 'blind', 'blinds'] } },
           { $set: { state: 'OFF', openPct: 0 } },
         );
+        const windows = await Device.find({ ...filter, type: { $in: ['window', 'blind', 'blinds'] } });
+        windows.forEach((w) => publishWindow(w, false));
       }
     }
 
-    // ── Lockdown: close all windows + turn off lights ──
+    // ── Lockdown: close all windows + dim lights to red alert ──
     if (state.lockdownMode) {
       await Device.updateMany(
         { ...filter, type: { $in: ['window', 'blind', 'blinds'] } },
         { $set: { state: 'OFF', openPct: 0 } },
       );
+      await Device.updateMany(
+        { ...filter, type: { $in: ['light', 'lamp'] } },
+        { $set: { color: '#ff3030', brightness: 35, state: 'ON', effect: 'none' } },
+      );
+      const lockedDevices = await Device.find({ ...filter, type: { $in: ['light', 'lamp', 'window', 'blind', 'blinds'] } });
+      lockedDevices.forEach((d) => {
+        if (['light', 'lamp'].includes(d.type)) publishLight(d);
+        else publishWindow(d, false);
+      });
+      console.log(`[SCENE] Lockdown: pushed ${lockedDevices.length} device states`);
     }
 
     if (state.awayMode) {
       await Device.updateMany(
         { ...filter, type: { $in: ['light', 'lamp'] } },
-        { $set: { state: 'OFF', brightness: 0 } },
+        { $set: { state: 'OFF', brightness: 0, effect: 'none' } },
       );
+      const awayLights = await Device.find({ ...filter, type: { $in: ['light', 'lamp'] } });
+      awayLights.forEach(publishLight);
+      console.log(`[SCENE] Away: turned off ${awayLights.length} lights`);
       // Close gas valve when leaving home
       try { setGasValve(normalizedHouseCode, false); } catch (_) {}
     }

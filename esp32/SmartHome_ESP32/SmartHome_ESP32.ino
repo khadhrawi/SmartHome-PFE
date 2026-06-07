@@ -137,15 +137,14 @@
 //  🔧 SERVO ANGLES
 // ════════════════════════════════════════════════════════════════
 
-#define DOOR_OPEN_DEG    180
+#define DOOR_OPEN_DEG    120
 #define DOOR_CLOSED_DEG  0
-#define WIN_OPEN_DEG     180
+#define WIN_OPEN_DEG     120
 #define WIN_CLOSED_DEG   0
 
 // ════════════════════════════════════════════════════════════════
 //  📡 SENSOR INTERVALS
-// ════════════════════════════════════════════════════════════════
-
+// ══════════════════════════════════════════
 #define GAS_INTERVAL     3000   // ms
 #define DHT_INTERVAL     10000  // ms
 

@@ -18,7 +18,8 @@
 
 const { aedes }          = require('./broker');
 const HouseState         = require('./models/HouseState');
-const { emitGasEmergency } = require('./realtime/notifications');
+const Device             = require('./models/Device');
+const { emitGasEmergency, emitDeviceUpdated } = require('./realtime/notifications');
 
 const GAS_SENSOR_TOPIC_PREFIX = 'sensors/';
 const GAS_SENSOR_SUFFIX       = '/gas';
@@ -103,6 +104,28 @@ async function handleGasReading(houseCode, rawLevel) {
     if (nowEmergency && !wasEmergency) {
       triggerHardwareAlarm(houseCode, true);
       setGasValve(houseCode, false);
+      // ── Safety: open every window/blind for ventilation ──
+      try {
+        const windows = await Device.find({ houseCode, type: { $in: ['window', 'blind', 'blinds'] } });
+        for (const w of windows) {
+          w.state = 'ON';
+          w.openPct = 100;
+          await w.save();
+          aedes.publish({
+            cmd: 'publish',
+            topic: `command/${w.topic}`,
+            payload: JSON.stringify('ON'),
+            qos: 1,
+            retain: true,
+          });
+          try { emitDeviceUpdated(w.toObject()); } catch (_) {}
+        }
+        if (windows.length) {
+          console.log(`[GAS] 🪟 Opened ${windows.length} window(s) for ventilation`);
+        }
+      } catch (e) {
+        console.error('[GAS] auto-open windows failed:', e.message);
+      }
       console.warn(`[GAS] 🚨 EMERGENCY declared for ${houseCode} — level=${rawLevel} ppm`);
     } else if (!nowEmergency && wasEmergency) {
       triggerHardwareAlarm(houseCode, false);
